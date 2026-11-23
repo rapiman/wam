@@ -57,4 +57,14 @@ minifica ni se baja la sintaxis.
 
 ## Licencia
 
-Por definir. `dist/` incluye `@webaudiomodules/sdk` (MIT).
+Copyright (C) 2026 Juan Pablo Rapiman Risco
+
+Estos plugins son software libre: pueden redistribuirse y modificarse bajo los términos de la
+[GNU Affero General Public License](LICENSE) publicada por la Free Software Foundation,
+versión 3 o (a elección) cualquier versión posterior (`AGPL-3.0-or-later`).
+
+Se distribuyen con la esperanza de que sean útiles, pero SIN NINGUNA GARANTÍA. Quien
+ofrezca una versión modificada a usuarios a través de una red debe poner a su
+disposición el código fuente correspondiente (sección 13 de la licencia).
+
+Lo armado en `dist/` incluye `@webaudiomodules/sdk` (licencia MIT).

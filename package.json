@@ -2,6 +2,7 @@
   "name": "wam",
   "version": "0.1.0",
   "description": "Plugins de audio propios (Web Audio Modules 2.0)",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "type": "module",
   "scripts": {
