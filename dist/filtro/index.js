@@ -1629,7 +1629,7 @@ function procesadorDeNucleo(moduleId, nucleo, config) {
       const I = this._parameterInterpolators;
       const p = this._p;
       for (let k = 0; k < ids.length; k++) p[ids[k]] = I[ids[k]].values[desde];
-      this._dsp.procesar(eI, eD, sal[0], sal[1] || sal[0], desde, hasta, p);
+      this._dsp.procesar(eI, eD, sal[0], sal[1] || sal[0], desde, hasta, p, outputs);
       const copia = outputs[1] && outputs[1][0];
       if (copia) for (let i = desde; i < hasta; i++) copia[i] = 0.5 * (eI[i] + eD[i]);
     }
@@ -1639,7 +1639,7 @@ function procesadorDeNucleo(moduleId, nucleo, config) {
   } catch (e) {
   }
 }
-function hacerModulo({ descriptor, nucleo, config = null, caratula }) {
+function hacerModulo({ descriptor, nucleo, config = null, caratula, salidas = [2, 1], componer = null }) {
   const mandados = /* @__PURE__ */ new WeakMap();
   class Nodo extends WamNode {
     static addModules(contexto, moduleId) {
@@ -1657,8 +1657,8 @@ function hacerModulo({ descriptor, nucleo, config = null, caratula }) {
     constructor(modulo) {
       super(modulo, {
         numberOfInputs: 1,
-        numberOfOutputs: 2,
-        outputChannelCount: [2, 1],
+        numberOfOutputs: salidas.length,
+        outputChannelCount: salidas,
         channelCount: 2,
         channelCountMode: "explicit",
         channelInterpretation: "speakers"
@@ -1677,6 +1677,7 @@ function hacerModulo({ descriptor, nucleo, config = null, caratula }) {
       const nodo = new Nodo(this);
       await nodo._initialize();
       if (estado) await nodo.setState(estado);
+      if (componer) await componer(nodo);
       return nodo;
     }
     async createGui() {
@@ -1982,7 +1983,7 @@ function espectros(nodo) {
         g.stroke();
         g.lineWidth = 1;
       }
-      if (!hayEsta && !hayQueda) return;
+      if (!hayEsta && !hayQueda) return false;
       g.font = "11px system-ui, sans-serif";
       g.textBaseline = "alphabetic";
       g.textAlign = "right";
@@ -2003,6 +2004,7 @@ function espectros(nodo) {
         g.fillRect(a2 - 16, 6, 11, 9);
       }
       g.textAlign = "left";
+      return true;
     },
     // Si el anfitrión rearmó sus cables (desconectó todo y volvió a conectar), los analizadores
     // se vuelven a colgar; conectar dos veces lo mismo no hace nada.
@@ -2027,13 +2029,166 @@ function espectros(nodo) {
   };
 }
 
+// comun/niveles.js
+var COLUMNAS = 536;
+var MS = 8;
+function niveles(nodo) {
+  const ctx = nodo.context;
+  const fm = ctx.sampleRate;
+  const TRAMO = Math.max(32, Math.round(fm * MS / 1e3));
+  const analizador = () => new AnalyserNode(ctx, { fftSize: 2048, smoothingTimeConstant: 0 });
+  let parte = null;
+  let anI = null;
+  let anD = null;
+  let anE = null;
+  try {
+    parte = new ChannelSplitterNode(ctx, { numberOfOutputs: 2 });
+    anI = analizador();
+    anD = analizador();
+    nodo.connect(parte, 0);
+    parte.connect(anI, 0);
+    parte.connect(anD, 1);
+    if (nodo.numberOfOutputs > 1) {
+      anE = analizador();
+      nodo.connect(anE, 1);
+    }
+  } catch (e) {
+    parte = null;
+  }
+  const hE = new Float32Array(COLUMNAS);
+  const hI = new Float32Array(COLUMNAS);
+  const hD = new Float32Array(COLUMNAS);
+  let pos = 0;
+  const mI = new Float32Array(2048);
+  const mD = new Float32Array(2048);
+  const mE = new Float32Array(2048);
+  let antes = ctx.currentTime;
+  const muestrear = () => {
+    if (!parte) return;
+    const ahora = ctx.currentTime;
+    const nuevas = Math.min(2048, Math.round((ahora - antes) * fm));
+    if (nuevas < TRAMO) return;
+    antes = ahora;
+    anI.getFloatTimeDomainData(mI);
+    anD.getFloatTimeDomainData(mD);
+    if (anE) anE.getFloatTimeDomainData(mE);
+    for (let a = 2048 - nuevas; a + TRAMO <= 2048; a += TRAMO) {
+      let pI = 0;
+      let pD = 0;
+      let pE = 0;
+      for (let i = a; i < a + TRAMO; i++) {
+        const x = mI[i] < 0 ? -mI[i] : mI[i];
+        const y = mD[i] < 0 ? -mD[i] : mD[i];
+        const z = mE[i] < 0 ? -mE[i] : mE[i];
+        if (x > pI) pI = x;
+        if (y > pD) pD = y;
+        if (z > pE) pE = z;
+      }
+      hI[pos] = pI;
+      hD[pos] = pD;
+      hE[pos] = pE;
+      pos = (pos + 1) % COLUMNAS;
+    }
+  };
+  return {
+    // Dibuja la historia en un gráfico de W×H con los colores ya resueltos `C`. Devuelve si hay
+    // sonido (para que el efecto dibuje otra cosa mientras no lo hay).
+    dibujar(g, W, H, C) {
+      muestrear();
+      let tope = 0;
+      let distintas = false;
+      for (let i = 0; i < COLUMNAS; i++) {
+        if (hE[i] > tope) tope = hE[i];
+        if (hI[i] > tope) tope = hI[i];
+        if (hD[i] > tope) tope = hD[i];
+        if (Math.abs(hI[i] - hD[i]) > 0.02 * (hI[i] + hD[i] + 1e-6) + 1e-4) distintas = true;
+      }
+      if (tope < 1e-4) return false;
+      const X = (i) => i / (COLUMNAS - 1) * W;
+      const Y = (x2) => H - 6 - x2 / tope * (H - 26);
+      const camino = (h) => {
+        g.beginPath();
+        for (let i = 0; i < COLUMNAS; i++) {
+          const y = Y(h[(pos + i) % COLUMNAS]);
+          if (i === 0) g.moveTo(X(i), y);
+          else g.lineTo(X(i), y);
+        }
+      };
+      if (anE) {
+        camino(hE);
+        g.lineTo(W, H);
+        g.lineTo(0, H);
+        g.closePath();
+        g.fillStyle = C.traza;
+        g.globalAlpha = 0.6;
+        g.fill();
+        g.globalAlpha = 1;
+      }
+      if (distintas) {
+        camino(hD);
+        g.strokeStyle = C.acento;
+        g.lineWidth = 1.25;
+        g.stroke();
+      }
+      camino(hI);
+      g.strokeStyle = C.tinta;
+      g.lineWidth = 1.25;
+      g.stroke();
+      g.lineWidth = 1;
+      g.font = "11px system-ui, sans-serif";
+      g.textBaseline = "alphabetic";
+      g.textAlign = "left";
+      let x = 6;
+      const marca = (color, relleno, texto) => {
+        if (relleno) {
+          g.fillStyle = color;
+          g.fillRect(x, 6, 11, 9);
+        } else {
+          g.strokeStyle = color;
+          g.lineWidth = 1.25;
+          g.beginPath();
+          g.moveTo(x, 10.5);
+          g.lineTo(x + 13, 10.5);
+          g.stroke();
+          g.lineWidth = 1;
+        }
+        g.fillStyle = C.tinta2;
+        g.fillText(texto, x + 17, 14);
+        x += 17 + g.measureText(texto).width + 12;
+      };
+      if (anE) marca(C.traza, true, "c\xF3mo est\xE1");
+      marca(C.tinta, false, distintas ? "c\xF3mo queda (izquierda)" : "c\xF3mo queda");
+      if (distintas) marca(C.acento, false, "derecha");
+      return true;
+    },
+    recolgar() {
+      if (!parte) return;
+      try {
+        nodo.connect(parte, 0);
+        if (anE) nodo.connect(anE, 1);
+      } catch (e) {
+      }
+    },
+    soltar() {
+      if (!parte) return;
+      for (const d of [parte, anE]) {
+        if (!d) continue;
+        try {
+          nodo.disconnect(d);
+        } catch (e) {
+        }
+      }
+    }
+  };
+}
+
 // comun/caratulaSimple.js
 function textoDe(p, x) {
   if (p.unidad === "Hz") return x < 1e3 ? `${numero(x, x < 10 ? 2 : x < 100 ? 1 : 0)} Hz` : `${numero(x / 1e3, x < 1e4 ? 2 : 1)} kHz`;
   const dec = p.dec !== void 0 ? p.dec : (p.paso || 1) < 1 ? 1 : 0;
   return `${numero(x, dec)}${p.unidad ? ` ${p.unidad}` : ""}`;
 }
-async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true, conFrecuencias = true, alto = 150, dibujar: dibujar2 = null }) {
+async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true, conNiveles = false, conFrecuencias = true, alto = 150, dibujar: dibujar2 = null }) {
   const fm = nodo.context.sampleRate;
   const leidos = await nodo.getParameterValues(false);
   const V = {};
@@ -2075,7 +2230,7 @@ async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true, conFr
     fila.append(controles[p.id].el);
   }
   caja.append(cabecera, marco, fila);
-  const esp = conEspectros ? espectros(nodo) : null;
+  const esp = conNiveles ? niveles(nodo) : conEspectros ? espectros(nodo) : null;
   let C = coloresDe(caja);
   let cuadros = 0;
   const pintarGrafico = () => {
@@ -2100,8 +2255,8 @@ async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true, conFr
       g.fillStyle = C.tinta2;
       for (const [f, t] of [[100, "100"], [1e3, "1 k"], [1e4, "10 k"]]) g.fillText(t, X(f) + 3, H - 4);
     }
-    if (esp) esp.dibujar(g, W, H, C, FX);
-    if (dibujar2) dibujar2(g, { W, H, X, FX, V, C, fm });
+    const sonando = esp ? !!esp.dibujar(g, W, H, C, FX) : false;
+    if (dibujar2) dibujar2(g, { W, H, X, FX, V, C, fm, sonando });
     g.strokeStyle = C.borde;
     g.lineWidth = 1;
     g.strokeRect(0.5, 0.5, W - 1, H - 1);

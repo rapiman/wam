@@ -6,6 +6,8 @@
 //                defecto, unidad?, opciones?, y para la perilla: log?, paso?, dec? }
 //   crear(fm)    el efecto de una instancia: { procesar(eI, eD, sI, sD, desde, hasta, p) }, donde
 //                `p` trae el valor de cada parámetro por su id.
+// Un efecto que además necesita nodos del navegador (la reverb: su convolución) pide más salidas
+// (`salidas`) y los arma en `componer(nodo)`, que corre al crear cada instancia.
 // El molde pone lo demás: el procesador con esos parámetros WAM, el nodo y el módulo. Todos los
 // nodos tienen DOS salidas: la 0 es el sonido; la 1, la entrada sin tocar (mono), que la carátula
 // usa para dibujar «cómo está» junto a «cómo queda» y no hay que conectar a nada.
@@ -52,7 +54,8 @@ export function procesadorDeNucleo(moduleId, nucleo, config) {
       const I = this._parameterInterpolators;
       const p = this._p;
       for (let k = 0; k < ids.length; k++) p[ids[k]] = I[ids[k]].values[desde];
-      this._dsp.procesar(eI, eD, sal[0], sal[1] || sal[0], desde, hasta, p);
+      // (el último argumento, todas las salidas, es para el efecto que necesite más de una)
+      this._dsp.procesar(eI, eD, sal[0], sal[1] || sal[0], desde, hasta, p, outputs);
       const copia = outputs[1] && outputs[1][0];
       if (copia) for (let i = desde; i < hasta; i++) copia[i] = 0.5 * (eI[i] + eD[i]);
     }
@@ -65,8 +68,9 @@ export function procesadorDeNucleo(moduleId, nucleo, config) {
   }
 }
 
-// El módulo WAM de un núcleo: { descriptor, nucleo, config?, caratula(nodo) → elemento }.
-export function hacerModulo({ descriptor, nucleo, config = null, caratula }) {
+// El módulo WAM de un núcleo: { descriptor, nucleo, config?, caratula(nodo) → elemento,
+// salidas?: canales de cada salida (por defecto [2, 1]), componer?(nodo) }.
+export function hacerModulo({ descriptor, nucleo, config = null, caratula, salidas = [2, 1], componer = null }) {
   // Los módulos del hilo de audio se mandan una vez por contexto, no una por instancia.
   const mandados = new WeakMap();
 
@@ -87,8 +91,8 @@ export function hacerModulo({ descriptor, nucleo, config = null, caratula }) {
     constructor(modulo) {
       super(modulo, {
         numberOfInputs: 1,
-        numberOfOutputs: 2,
-        outputChannelCount: [2, 1],
+        numberOfOutputs: salidas.length,
+        outputChannelCount: salidas,
         channelCount: 2,
         channelCountMode: 'explicit',
         channelInterpretation: 'speakers',
@@ -109,6 +113,7 @@ export function hacerModulo({ descriptor, nucleo, config = null, caratula }) {
       const nodo = new Nodo(this);
       await nodo._initialize();
       if (estado) await nodo.setState(estado);
+      if (componer) await componer(nodo);
       return nodo;
     }
 

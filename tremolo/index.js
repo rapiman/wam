@@ -1,6 +1,8 @@
 // TRÉMOLO — plugin WAM 2.0 propio (2026-11-23). El sonido y los parámetros: `nucleo.js`; lo demás
-// lo pone el molde (`comun/molde.js`) y la carátula común, que acá dibuja la onda del volumen en
-// vez de los espectros (el trémolo no cambia el color del sonido: cambia cuánto suena).
+// lo pone el molde (`comun/molde.js`) y la carátula común. El trémolo no cambia el color del sonido
+// sino cuánto suena, así que en vez de los espectros muestra el volumen en el tiempo: cómo está
+// al entrar y cómo queda al salir (`comun/niveles.js`). Mientras no hay sonido, dibuja la onda
+// que le va a poner al volumen.
 import descriptor from './descriptor.json';
 import { hacerModulo } from '../comun/molde.js';
 import { caratulaSimple } from '../comun/caratulaSimple.js';
@@ -9,7 +11,8 @@ import { nucleoTremolo } from './nucleo.js';
 const N = nucleoTremolo();
 
 // Dos vueltas del volumen: la oreja izquierda (color de acento) y la derecha (gris).
-function dibujar(g, { W, H, V, C }) {
+function dibujar(g, { W, H, V, C, sonando }) {
+  if (sonando) return;
   const Y = (x) => H - 8 - x * (H - 16);
   const traza = (desfase, color, ancho) => {
     g.beginPath();
@@ -37,11 +40,11 @@ function dibujar(g, { W, H, V, C }) {
   g.textBaseline = 'alphabetic';
   g.textAlign = 'left';
   g.fillStyle = C.tinta2;
-  g.fillText(V.fase > 0.5 ? 'volumen de cada oreja' : 'volumen', 6, H - 4);
+  g.fillText(V.fase > 0.5 ? 'la onda del volumen de cada oreja (sin sonido todavía)' : 'la onda del volumen (sin sonido todavía)', 6, 14);
 }
 
 export default hacerModulo({
   descriptor,
   nucleo: nucleoTremolo,
-  caratula: (nodo) => caratulaSimple(nodo, { titulo: 'Trémolo', PARAMS: N.PARAMS, conEspectros: false, conFrecuencias: false, dibujar }),
+  caratula: (nodo) => caratulaSimple(nodo, { titulo: 'Trémolo', PARAMS: N.PARAMS, conNiveles: true, conFrecuencias: false, dibujar }),
 });

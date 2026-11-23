@@ -14,7 +14,8 @@ no dependen de ella: lo único que importan es `@webaudiomodules/sdk`.
 | `chorus` | Varias voces: el sonido sumado con una copia atrasada cuyo atraso sube y baja. | 0.1.0 |
 | `flanger` | Barrido metálico: un atraso corto con vaivén y realimentación. Mismo núcleo que el chorus, con otros rangos. | 0.1.0 |
 | `phaser` | Muescas que se pasean: 4, 6, 8 o 12 filtros «pasa todo» en cadena, con vaivén y realimentación. | 0.1.0 |
-| `tremolo` | El volumen sube y baja (seno, triángulo o cuadrada); con las orejas desfasadas, paneo automático. | 0.1.0 |
+| `tremolo` | El volumen sube y baja (seno, triángulo o cuadrada); con las orejas desfasadas, paneo automático. Muestra el volumen en el tiempo: cómo está y cómo queda. | 0.1.0 |
+| `reverberacion` | Reverb de espacios, por convolución: cuarto, sala, salón, iglesia, placa y túnel, con largo, atraso («antes»), brillo y mezcla. Los espacios de hoy son GENERADOS (se calculan, no son grabaciones). Es un nodo compuesto: usa el `ConvolverNode` del navegador. | 0.1.0 |
 
 ## Usarlos
 
@@ -79,6 +80,13 @@ Hay dos maneras de armar un plugin:
   y el trémolo. Todos sus nodos tienen dos salidas: la 0 es el sonido y la 1, la entrada sin tocar
   (para el espectro; no hay que conectarla a nada).
 - **A mano**, cuando la carátula es propia: el compresor y el ecualizador.
+
+Un efecto del molde que además necesita nodos del navegador pide más salidas y los arma en
+`componer(nodo)`: así está hecha la reverb (`reverberacion/index.js`), que para quien la conecta
+sigue siendo un nodo solo. Para los efectos que cambian cuánto suena y no el color (el trémolo),
+`comun/niveles.js` dibuja el volumen en el tiempo en vez de los espectros.
+
+`armar.sh <destino>` no pisa un plugin ajeno que se llame igual que uno de estos.
 
 - `comun/controles.js`: perilla, casilla de número, interruptor y lienzo, comunes a todas las carátulas.
 - `comun/hilo.js`: manda al hilo de audio una función que recibe otras funciones y datos.

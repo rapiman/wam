@@ -75,7 +75,7 @@ export function espectros(nodo) {
         g.stroke();
         g.lineWidth = 1;
       }
-      if (!hayEsta && !hayQueda) return;
+      if (!hayEsta && !hayQueda) return false;
       g.font = '11px system-ui, sans-serif';
       g.textBaseline = 'alphabetic';
       g.textAlign = 'right';
@@ -96,6 +96,7 @@ export function espectros(nodo) {
         g.fillRect(a2 - 16, 6, 11, 9);
       }
       g.textAlign = 'left';
+      return true;
     },
     // Si el anfitrión rearmó sus cables (desconectó todo y volvió a conectar), los analizadores
     // se vuelven a colgar; conectar dos veces lo mismo no hace nada.

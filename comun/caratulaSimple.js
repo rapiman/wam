@@ -6,6 +6,7 @@
 // Mismos controles y colores (`--pzw-*`) que el compresor y el ecualizador: `controles.js`.
 import { v, coloresDe, numero, el, lienzo, perilla, interruptor, elegidor } from './controles.js';
 import { espectros, ejeFrecuencias } from './espectros.js';
+import { niveles } from './niveles.js';
 
 // Cómo se escribe el valor de un parámetro.
 export function textoDe(p, x) {
@@ -14,9 +15,11 @@ export function textoDe(p, x) {
   return `${numero(x, dec)}${p.unidad ? ` ${p.unidad}` : ''}`;
 }
 
-// opciones: { titulo, PARAMS, conEspectros?: true, conFrecuencias?: true, alto?: 150,
-//             dibujar?(g, cosas) }   cosas = { W, H, X, FX, V, C, fm }
-export async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true, conFrecuencias = true, alto = 150, dibujar = null }) {
+// opciones: { titulo, PARAMS, conEspectros?: true, conNiveles?: false, conFrecuencias?: true,
+//             alto?: 150, dibujar?(g, cosas) }   cosas = { W, H, X, FX, V, C, fm, sonando }
+// `conNiveles` cambia los espectros por la historia del volumen (antes y después en el tiempo);
+// `sonando` le dice a `dibujar` si en ese gráfico hay sonido ahora.
+export async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true, conNiveles = false, conFrecuencias = true, alto = 150, dibujar = null }) {
   const fm = nodo.context.sampleRate;
   const leidos = await nodo.getParameterValues(false);
   const V = {};
@@ -65,7 +68,7 @@ export async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true
   }
   caja.append(cabecera, marco, fila);
 
-  const esp = conEspectros ? espectros(nodo) : null;
+  const esp = conNiveles ? niveles(nodo) : conEspectros ? espectros(nodo) : null;
   let C = coloresDe(caja);
   let cuadros = 0;
   const pintarGrafico = () => {
@@ -90,8 +93,8 @@ export async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true
       g.fillStyle = C.tinta2;
       for (const [f, t] of [[100, '100'], [1000, '1 k'], [10000, '10 k']]) g.fillText(t, X(f) + 3, H - 4);
     }
-    if (esp) esp.dibujar(g, W, H, C, FX);
-    if (dibujar) dibujar(g, { W, H, X, FX, V, C, fm });
+    const sonando = esp ? !!esp.dibujar(g, W, H, C, FX) : false;
+    if (dibujar) dibujar(g, { W, H, X, FX, V, C, fm, sonando });
     g.strokeStyle = C.borde;
     g.lineWidth = 1;
     g.strokeRect(0.5, 0.5, W - 1, H - 1);
