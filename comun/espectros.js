@@ -1,6 +1,8 @@
 // LOS DOS ESPECTROS DE UN PLUGIN: cómo está el sonido al entrar (relleno) y cómo queda al salir
 // (línea). Dos analizadores del navegador colgados del nodo: de su salida 0 (el sonido) y de su
 // salida 1 (la entrada sin tocar, que ponen los nodos del molde). Sin salida 1, solo «cómo queda».
+import { t } from './idiomas.js';
+
 const PISO = -100; // dB: el espectro se dibuja entre esto…
 const TECHO = -10; // …y esto
 const entre = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -80,8 +82,8 @@ export function espectros(nodo) {
       g.textBaseline = 'alphabetic';
       g.textAlign = 'right';
       g.fillStyle = C.tinta2;
-      g.fillText('cómo queda', W - 6, 14);
-      const a1 = W - 6 - g.measureText('cómo queda').width;
+      g.fillText(t('cómo queda'), W - 6, 14);
+      const a1 = W - 6 - g.measureText(t('cómo queda')).width;
       g.strokeStyle = C.tinta2;
       g.lineWidth = 1.25;
       g.beginPath();
@@ -90,8 +92,8 @@ export function espectros(nodo) {
       g.stroke();
       g.lineWidth = 1;
       if (esta) {
-        g.fillText('cómo está', a1 - 28, 14);
-        const a2 = a1 - 28 - g.measureText('cómo está').width;
+        g.fillText(t('cómo está'), a1 - 28, 14);
+        const a2 = a1 - 28 - g.measureText(t('cómo está')).width;
         g.fillStyle = C.traza;
         g.fillRect(a2 - 16, 6, 11, 9);
       }

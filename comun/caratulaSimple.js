@@ -7,6 +7,7 @@
 import { v, coloresDe, numero, el, lienzo, perilla, interruptor, elegidor } from './controles.js';
 import { espectros, ejeFrecuencias } from './espectros.js';
 import { niveles } from './niveles.js';
+import { t } from './idiomas.js';
 
 // Cómo se escribe el valor de un parámetro.
 export function textoDe(p, x) {
@@ -36,7 +37,7 @@ export async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true
       `font:12px/1.3 var(--pzw-letra,system-ui,sans-serif);`,
   );
   const cabecera = el('div', `display:flex;align-items:baseline;gap:8px;padding:6px 10px;border-bottom:1px solid ${v('borde')};`);
-  cabecera.append(el('span', 'font-weight:bold;font-size:13px;', titulo));
+  cabecera.append(el('span', 'font-weight:bold;font-size:13px;', t(titulo)));
 
   const grafico = lienzo(536, alto);
   const marco = el('div', 'padding:10px 10px 6px;');
@@ -53,16 +54,16 @@ export async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true
   const controles = {};
   for (const p of PARAMS) {
     if (p.tipo === 'choice') {
-      const c = elegidor({ nombre: p.nombre, opciones: p.opciones, alCambiar: (i) => mandar(p.id, i) });
+      const c = elegidor({ nombre: t(p.nombre), opciones: p.opciones.map((x) => t(x)), alCambiar: (i) => mandar(p.id, i) });
       c.poner(Math.round(V[p.id]));
       const celda = el('div', 'display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;grid-column:span 2;');
-      celda.append(el('div', `color:${v('tinta2')};font-size:11px;white-space:nowrap;`, p.nombre), c.el);
+      celda.append(el('div', `color:${v('tinta2')};font-size:11px;white-space:nowrap;`, t(p.nombre)), c.el);
       controles[p.id] = { ...c, el: celda, poner: (x) => c.poner(Math.round(x)) };
     } else if (p.tipo === 'boolean') {
-      const c = interruptor({ nombre: p.nombre, porDefecto: V[p.id] >= 0.5, alCambiar: (si) => mandar(p.id, si ? 1 : 0) });
+      const c = interruptor({ nombre: t(p.nombre), porDefecto: V[p.id] >= 0.5, alCambiar: (si) => mandar(p.id, si ? 1 : 0) });
       controles[p.id] = { ...c, poner: (x) => c.poner(x >= 0.5) };
     } else {
-      const c = perilla({ nombre: p.nombre, min: p.min, max: p.max, paso: p.paso || 1, log: !!p.log, porDefecto: p.defecto, formato: (x) => textoDe(p, x), alCambiar: (x) => mandar(p.id, x) });
+      const c = perilla({ nombre: t(p.nombre), min: p.min, max: p.max, paso: p.paso || 1, log: !!p.log, porDefecto: p.defecto, formato: (x) => textoDe(p, x), alCambiar: (x) => mandar(p.id, x) });
       c.poner(V[p.id]);
       controles[p.id] = c;
     }

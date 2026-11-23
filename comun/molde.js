@@ -13,6 +13,7 @@
 // usa para dibujar «cómo está» junto a «cómo queda» y no hay que conectar a nada.
 import { WebAudioModule, WamNode } from '@webaudiomodules/sdk';
 import { mandarConFunciones } from './hilo.js';
+import { traducirInfo } from './idiomas.js';
 
 // Lo que corre en el hilo de audio (se manda como texto: no usa nada de afuera).
 export function procesadorDeNucleo(moduleId, nucleo, config) {
@@ -75,6 +76,12 @@ export function hacerModulo({ descriptor, nucleo, config = null, caratula, salid
   const mandados = new WeakMap();
 
   class Nodo extends WamNode {
+    // Los nombres de los parámetros y sus opciones en el idioma de la página (el hilo de audio los
+    // declara en castellano: no sabe de idiomas). Ver `comun/idiomas.js`.
+    async getParameterInfo(...ids) {
+      return traducirInfo(await super.getParameterInfo(...ids));
+    }
+
     static addModules(contexto, moduleId) {
       let p = mandados.get(contexto);
       if (!p) {

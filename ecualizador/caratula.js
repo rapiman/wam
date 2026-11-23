@@ -9,6 +9,7 @@
 // dibuja con la misma cuenta que filtra en el hilo de audio (`nucleo.js`).
 import { v, coloresDe, numero, el, lienzo, perilla, interruptor, elegidor } from '../comun/controles.js';
 import { nucleoEq, BANDAS, FRECUENCIAS } from './nucleo.js';
+import { t } from '../comun/idiomas.js';
 
 const { TIPOS, PENDIENTES, conGanancia, esCorte, etapas, qEtapa, coefs, magnitud } = nucleoEq();
 const F_MIN = 20;
@@ -63,8 +64,8 @@ export async function crearCaratula(nodo) {
   // --- la cabecera
   const cabecera = el('div', `display:flex;align-items:baseline;gap:8px;padding:6px 10px;border-bottom:1px solid ${v('borde')};`);
   cabecera.append(
-    el('span', 'font-weight:bold;font-size:13px;', 'Ecualizador'),
-    el('span', `margin-left:auto;color:${v('tinta2')};font-size:11px;`, 'Doble clic: banda nueva o apagarla · arrastrar: mover · rueda: Q'),
+    el('span', 'font-weight:bold;font-size:13px;', t('Ecualizador')),
+    el('span', `margin-left:auto;color:${v('tinta2')};font-size:11px;`, t('Doble clic: banda nueva o apagarla · arrastrar: mover · rueda: Q')),
   );
 
   // --- el gráfico
@@ -93,7 +94,7 @@ export async function crearCaratula(nodo) {
       String(i + 1),
     );
     b.type = 'button';
-    b.setAttribute('aria-label', `Banda ${i + 1}`);
+    b.setAttribute('aria-label', `${t('Banda')} ${i + 1}`);
     b.addEventListener('click', () => {
       sel = i;
       pintarFranja();
@@ -101,17 +102,17 @@ export async function crearCaratula(nodo) {
     boton.push(b);
     botones.append(b);
   }
-  const encendida = interruptor({ nombre: 'Encendida', porDefecto: false, alCambiar: (si) => sel >= 0 && (ponerBanda(sel, { on: si }), pintarFranja()) });
-  const tipo = elegidor({ nombre: 'Tipo de banda', opciones: TIPOS, alCambiar: (t) => sel >= 0 && (ponerBanda(sel, { tipo: t }), pintarFranja()) });
-  const pend = elegidor({ nombre: 'Pendiente del corte', opciones: PENDIENTES, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { pend: x }) });
+  const encendida = interruptor({ nombre: t('Encendida'), porDefecto: false, alCambiar: (si) => sel >= 0 && (ponerBanda(sel, { on: si }), pintarFranja()) });
+  const tipo = elegidor({ nombre: t('Tipo de banda'), opciones: TIPOS.map((x) => t(x)), alCambiar: (t) => sel >= 0 && (ponerBanda(sel, { tipo: t }), pintarFranja()) });
+  const pend = elegidor({ nombre: t('Pendiente del corte'), opciones: PENDIENTES.map((x) => t(x)), alCambiar: (x) => sel >= 0 && ponerBanda(sel, { pend: x }) });
   franja.append(botones, encendida.el, tipo.el, pend.el);
 
   const fila = el('div', `display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px 10px 10px;`);
-  const pFrec = perilla({ nombre: 'Frecuencia', min: F_MIN, max: F_MAX, paso: 1, log: true, porDefecto: 1000, formato: hz, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { frec: x }) });
-  const pGan = perilla({ nombre: 'Ganancia', min: -RANGO, max: RANGO, paso: 0.1, porDefecto: 0, formato: dB, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { gan: x }) });
-  const pQ = perilla({ nombre: 'Q', min: 0.1, max: 18, paso: 0.01, log: true, porDefecto: 1, formato: (x) => numero(x, 2), alCambiar: (x) => sel >= 0 && ponerBanda(sel, { q: x }) });
+  const pFrec = perilla({ nombre: t('Frecuencia'), min: F_MIN, max: F_MAX, paso: 1, log: true, porDefecto: 1000, formato: hz, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { frec: x }) });
+  const pGan = perilla({ nombre: t('Ganancia'), min: -RANGO, max: RANGO, paso: 0.1, porDefecto: 0, formato: dB, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { gan: x }) });
+  const pQ = perilla({ nombre: t('Q'), min: 0.1, max: 18, paso: 0.01, log: true, porDefecto: 1, formato: (x) => numero(x, 2), alCambiar: (x) => sel >= 0 && ponerBanda(sel, { q: x }) });
   const pSalida = perilla({
-    nombre: 'Salida',
+    nombre: t('Salida'),
     min: -RANGO,
     max: RANGO,
     paso: 0.1,
@@ -342,8 +343,8 @@ export async function crearCaratula(nodo) {
     if (hayEsta || hayQueda) {
       g.textAlign = 'right';
       g.fillStyle = C.tinta2;
-      g.fillText('cómo queda', W - 6, 14);
-      const a1 = W - 6 - g.measureText('cómo queda').width;
+      g.fillText(t('cómo queda'), W - 6, 14);
+      const a1 = W - 6 - g.measureText(t('cómo queda')).width;
       g.strokeStyle = C.tinta2;
       g.lineWidth = 1.25;
       g.beginPath();
@@ -352,8 +353,8 @@ export async function crearCaratula(nodo) {
       g.stroke();
       g.lineWidth = 1;
       if (esta) {
-        g.fillText('cómo está', a1 - 28, 14);
-        const a2 = a1 - 28 - g.measureText('cómo está').width;
+        g.fillText(t('cómo está'), a1 - 28, 14);
+        const a2 = a1 - 28 - g.measureText(t('cómo está')).width;
         g.fillStyle = C.traza;
         g.fillRect(a2 - 16, 6, 11, 9);
       }

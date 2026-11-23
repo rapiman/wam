@@ -5,6 +5,7 @@
 //
 // Los controles y los colores (`--pzw-*`) son los comunes: `../comun/controles.js`.
 import { v, coloresDe, numero, el, lienzo, perilla, casilla, interruptor } from '../comun/controles.js';
+import { t } from '../comun/idiomas.js';
 
 const PISO = -60; // dB: lo más bajo que muestran la curva, la historia y los medidores
 const RED_MAX = 24; // dB de reducción que caben en la historia y en el medidor
@@ -12,13 +13,13 @@ const dBtxt = (x) => (x <= -120 ? '−∞' : numero(x, 1));
 const tiempo = (x) => `${numero(x, x < 1 ? 2 : x < 20 ? 1 : 0)} ms`;
 
 const PERILLAS = [
-  { id: 'umbral', nombre: 'Umbral', min: -60, max: 0, paso: 0.5, porDefecto: -18, formato: (x) => `${numero(x, 1)} dB` },
-  { id: 'razon', nombre: 'Razón', min: 1, max: 20, paso: 0.1, log: true, porDefecto: 4, formato: (x) => `${numero(x, 1)} : 1` },
-  { id: 'ataque', nombre: 'Ataque', min: 0.1, max: 250, paso: 1, log: true, porDefecto: 10, formato: tiempo },
-  { id: 'relajacion', nombre: 'Relajación', min: 10, max: 2000, paso: 1, log: true, porDefecto: 120, formato: tiempo },
-  { id: 'rodilla', nombre: 'Rodilla', min: 0, max: 24, paso: 0.5, porDefecto: 6, formato: (x) => `${numero(x, 1)} dB` },
-  { id: 'ganancia', nombre: 'Ganancia', min: -12, max: 24, paso: 0.5, porDefecto: 0, formato: (x) => `${x > 0 ? '+' : ''}${numero(x, 1)} dB` },
-  { id: 'mezcla', nombre: 'Mezcla', min: 0, max: 100, paso: 1, porDefecto: 100, formato: (x) => `${numero(x, 0)} %` },
+  { id: 'umbral', nombre: t('Umbral'), min: -60, max: 0, paso: 0.5, porDefecto: -18, formato: (x) => `${numero(x, 1)} dB` },
+  { id: 'razon', nombre: t('Razón'), min: 1, max: 20, paso: 0.1, log: true, porDefecto: 4, formato: (x) => `${numero(x, 1)} : 1` },
+  { id: 'ataque', nombre: t('Ataque'), min: 0.1, max: 250, paso: 1, log: true, porDefecto: 10, formato: tiempo },
+  { id: 'relajacion', nombre: t('Relajación'), min: 10, max: 2000, paso: 1, log: true, porDefecto: 120, formato: tiempo },
+  { id: 'rodilla', nombre: t('Rodilla'), min: 0, max: 24, paso: 0.5, porDefecto: 6, formato: (x) => `${numero(x, 1)} dB` },
+  { id: 'ganancia', nombre: t('Ganancia'), min: -12, max: 24, paso: 0.5, porDefecto: 0, formato: (x) => `${x > 0 ? '+' : ''}${numero(x, 1)} dB` },
+  { id: 'mezcla', nombre: t('Mezcla'), min: 0, max: 100, paso: 1, porDefecto: 100, formato: (x) => `${numero(x, 0)} %` },
 ];
 
 // Cuánto reduce el compresor (dB, positivo) a un nivel de entrada: la misma cuenta del
@@ -52,7 +53,7 @@ export async function crearCaratula(nodo) {
 
   // --- la cabecera: encendido del compresor y la reducción en números
   const cabecera = el('div', `display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid ${v('borde')};`);
-  controles.comp = interruptor({ nombre: 'Compresor', porDefecto: P.comp >= 0.5, alCambiar: (si) => mandar('comp', si ? 1 : 0) });
+  controles.comp = interruptor({ nombre: t('Compresor'), porDefecto: P.comp >= 0.5, alCambiar: (si) => mandar('comp', si ? 1 : 0) });
   const txtRed = el('span', `margin-left:auto;color:${v('tinta2')};font-variant-numeric:tabular-nums;`);
   cabecera.append(controles.comp.el, txtRed);
 
@@ -75,9 +76,9 @@ export async function crearCaratula(nodo) {
 
   // --- la franja del limitador
   const franja = el('div', `display:flex;align-items:center;gap:12px;padding:7px 10px;border-top:1px solid ${v('borde')};`);
-  controles.lim = interruptor({ nombre: 'Limitador', porDefecto: P.lim >= 0.5, alCambiar: (si) => mandar('lim', si ? 1 : 0) });
+  controles.lim = interruptor({ nombre: t('Limitador'), porDefecto: P.lim >= 0.5, alCambiar: (si) => mandar('lim', si ? 1 : 0) });
   controles.techo = casilla({
-    nombre: 'Techo',
+    nombre: t('Techo'),
     min: -12,
     max: 0,
     paso: 0.1,
@@ -88,7 +89,7 @@ export async function crearCaratula(nodo) {
   controles.techo.poner(P.techo);
   const barraLim = lienzo(210, 10);
   const txtLim = el('span', `min-width:56px;text-align:right;color:${v('tinta2')};font-variant-numeric:tabular-nums;`);
-  franja.append(controles.lim.el, el('span', `color:${v('tinta2')};`, 'Techo'), controles.techo.el, barraLim.c, txtLim);
+  franja.append(controles.lim.el, el('span', `color:${v('tinta2')};`, t('Techo')), controles.techo.el, barraLim.c, txtLim);
 
   caja.append(cabecera, pantalla, fila, franja);
 
@@ -234,8 +235,8 @@ export async function crearCaratula(nodo) {
     g.fillStyle = C.traza;
     g.fillRect(6, H - 15, 11, 9);
     g.fillStyle = C.tinta2;
-    g.fillText('cómo está', 21, H - 6);
-    const x2 = 21 + g.measureText('cómo está').width + 12;
+    g.fillText(t('cómo está'), 21, H - 6);
+    const x2 = 21 + g.measureText(t('cómo está')).width + 12;
     g.strokeStyle = C.tinta;
     g.lineWidth = 1.25;
     g.beginPath();
@@ -243,10 +244,10 @@ export async function crearCaratula(nodo) {
     g.lineTo(x2 + 13, H - 10.5);
     g.stroke();
     g.lineWidth = 1;
-    g.fillText('cómo queda', x2 + 17, H - 6);
+    g.fillText(t('cómo queda'), x2 + 17, H - 6);
     g.fillStyle = C.reduccion;
     g.textAlign = 'right';
-    g.fillText('reducción', W - 6, H - 6);
+    g.fillText(t('reducción'), W - 6, H - 6);
     g.textAlign = 'left';
   };
 
@@ -318,7 +319,7 @@ export async function crearCaratula(nodo) {
     mL = Math.min(P.lim >= 0.5 ? m.l : 0, mL * 0.93);
     if (mR > -0.05) mR = 0;
     if (mL > -0.05) mL = 0;
-    txtRed.textContent = `Reducción ${dBtxt(mR)} dB`;
+    txtRed.textContent = `${t('Reducción')} ${dBtxt(mR)} dB`;
     txtLim.textContent = `${dBtxt(mL)} dB`;
     dibujarCurva();
     dibujarHistoria();

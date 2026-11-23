@@ -1651,8 +1651,8 @@ function dspCompresor(moduleId) {
           let obj;
           if (2 * sobre <= -W) obj = 0;
           else if (2 * sobre < W) {
-            const t = sobre + W / 2;
-            obj = pend * t * t / (2 * W);
+            const t2 = sobre + W / 2;
+            obj = pend * t2 * t2 / (2 * W);
           } else obj = pend * sobre;
           const baja = cR * sosten + (1 - cR) * obj;
           sosten = obj > baja ? obj : baja;
@@ -1812,7 +1812,7 @@ function leerColor(texto) {
   const a = m[4] === void 0 ? 1 : m[4].endsWith("%") ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
   return [Number(m[1]), Number(m[2]), Number(m[3]), a];
 }
-var mezclar = (a, b, t) => `rgb(${[0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t)).join(",")})`;
+var mezclar = (a, b, t2) => `rgb(${[0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t2)).join(",")})`;
 var brillo = (c) => {
   const f = (x) => {
     const u = x / 255;
@@ -1899,7 +1899,7 @@ function arrastrable(e, { leer, escribir, porDefecto, alAgarrar }) {
   let y0 = 0;
   let t0 = 0;
   let agarrado = false;
-  const fijar = (t) => escribir(Math.min(1, Math.max(0, t)));
+  const fijar = (t2) => escribir(Math.min(1, Math.max(0, t2)));
   e.addEventListener("pointerdown", (ev) => {
     if (ev.button !== 0) return;
     agarrado = true;
@@ -1943,8 +1943,8 @@ function arrastrable(e, { leer, escribir, porDefecto, alAgarrar }) {
 }
 function escala({ min, max, paso, log }) {
   const aT = (x) => log ? Math.log(x / min) / Math.log(max / min) : (x - min) / (max - min);
-  const deT = (t) => {
-    const x = log ? min * (max / min) ** t : min + t * (max - min);
+  const deT = (t2) => {
+    const x = log ? min * (max / min) ** t2 : min + t2 * (max - min);
     const p = log ? Math.min(paso, 10 ** Math.floor(Math.log10(Math.max(x, min) / 20))) || paso : paso;
     return Math.min(max, Math.max(min, Math.round(x / p) * p));
   };
@@ -1976,10 +1976,10 @@ function perilla(o) {
     const a = grados * Math.PI / 180;
     return [20 + R * Math.cos(a), 20 + R * Math.sin(a)];
   };
-  const arco = (t) => {
+  const arco = (t2) => {
     const [x0, y0] = punto(135);
-    const [x1, y1] = punto(135 + 270 * t);
-    return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${R} ${R} 0 ${270 * t > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+    const [x1, y1] = punto(135 + 270 * t2);
+    return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${R} ${R} 0 ${270 * t2 > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
   };
   trazo(`stroke:${v("traza")}`).setAttribute("d", arco(1));
   const lleno = trazo(`stroke:${v("acento")}`);
@@ -1991,9 +1991,9 @@ function perilla(o) {
   svg.append(aguja);
   const texto = el("div", "font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums;");
   const pintar = () => {
-    const t = Math.min(1, Math.max(0, aT(valor)));
-    lleno.setAttribute("d", t > 1e-3 ? arco(t) : "");
-    const [x, y] = punto(135 + 270 * t);
+    const t2 = Math.min(1, Math.max(0, aT(valor)));
+    lleno.setAttribute("d", t2 > 1e-3 ? arco(t2) : "");
+    const [x, y] = punto(135 + 270 * t2);
     aguja.setAttribute("x2", x.toFixed(2));
     aguja.setAttribute("y2", y.toFixed(2));
     texto.textContent = o.formato(valor);
@@ -2001,8 +2001,8 @@ function perilla(o) {
   };
   arrastrable(svg, {
     leer: () => aT(valor),
-    escribir: (t) => {
-      const nuevo = deT(t);
+    escribir: (t2) => {
+      const nuevo = deT(t2);
       if (nuevo === valor) return;
       valor = nuevo;
       pintar();
@@ -2041,8 +2041,8 @@ function casilla(o) {
   };
   arrastrable(caja, {
     leer: () => aT(valor),
-    escribir: (t) => {
-      const nuevo = deT(t);
+    escribir: (t2) => {
+      const nuevo = deT(t2);
       if (nuevo === valor) return;
       valor = nuevo;
       pintar();
@@ -2094,19 +2094,156 @@ function interruptor(o) {
   };
 }
 
+// comun/idiomas.js
+var IDIOMAS = ["EN", "PT", "FR", "EU", "RU", "JA", "KO", "ZH", "TH"];
+var TEXTOS = {
+  // --- los plugins
+  Filtro: ["Filter", "Filtro", "Filtre", "Iragazkia", "\u0424\u0438\u043B\u044C\u0442\u0440", "\u30D5\u30A3\u30EB\u30BF\u30FC", "\uD544\uD130", "\u6EE4\u6CE2\u5668", "\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  Chorus: ["Chorus", "Chorus", "Chorus", "Chorus", "\u0425\u043E\u0440\u0443\u0441", "\u30B3\u30FC\u30E9\u30B9", "\uCF54\uB7EC\uC2A4", "\u5408\u5531", "\u0E04\u0E2D\u0E23\u0E31\u0E2A"],
+  Flanger: ["Flanger", "Flanger", "Flanger", "Flanger", "\u0424\u043B\u044D\u043D\u0434\u0436\u0435\u0440", "\u30D5\u30E9\u30F3\u30B8\u30E3\u30FC", "\uD50C\uB79C\uC800", "\u9576\u8FB9", "\u0E41\u0E1F\u0E25\u0E19\u0E40\u0E08\u0E2D\u0E23\u0E4C"],
+  Phaser: ["Phaser", "Phaser", "Phaser", "Phaser", "\u0424\u044D\u0439\u0437\u0435\u0440", "\u30D5\u30A7\u30A4\u30B6\u30FC", "\uD398\uC774\uC800", "\u79FB\u76F8", "\u0E40\u0E1F\u0E2A\u0E40\u0E0B\u0E2D\u0E23\u0E4C"],
+  Tr\u00E9molo: ["Tremolo", "Tr\xEAmolo", "Tr\xE9molo", "Tremoloa", "\u0422\u0440\u0435\u043C\u043E\u043B\u043E", "\u30C8\u30EC\u30E2\u30ED", "\uD2B8\uB808\uBAB0\uB85C", "\u98A4\u97F3", "\u0E40\u0E17\u0E23\u0E42\u0E21\u0E42\u0E25"],
+  Ecualizador: ["Equalizer", "Equalizador", "\xC9galiseur", "Ekualizadorea", "\u042D\u043A\u0432\u0430\u043B\u0430\u0439\u0437\u0435\u0440", "\u30A4\u30B3\u30E9\u30A4\u30B6\u30FC", "\uC774\uD004\uB77C\uC774\uC800", "\u5747\u8861\u5668", "\u0E2D\u0E35\u0E04\u0E27\u0E2D\u0E44\u0E25\u0E40\u0E0B\u0E2D\u0E23\u0E4C"],
+  Compresor: ["Compressor", "Compressor", "Compresseur", "Konpresorea", "\u041A\u043E\u043C\u043F\u0440\u0435\u0441\u0441\u043E\u0440", "\u30B3\u30F3\u30D7\u30EC\u30C3\u30B5\u30FC", "\uCEF4\uD504\uB808\uC11C", "\u538B\u7F29\u5668", "\u0E04\u0E2D\u0E21\u0E40\u0E1E\u0E23\u0E2A\u0E40\u0E0B\u0E2D\u0E23\u0E4C"],
+  Limitador: ["Limiter", "Limitador", "Limiteur", "Mugatzailea", "\u041B\u0438\u043C\u0438\u0442\u0435\u0440", "\u30EA\u30DF\u30C3\u30BF\u30FC", "\uB9AC\uBBF8\uD130", "\u9650\u5236\u5668", "\u0E25\u0E34\u0E21\u0E34\u0E15\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  // --- los parámetros
+  Tipo: ["Type", "Tipo", "Type", "Mota", "\u0422\u0438\u043F", "\u30BF\u30A4\u30D7", "\uC720\uD615", "\u7C7B\u578B", "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17"],
+  Frecuencia: ["Frequency", "Frequ\xEAncia", "Fr\xE9quence", "Maiztasuna", "\u0427\u0430\u0441\u0442\u043E\u0442\u0430", "\u5468\u6CE2\u6570", "\uC8FC\uD30C\uC218", "\u9891\u7387", "\u0E04\u0E27\u0E32\u0E21\u0E16\u0E35\u0E48"],
+  Resonancia: ["Resonance", "Resson\xE2ncia", "R\xE9sonance", "Erresonantzia", "\u0420\u0435\u0437\u043E\u043D\u0430\u043D\u0441", "\u30EC\u30BE\u30CA\u30F3\u30B9", "\uB808\uC870\uB10C\uC2A4", "\u5171\u632F", "\u0E40\u0E23\u0E42\u0E0B\u0E41\u0E19\u0E19\u0E0B\u0E4C"],
+  Pendiente: ["Slope", "Inclina\xE7\xE3o", "Pente", "Malda", "\u041A\u0440\u0443\u0442\u0438\u0437\u043D\u0430", "\u30B9\u30ED\u30FC\u30D7", "\uAE30\uC6B8\uAE30", "\u659C\u7387", "\u0E04\u0E27\u0E32\u0E21\u0E0A\u0E31\u0E19"],
+  Velocidad: ["Rate", "Velocidade", "Vitesse", "Abiadura", "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C", "\u901F\u3055", "\uC18D\uB3C4", "\u901F\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E23\u0E47\u0E27"],
+  Vaiv\u00E9n: ["Sweep", "Oscila\xE7\xE3o", "Balayage", "Kulunka", "\u041A\u0430\u0447\u0430\u043D\u0438\u0435", "\u63FA\u308C\u5E45", "\uD754\uB4E4\uB9BC", "\u6446\u52A8", "\u0E01\u0E32\u0E23\u0E41\u0E01\u0E27\u0E48\u0E07"],
+  Mezcla: ["Mix", "Mistura", "M\xE9lange", "Nahasketa", "\u0421\u043C\u0435\u0441\u044C", "\u30DF\u30C3\u30AF\u30B9", "\uBBF9\uC2A4", "\u6DF7\u5408", "\u0E21\u0E34\u0E01\u0E0B\u0E4C"],
+  Retardo: ["Delay", "Atraso", "Retard", "Atzerapena", "\u0417\u0430\u0434\u0435\u0440\u0436\u043A\u0430", "\u30C7\u30A3\u30EC\u30A4", "\uB51C\uB808\uC774", "\u5EF6\u8FDF", "\u0E14\u0E35\u0E40\u0E25\u0E22\u0E4C"],
+  Realimentaci\u00F3n: ["Feedback", "Realimenta\xE7\xE3o", "R\xE9injection", "Atzeraelikadura", "\u041E\u0431\u0440\u0430\u0442\u043D\u0430\u044F \u0441\u0432\u044F\u0437\u044C", "\u30D5\u30A3\u30FC\u30C9\u30D0\u30C3\u30AF", "\uD53C\uB4DC\uBC31", "\u53CD\u9988", "\u0E1F\u0E35\u0E14\u0E41\u0E1A\u0E47\u0E01"],
+  Ancho: ["Width", "Largura", "Largeur", "Zabalera", "\u0428\u0438\u0440\u0438\u043D\u0430", "\u5E45", "\uD3ED", "\u5BBD\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E01\u0E27\u0E49\u0E32\u0E07"],
+  Centro: ["Center", "Centro", "Centre", "Erdigunea", "\u0426\u0435\u043D\u0442\u0440", "\u4E2D\u5FC3", "\uC911\uC2EC", "\u4E2D\u5FC3", "\u0E08\u0E38\u0E14\u0E01\u0E25\u0E32\u0E07"],
+  Etapas: ["Stages", "Est\xE1gios", "\xC9tages", "Etapak", "\u0421\u0442\u0443\u043F\u0435\u043D\u0438", "\u6BB5\u6570", "\uB2E8\uACC4", "\u7EA7\u6570", "\u0E08\u0E33\u0E19\u0E27\u0E19\u0E02\u0E31\u0E49\u0E19"],
+  Profundidad: ["Depth", "Profundidade", "Profondeur", "Sakonera", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430", "\u6DF1\u3055", "\uAE4A\uC774", "\u6DF1\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E25\u0E36\u0E01"],
+  Forma: ["Shape", "Forma", "Forme", "Forma", "\u0424\u043E\u0440\u043C\u0430", "\u6CE2\u5F62", "\uD30C\uD615", "\u6CE2\u5F62", "\u0E23\u0E39\u0E1B\u0E04\u0E25\u0E37\u0E48\u0E19"],
+  "Entre orejas": ["Between ears", "Entre ouvidos", "Entre les oreilles", "Belarrien artean", "\u041C\u0435\u0436\u0434\u0443 \u0443\u0448\u0430\u043C\u0438", "\u5DE6\u53F3\u306E\u4F4D\u76F8", "\uC88C\uC6B0 \uC704\uC0C1", "\u5DE6\u53F3\u76F8\u4F4D", "\u0E23\u0E30\u0E2B\u0E27\u0E48\u0E32\u0E07\u0E2B\u0E39\u0E0B\u0E49\u0E32\u0E22\u0E02\u0E27\u0E32"],
+  Umbral: ["Threshold", "Limiar", "Seuil", "Atalasea", "\u041F\u043E\u0440\u043E\u0433", "\u30B9\u30EC\u30C3\u30B7\u30E7\u30EB\u30C9", "\uC2A4\uB808\uC204\uB4DC", "\u9608\u503C", "\u0E40\u0E17\u0E23\u0E0A\u0E42\u0E2E\u0E25\u0E14\u0E4C"],
+  Raz\u00F3n: ["Ratio", "Raz\xE3o", "Ratio", "Erlazioa", "\u0421\u043E\u043E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u0435", "\u30EC\u30B7\u30AA", "\uBE44\uC728", "\u6BD4\u7387", "\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E2A\u0E48\u0E27\u0E19"],
+  Ataque: ["Attack", "Ataque", "Attaque", "Erasoa", "\u0410\u0442\u0430\u043A\u0430", "\u30A2\u30BF\u30C3\u30AF", "\uC5B4\uD0DD", "\u542F\u52A8", "\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04"],
+  Relajaci\u00F3n: ["Release", "Libera\xE7\xE3o", "Rel\xE2chement", "Askatzea", "\u0412\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435", "\u30EA\u30EA\u30FC\u30B9", "\uB9B4\uB9AC\uC2A4", "\u91CA\u653E", "\u0E23\u0E35\u0E25\u0E35\u0E2A"],
+  Rodilla: ["Knee", "Joelho", "Genou", "Belauna", "\u041A\u043E\u043B\u0435\u043D\u043E", "\u30CB\u30FC", "\uB2C8", "\u62D0\u70B9", "\u0E19\u0E35"],
+  Ganancia: ["Gain", "Ganho", "Gain", "Irabazia", "\u0423\u0441\u0438\u043B\u0435\u043D\u0438\u0435", "\u30B2\u30A4\u30F3", "\uAC8C\uC778", "\u589E\u76CA", "\u0E40\u0E01\u0E19"],
+  Techo: ["Ceiling", "Teto", "Plafond", "Sabaia", "\u041F\u043E\u0442\u043E\u043B\u043E\u043A", "\u30B7\u30FC\u30EA\u30F3\u30B0", "\uC2E4\uB9C1", "\u4E0A\u9650", "\u0E40\u0E1E\u0E14\u0E32\u0E19"],
+  Salida: ["Output", "Sa\xEDda", "Sortie", "Irteera", "\u0412\u044B\u0445\u043E\u0434", "\u51FA\u529B", "\uCD9C\uB825", "\u8F93\u51FA", "\u0E40\u0E2D\u0E32\u0E15\u0E4C\u0E1E\u0E38\u0E15"],
+  Encendida: ["On", "Ligada", "Activ\xE9e", "Piztuta", "\u0412\u043A\u043B\u044E\u0447\u0435\u043D\u0430", "\u30AA\u30F3", "\uCF1C\uC9D0", "\u5F00\u542F", "\u0E40\u0E1B\u0E34\u0E14"],
+  "Tipo de banda": ["Band type", "Tipo de banda", "Type de bande", "Banda mota", "\u0422\u0438\u043F \u043F\u043E\u043B\u043E\u0441\u044B", "\u30D0\u30F3\u30C9\u306E\u7A2E\u985E", "\uBC34\uB4DC \uC720\uD615", "\u9891\u6BB5\u7C7B\u578B", "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17\u0E41\u0E1A\u0E19\u0E14\u0E4C"],
+  "Pendiente del corte": ["Cut slope", "Inclina\xE7\xE3o do corte", "Pente de coupure", "Ebakiaren malda", "\u041A\u0440\u0443\u0442\u0438\u0437\u043D\u0430 \u0441\u0440\u0435\u0437\u0430", "\u30AB\u30C3\u30C8\u306E\u30B9\u30ED\u30FC\u30D7", "\uCEF7 \uAE30\uC6B8\uAE30", "\u5207\u9664\u659C\u7387", "\u0E04\u0E27\u0E32\u0E21\u0E0A\u0E31\u0E19\u0E02\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E15\u0E31\u0E14"],
+  Banda: ["Band", "Banda", "Bande", "Banda", "\u041F\u043E\u043B\u043E\u0441\u0430", "\u30D0\u30F3\u30C9", "\uBC34\uB4DC", "\u9891\u6BB5", "\u0E41\u0E1A\u0E19\u0E14\u0E4C"],
+  tipo: ["type", "tipo", "type", "mota", "\u0442\u0438\u043F", "\u7A2E\u985E", "\uC720\uD615", "\u7C7B\u578B", "\u0E1B\u0E23\u0E30\u0E40\u0E20\u0E17"],
+  frecuencia: ["frequency", "frequ\xEAncia", "fr\xE9quence", "maiztasuna", "\u0447\u0430\u0441\u0442\u043E\u0442\u0430", "\u5468\u6CE2\u6570", "\uC8FC\uD30C\uC218", "\u9891\u7387", "\u0E04\u0E27\u0E32\u0E21\u0E16\u0E35\u0E48"],
+  ganancia: ["gain", "ganho", "gain", "irabazia", "\u0443\u0441\u0438\u043B\u0435\u043D\u0438\u0435", "\u30B2\u30A4\u30F3", "\uAC8C\uC778", "\u589E\u76CA", "\u0E40\u0E01\u0E19"],
+  "pendiente del corte": ["cut slope", "inclina\xE7\xE3o do corte", "pente de coupure", "ebakiaren malda", "\u043A\u0440\u0443\u0442\u0438\u0437\u043D\u0430 \u0441\u0440\u0435\u0437\u0430", "\u30AB\u30C3\u30C8\u306E\u30B9\u30ED\u30FC\u30D7", "\uCEF7 \uAE30\uC6B8\uAE30", "\u5207\u9664\u659C\u7387", "\u0E04\u0E27\u0E32\u0E21\u0E0A\u0E31\u0E19\u0E02\u0E2D\u0E07\u0E01\u0E32\u0E23\u0E15\u0E31\u0E14"],
+  // --- las opciones
+  "Pasa bajos": ["Low pass", "Passa-baixas", "Passe-bas", "Behe-pasakoa", "\u041D\u0438\u0436\u043D\u0438\u0445 \u0447\u0430\u0441\u0442\u043E\u0442", "\u30ED\u30FC\u30D1\u30B9", "\uB85C\uC6B0\uD328\uC2A4", "\u4F4E\u901A", "\u0E42\u0E25\u0E27\u0E4C\u0E1E\u0E32\u0E2A"],
+  "Pasa altos": ["High pass", "Passa-altas", "Passe-haut", "Goi-pasakoa", "\u0412\u0435\u0440\u0445\u043D\u0438\u0445 \u0447\u0430\u0441\u0442\u043E\u0442", "\u30CF\u30A4\u30D1\u30B9", "\uD558\uC774\uD328\uC2A4", "\u9AD8\u901A", "\u0E44\u0E2E\u0E1E\u0E32\u0E2A"],
+  "Pasa banda": ["Band pass", "Passa-banda", "Passe-bande", "Banda-pasakoa", "\u041F\u043E\u043B\u043E\u0441\u043E\u0432\u043E\u0439", "\u30D0\u30F3\u30C9\u30D1\u30B9", "\uBC34\uB4DC\uD328\uC2A4", "\u5E26\u901A", "\u0E41\u0E1A\u0E19\u0E14\u0E4C\u0E1E\u0E32\u0E2A"],
+  Muesca: ["Notch", "Rejeita-banda", "Coupe-bande", "Koska", "\u0420\u0435\u0436\u0435\u043A\u0442\u043E\u0440\u043D\u044B\u0439", "\u30CE\u30C3\u30C1", "\uB178\uCE58", "\u9677\u6CE2", "\u0E19\u0E47\u0E2D\u0E15\u0E0A\u0E4C"],
+  Campana: ["Bell", "Sino", "Cloche", "Kanpaia", "\u041A\u043E\u043B\u043E\u043A\u043E\u043B", "\u30D9\u30EB", "\uBCA8", "\u949F\u5F62", "\u0E23\u0E30\u0E06\u0E31\u0E07"],
+  "Repisa baja": ["Low shelf", "Prateleira baixa", "Plateau grave", "Apal baxua", "\u041F\u043E\u043B\u043A\u0430 \u041D\u0427", "\u30ED\u30FC\u30B7\u30A7\u30EB\u30D5", "\uB85C\uC6B0 \uC178\uD504", "\u4F4E\u67B6", "\u0E42\u0E25\u0E27\u0E4C\u0E40\u0E0A\u0E25\u0E1F\u0E4C"],
+  "Repisa alta": ["High shelf", "Prateleira alta", "Plateau aigu", "Apal altua", "\u041F\u043E\u043B\u043A\u0430 \u0412\u0427", "\u30CF\u30A4\u30B7\u30A7\u30EB\u30D5", "\uD558\uC774 \uC178\uD504", "\u9AD8\u67B6", "\u0E44\u0E2E\u0E40\u0E0A\u0E25\u0E1F\u0E4C"],
+  "Corte bajo": ["Low cut", "Corte baixo", "Coupe-bas", "Behe-ebakia", "\u0421\u0440\u0435\u0437 \u041D\u0427", "\u30ED\u30FC\u30AB\u30C3\u30C8", "\uB85C\uC6B0 \uCEF7", "\u4F4E\u5207", "\u0E42\u0E25\u0E27\u0E4C\u0E04\u0E31\u0E15"],
+  "Corte alto": ["High cut", "Corte alto", "Coupe-haut", "Goi-ebakia", "\u0421\u0440\u0435\u0437 \u0412\u0427", "\u30CF\u30A4\u30AB\u30C3\u30C8", "\uD558\uC774 \uCEF7", "\u9AD8\u5207", "\u0E44\u0E2E\u0E04\u0E31\u0E15"],
+  Seno: ["Sine", "Senoide", "Sinus", "Sinua", "\u0421\u0438\u043D\u0443\u0441", "\u30B5\u30A4\u30F3", "\uC0AC\uC778", "\u6B63\u5F26", "\u0E44\u0E0B\u0E19\u0E4C"],
+  Tri\u00E1ngulo: ["Triangle", "Tri\xE2ngulo", "Triangle", "Triangelua", "\u0422\u0440\u0435\u0443\u0433\u043E\u043B\u044C\u043D\u0438\u043A", "\u4E09\u89D2", "\uC0BC\uAC01", "\u4E09\u89D2", "\u0E2A\u0E32\u0E21\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21"],
+  Cuadrada: ["Square", "Quadrada", "Carr\xE9", "Karratua", "\u041F\u0440\u044F\u043C\u043E\u0443\u0433\u043E\u043B\u044C\u043D\u0430\u044F", "\u77E9\u5F62", "\uC0AC\uAC01", "\u65B9\u6CE2", "\u0E2A\u0E35\u0E48\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21"],
+  // --- las ayudas
+  "Doble clic: banda nueva o apagarla \xB7 arrastrar: mover \xB7 rueda: Q": [
+    "Double-click: new band or turn it off \xB7 drag: move \xB7 wheel: Q",
+    "Duplo clique: banda nova ou deslig\xE1-la \xB7 arrastar: mover \xB7 roda: Q",
+    "Double-clic : nouvelle bande ou l\u2019\xE9teindre \xB7 glisser : d\xE9placer \xB7 molette : Q",
+    "Klik bikoitza: banda berria edo itzali \xB7 arrastatu: mugitu \xB7 gurpila: Q",
+    "\u0414\u0432\u043E\u0439\u043D\u043E\u0439 \u0449\u0435\u043B\u0447\u043E\u043A: \u043D\u043E\u0432\u0430\u044F \u043F\u043E\u043B\u043E\u0441\u0430 \u0438\u043B\u0438 \u0432\u044B\u043A\u043B\u044E\u0447\u0438\u0442\u044C \xB7 \u043F\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u044C: \u0441\u0434\u0432\u0438\u043D\u0443\u0442\u044C \xB7 \u043A\u043E\u043B\u0435\u0441\u043E: Q",
+    "\u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF: \u30D0\u30F3\u30C9\u8FFD\u52A0\u307E\u305F\u306F\u30AA\u30D5 \xB7 \u30C9\u30E9\u30C3\u30B0: \u79FB\u52D5 \xB7 \u30DB\u30A4\u30FC\u30EB: Q",
+    "\uB354\uBE14\uD074\uB9AD: \uC0C8 \uBC34\uB4DC \uB610\uB294 \uB044\uAE30 \xB7 \uB4DC\uB798\uADF8: \uC774\uB3D9 \xB7 \uD720: Q",
+    "\u53CC\u51FB\uFF1A\u65B0\u5EFA\u9891\u6BB5\u6216\u5173\u95ED \xB7 \u62D6\u52A8\uFF1A\u79FB\u52A8 \xB7 \u6EDA\u8F6E\uFF1AQ",
+    "\u0E14\u0E31\u0E1A\u0E40\u0E1A\u0E34\u0E25\u0E04\u0E25\u0E34\u0E01: \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E41\u0E1A\u0E19\u0E14\u0E4C\u0E2B\u0E23\u0E37\u0E2D\u0E1B\u0E34\u0E14 \xB7 \u0E25\u0E32\u0E01: \u0E22\u0E49\u0E32\u0E22 \xB7 \u0E25\u0E49\u0E2D\u0E40\u0E21\u0E32\u0E2A\u0E4C: Q"
+  ],
+  // --- los gráficos
+  "c\xF3mo est\xE1": ["before", "como est\xE1", "avant", "aurretik", "\u0434\u043E", "\u51E6\u7406\u524D", "\uCC98\uB9AC \uC804", "\u5904\u7406\u524D", "\u0E01\u0E48\u0E2D\u0E19"],
+  "c\xF3mo queda": ["after", "como fica", "apr\xE8s", "ondoren", "\u043F\u043E\u0441\u043B\u0435", "\u51E6\u7406\u5F8C", "\uCC98\uB9AC \uD6C4", "\u5904\u7406\u540E", "\u0E2B\u0E25\u0E31\u0E07"],
+  "c\xF3mo queda (izquierda)": ["after (left)", "como fica (esquerda)", "apr\xE8s (gauche)", "ondoren (ezkerra)", "\u043F\u043E\u0441\u043B\u0435 (\u043B\u0435\u0432\u044B\u0439)", "\u51E6\u7406\u5F8C\uFF08\u5DE6\uFF09", "\uCC98\uB9AC \uD6C4 (\uC67C\uCABD)", "\u5904\u7406\u540E\uFF08\u5DE6\uFF09", "\u0E2B\u0E25\u0E31\u0E07 (\u0E0B\u0E49\u0E32\u0E22)"],
+  derecha: ["right", "direita", "droite", "eskuina", "\u043F\u0440\u0430\u0432\u044B\u0439", "\u53F3", "\uC624\uB978\uCABD", "\u53F3", "\u0E02\u0E27\u0E32"],
+  reducci\u00F3n: ["reduction", "redu\xE7\xE3o", "r\xE9duction", "murrizketa", "\u0441\u043D\u0438\u0436\u0435\u043D\u0438\u0435", "\u30EA\u30C0\u30AF\u30B7\u30E7\u30F3", "\uB9AC\uB355\uC158", "\u8870\u51CF", "\u0E01\u0E32\u0E23\u0E25\u0E14\u0E17\u0E2D\u0E19"],
+  Reducci\u00F3n: ["Reduction", "Redu\xE7\xE3o", "R\xE9duction", "Murrizketa", "\u0421\u043D\u0438\u0436\u0435\u043D\u0438\u0435", "\u30EA\u30C0\u30AF\u30B7\u30E7\u30F3", "\uB9AC\uB355\uC158", "\u8870\u51CF", "\u0E01\u0E32\u0E23\u0E25\u0E14\u0E17\u0E2D\u0E19"],
+  "la onda del volumen (sin sonido todav\xEDa)": [
+    "the volume wave (no sound yet)",
+    "a onda do volume (ainda sem som)",
+    "l\u2019onde du volume (pas encore de son)",
+    "bolumenaren uhina (oraindik soinurik gabe)",
+    "\u0432\u043E\u043B\u043D\u0430 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 (\u0437\u0432\u0443\u043A\u0430 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442)",
+    "\u97F3\u91CF\u306E\u6CE2\u5F62\uFF08\u307E\u3060\u97F3\u306A\u3057\uFF09",
+    "\uBCFC\uB968 \uD30C\uD615 (\uC544\uC9C1 \uC18C\uB9AC \uC5C6\uC74C)",
+    "\u97F3\u91CF\u6CE2\u5F62\uFF08\u5C1A\u65E0\u58F0\u97F3\uFF09",
+    "\u0E04\u0E25\u0E37\u0E48\u0E19\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07 (\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E40\u0E2A\u0E35\u0E22\u0E07)"
+  ],
+  "la onda del volumen de cada oreja (sin sonido todav\xEDa)": [
+    "the volume wave of each ear (no sound yet)",
+    "a onda do volume de cada ouvido (ainda sem som)",
+    "l\u2019onde du volume de chaque oreille (pas encore de son)",
+    "belarri bakoitzeko bolumenaren uhina (oraindik soinurik gabe)",
+    "\u0432\u043E\u043B\u043D\u0430 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 \u0434\u043B\u044F \u043A\u0430\u0436\u0434\u043E\u0433\u043E \u0443\u0445\u0430 (\u0437\u0432\u0443\u043A\u0430 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442)",
+    "\u5DE6\u53F3\u305D\u308C\u305E\u308C\u306E\u97F3\u91CF\u306E\u6CE2\u5F62\uFF08\u307E\u3060\u97F3\u306A\u3057\uFF09",
+    "\uAC01 \uADC0\uC758 \uBCFC\uB968 \uD30C\uD615 (\uC544\uC9C1 \uC18C\uB9AC \uC5C6\uC74C)",
+    "\u6BCF\u53EA\u8033\u6735\u7684\u97F3\u91CF\u6CE2\u5F62\uFF08\u5C1A\u65E0\u58F0\u97F3\uFF09",
+    "\u0E04\u0E25\u0E37\u0E48\u0E19\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E02\u0E2D\u0E07\u0E41\u0E15\u0E48\u0E25\u0E30\u0E2B\u0E39 (\u0E22\u0E31\u0E07\u0E44\u0E21\u0E48\u0E21\u0E35\u0E40\u0E2A\u0E35\u0E22\u0E07)"
+  ]
+};
+function idioma() {
+  try {
+    const w = typeof window !== "undefined" ? window : null;
+    const crudo = w && w.idioma || typeof document !== "undefined" && document.documentElement.lang || typeof navigator !== "undefined" && navigator.language || "es";
+    const c = String(crudo).slice(0, 2).toUpperCase();
+    return c === "ES" || IDIOMAS.includes(c) ? c : "ES";
+  } catch (e) {
+    return "ES";
+  }
+}
+function t(texto, cual = idioma()) {
+  const fila = TEXTOS[texto];
+  const i = IDIOMAS.indexOf(cual);
+  return fila && i >= 0 ? fila[i] : texto;
+}
+function tEtiqueta(texto, cual = idioma()) {
+  if (TEXTOS[texto]) return t(texto, cual);
+  const m = /^Banda (\d+)(?:: (.+))?$/.exec(String(texto));
+  if (!m) return texto;
+  return `${t("Banda", cual)} ${m[1]}${m[2] ? `: ${t(m[2], cual)}` : ""}`;
+}
+function traducirInfo(info, cual = idioma()) {
+  if (!info || cual === "ES") return info;
+  const sal = {};
+  for (const id of Object.keys(info)) {
+    const x = info[id];
+    if (!x || typeof x !== "object") {
+      sal[id] = x;
+      continue;
+    }
+    const copia = Object.assign(Object.create(Object.getPrototypeOf(x)), x);
+    if (typeof x.label === "string") copia.label = tEtiqueta(x.label, cual);
+    if (Array.isArray(x.choices)) copia.choices = x.choices.map((c) => t(String(c), cual));
+    sal[id] = copia;
+  }
+  return sal;
+}
+
 // compresor/caratula.js
 var PISO = -60;
 var RED_MAX = 24;
 var dBtxt = (x) => x <= -120 ? "\u2212\u221E" : numero(x, 1);
 var tiempo = (x) => `${numero(x, x < 1 ? 2 : x < 20 ? 1 : 0)} ms`;
 var PERILLAS = [
-  { id: "umbral", nombre: "Umbral", min: -60, max: 0, paso: 0.5, porDefecto: -18, formato: (x) => `${numero(x, 1)} dB` },
-  { id: "razon", nombre: "Raz\xF3n", min: 1, max: 20, paso: 0.1, log: true, porDefecto: 4, formato: (x) => `${numero(x, 1)} : 1` },
-  { id: "ataque", nombre: "Ataque", min: 0.1, max: 250, paso: 1, log: true, porDefecto: 10, formato: tiempo },
-  { id: "relajacion", nombre: "Relajaci\xF3n", min: 10, max: 2e3, paso: 1, log: true, porDefecto: 120, formato: tiempo },
-  { id: "rodilla", nombre: "Rodilla", min: 0, max: 24, paso: 0.5, porDefecto: 6, formato: (x) => `${numero(x, 1)} dB` },
-  { id: "ganancia", nombre: "Ganancia", min: -12, max: 24, paso: 0.5, porDefecto: 0, formato: (x) => `${x > 0 ? "+" : ""}${numero(x, 1)} dB` },
-  { id: "mezcla", nombre: "Mezcla", min: 0, max: 100, paso: 1, porDefecto: 100, formato: (x) => `${numero(x, 0)} %` }
+  { id: "umbral", nombre: t("Umbral"), min: -60, max: 0, paso: 0.5, porDefecto: -18, formato: (x) => `${numero(x, 1)} dB` },
+  { id: "razon", nombre: t("Raz\xF3n"), min: 1, max: 20, paso: 0.1, log: true, porDefecto: 4, formato: (x) => `${numero(x, 1)} : 1` },
+  { id: "ataque", nombre: t("Ataque"), min: 0.1, max: 250, paso: 1, log: true, porDefecto: 10, formato: tiempo },
+  { id: "relajacion", nombre: t("Relajaci\xF3n"), min: 10, max: 2e3, paso: 1, log: true, porDefecto: 120, formato: tiempo },
+  { id: "rodilla", nombre: t("Rodilla"), min: 0, max: 24, paso: 0.5, porDefecto: 6, formato: (x) => `${numero(x, 1)} dB` },
+  { id: "ganancia", nombre: t("Ganancia"), min: -12, max: 24, paso: 0.5, porDefecto: 0, formato: (x) => `${x > 0 ? "+" : ""}${numero(x, 1)} dB` },
+  { id: "mezcla", nombre: t("Mezcla"), min: 0, max: 100, paso: 1, porDefecto: 100, formato: (x) => `${numero(x, 0)} %` }
 ];
 function reduccion(x, P) {
   const sobre = x - P.umbral;
@@ -2131,7 +2268,7 @@ async function crearCaratula(nodo) {
   );
   const controles = {};
   const cabecera = el("div", `display:flex;align-items:center;gap:8px;padding:6px 10px;border-bottom:1px solid ${v("borde")};`);
-  controles.comp = interruptor({ nombre: "Compresor", porDefecto: P.comp >= 0.5, alCambiar: (si) => mandar("comp", si ? 1 : 0) });
+  controles.comp = interruptor({ nombre: t("Compresor"), porDefecto: P.comp >= 0.5, alCambiar: (si) => mandar("comp", si ? 1 : 0) });
   const txtRed = el("span", `margin-left:auto;color:${v("tinta2")};font-variant-numeric:tabular-nums;`);
   cabecera.append(controles.comp.el, txtRed);
   const pantalla = el("div", "display:flex;gap:10px;padding:10px 10px 6px;");
@@ -2148,9 +2285,9 @@ async function crearCaratula(nodo) {
     fila.append(controles[p.id].el);
   }
   const franja = el("div", `display:flex;align-items:center;gap:12px;padding:7px 10px;border-top:1px solid ${v("borde")};`);
-  controles.lim = interruptor({ nombre: "Limitador", porDefecto: P.lim >= 0.5, alCambiar: (si) => mandar("lim", si ? 1 : 0) });
+  controles.lim = interruptor({ nombre: t("Limitador"), porDefecto: P.lim >= 0.5, alCambiar: (si) => mandar("lim", si ? 1 : 0) });
   controles.techo = casilla({
-    nombre: "Techo",
+    nombre: t("Techo"),
     min: -12,
     max: 0,
     paso: 0.1,
@@ -2161,7 +2298,7 @@ async function crearCaratula(nodo) {
   controles.techo.poner(P.techo);
   const barraLim = lienzo(210, 10);
   const txtLim = el("span", `min-width:56px;text-align:right;color:${v("tinta2")};font-variant-numeric:tabular-nums;`);
-  franja.append(controles.lim.el, el("span", `color:${v("tinta2")};`, "Techo"), controles.techo.el, barraLim.c, txtLim);
+  franja.append(controles.lim.el, el("span", `color:${v("tinta2")};`, t("Techo")), controles.techo.el, barraLim.c, txtLim);
   caja.append(cabecera, pantalla, fila, franja);
   let arrastrandoUmbral = false;
   const umbralDesde = (ev) => {
@@ -2294,8 +2431,8 @@ async function crearCaratula(nodo) {
     g.fillStyle = C.traza;
     g.fillRect(6, H - 15, 11, 9);
     g.fillStyle = C.tinta2;
-    g.fillText("c\xF3mo est\xE1", 21, H - 6);
-    const x2 = 21 + g.measureText("c\xF3mo est\xE1").width + 12;
+    g.fillText(t("c\xF3mo est\xE1"), 21, H - 6);
+    const x2 = 21 + g.measureText(t("c\xF3mo est\xE1")).width + 12;
     g.strokeStyle = C.tinta;
     g.lineWidth = 1.25;
     g.beginPath();
@@ -2303,10 +2440,10 @@ async function crearCaratula(nodo) {
     g.lineTo(x2 + 13, H - 10.5);
     g.stroke();
     g.lineWidth = 1;
-    g.fillText("c\xF3mo queda", x2 + 17, H - 6);
+    g.fillText(t("c\xF3mo queda"), x2 + 17, H - 6);
     g.fillStyle = C.reduccion;
     g.textAlign = "right";
-    g.fillText("reducci\xF3n", W - 6, H - 6);
+    g.fillText(t("reducci\xF3n"), W - 6, H - 6);
     g.textAlign = "left";
   };
   const dibujarMedidores = () => {
@@ -2373,7 +2510,7 @@ async function crearCaratula(nodo) {
     mL = Math.min(P.lim >= 0.5 ? m.l : 0, mL * 0.93);
     if (mR > -0.05) mR = 0;
     if (mL > -0.05) mL = 0;
-    txtRed.textContent = `Reducci\xF3n ${dBtxt(mR)} dB`;
+    txtRed.textContent = `${t("Reducci\xF3n")} ${dBtxt(mR)} dB`;
     txtLim.textContent = `${dBtxt(mL)} dB`;
     dibujarCurva();
     dibujarHistoria();
@@ -2402,6 +2539,11 @@ async function crearCaratula(nodo) {
 // compresor/index.js
 var mandados = /* @__PURE__ */ new WeakMap();
 var NodoCompresor = class extends WamNode {
+  // Los nombres de los parámetros y sus opciones en el idioma de la página (el hilo de audio los
+  // declara en castellano: no sabe de idiomas). Ver `comun/idiomas.js`.
+  async getParameterInfo(...ids) {
+    return traducirInfo(await super.getParameterInfo(...ids));
+  }
   static addModules(contexto, moduleId) {
     let p = mandados.get(contexto);
     if (!p) {

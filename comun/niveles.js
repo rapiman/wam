@@ -3,6 +3,8 @@
 // no cambian el color del sonido sino cuánto suena (el trémolo), donde los espectros no dicen nada.
 // Analizadores del navegador colgados de la salida 0 del nodo (por oreja) y de su salida 1 (la
 // entrada sin tocar, que ponen los nodos del molde).
+import { t } from './idiomas.js';
+
 const COLUMNAS = 536;
 const MS = 8; // cada columna es el pico de este rato: la historia entera son unos 4 segundos
 
@@ -134,9 +136,9 @@ export function niveles(nodo) {
         g.fillText(texto, x + 17, 14);
         x += 17 + g.measureText(texto).width + 12;
       };
-      if (anE) marca(C.traza, true, 'cómo está');
-      marca(C.tinta, false, distintas ? 'cómo queda (izquierda)' : 'cómo queda');
-      if (distintas) marca(C.acento, false, 'derecha');
+      if (anE) marca(C.traza, true, t('cómo está'));
+      marca(C.tinta, false, t(distintas ? 'cómo queda (izquierda)' : 'cómo queda'));
+      if (distintas) marca(C.acento, false, t('derecha'));
       return true;
     },
     recolgar() {

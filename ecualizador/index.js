@@ -9,6 +9,7 @@ import { mandarConFunciones } from '../comun/hilo.js';
 import { nucleoEq, BANDAS } from './nucleo.js';
 import { dspEq, procesadorEq } from './procesador.js';
 import { crearCaratula } from './caratula.js';
+import { traducirInfo } from '../comun/idiomas.js';
 
 // QUÉ PARÁMETROS VALE LA PENA MOSTRAR con este estado (lo usa Pizarrita para la lista de la
 // automatización; otro anfitrión puede ignorarlo): de los 49, los de las bandas encendidas y la
@@ -28,6 +29,11 @@ export function paramsVisiblesPz(estado) {
 const mandados = new WeakMap();
 
 class NodoEq extends WamNode {
+  // Los nombres de los parámetros y sus opciones en el idioma de la página (el hilo de audio los
+  // declara en castellano: no sabe de idiomas). Ver `comun/idiomas.js`.
+  async getParameterInfo(...ids) {
+    return traducirInfo(await super.getParameterInfo(...ids));
+  }
   static addModules(contexto, moduleId) {
     let p = mandados.get(contexto);
     if (!p) {

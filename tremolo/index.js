@@ -7,6 +7,7 @@ import descriptor from './descriptor.json';
 import { hacerModulo } from '../comun/molde.js';
 import { caratulaSimple } from '../comun/caratulaSimple.js';
 import { nucleoTremolo } from './nucleo.js';
+import { t } from '../comun/idiomas.js';
 
 const N = nucleoTremolo();
 
@@ -40,7 +41,7 @@ function dibujar(g, { W, H, V, C, sonando }) {
   g.textBaseline = 'alphabetic';
   g.textAlign = 'left';
   g.fillStyle = C.tinta2;
-  g.fillText(V.fase > 0.5 ? 'la onda del volumen de cada oreja (sin sonido todavía)' : 'la onda del volumen (sin sonido todavía)', 6, 14);
+  g.fillText(t(V.fase > 0.5 ? 'la onda del volumen de cada oreja (sin sonido todavía)' : 'la onda del volumen (sin sonido todavía)'), 6, 14);
 }
 
 export default hacerModulo({

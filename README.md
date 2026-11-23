@@ -55,6 +55,13 @@ en cualquier elemento que contenga la carátula:
 `--pzw-fondo` `--pzw-tinta` `--pzw-tinta2` `--pzw-borde` `--pzw-pantalla` `--pzw-acento`
 `--pzw-nivel` `--pzw-reduccion` `--pzw-traza` `--pzw-letra`
 
+**Los idiomas** (`comun/idiomas.js`): cada plugin trae sus textos en los diez idiomas de la
+interfaz de Pizarrita (ES, EN, PT, FR, EU, RU, JA, KO, ZH, TH), con el castellano como llave
+(`t('Frecuencia')`). El idioma es el de la página: `window.idioma` en Pizarrita, si no el `lang`
+de la página, si no el del navegador. La carátula sale en el idioma que haya al abrirla; los
+nombres de los parámetros (`getParameterInfo`) se traducen cada vez que se piden. Un texto nuevo
+va a la tabla con sus nueve traducciones: `idiomas/prueba.mjs` falla si falta alguno.
+
 **Sin definir nada, la carátula sigue el tema de la ventana donde se abre** (`seguirTema` en
 `comun/controles.js`): toma el color de letra, el fondo y la tipografía del lugar donde quedó
 puesta y deduce los demás tonos; el acento es `--pz-acento` o `accent-color` si la página lo

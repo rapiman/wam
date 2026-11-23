@@ -8,11 +8,17 @@ import { WebAudioModule, WamNode, addFunctionModule } from '@webaudiomodules/sdk
 import descriptor from './descriptor.json';
 import { dspCompresor, procesadorCompresor } from './procesador.js';
 import { crearCaratula } from './caratula.js';
+import { traducirInfo } from '../comun/idiomas.js';
 
 // Los módulos del hilo de audio se mandan una vez por contexto, no una por instancia.
 const mandados = new WeakMap();
 
 class NodoCompresor extends WamNode {
+  // Los nombres de los parámetros y sus opciones en el idioma de la página (el hilo de audio los
+  // declara en castellano: no sabe de idiomas). Ver `comun/idiomas.js`.
+  async getParameterInfo(...ids) {
+    return traducirInfo(await super.getParameterInfo(...ids));
+  }
   static addModules(contexto, moduleId) {
     let p = mandados.get(contexto);
     if (!p) {
