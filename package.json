@@ -1,0 +1,17 @@
+{
+  "name": "wam",
+  "version": "0.1.0",
+  "description": "Plugins de audio propios (Web Audio Modules 2.0)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node prueba.mjs",
+    "build": "bash armar.sh"
+  },
+  "dependencies": {
+    "@webaudiomodules/sdk": "^0.0.12"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.12"
+  }
+}
