@@ -1,7 +1,7 @@
 // PRUEBA DEL CÁLCULO DEL COMPRESOR, con Node y sin navegador (2026-11-23):
-//   node prueba.mjs   (o npm test)
+//   node compresor/prueba.mjs   (o npm test)
 // Arma el ámbito que en el navegador pone el SDK de WAM y mide lo que sale.
-import { dspCompresor } from './compresor/procesador.js';
+import { dspCompresor } from './procesador.js';
 
 const ambito = {};
 globalThis.webAudioModules = { getModuleScope: () => ambito };

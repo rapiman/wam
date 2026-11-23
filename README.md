@@ -9,6 +9,7 @@ no dependen de ella: lo único que importan es `@webaudiomodules/sdk`.
 | Carpeta | Qué es | Estado |
 |---|---|---|
 | `compresor` | Compresor (umbral, razón, ataque, relajación, rodilla, ganancia, mezcla) y limitador con techo que mira 5 ms hacia adelante. El cálculo corre en el hilo de audio. | 0.1.0 |
+| `ecualizador` | Ecualizador paramétrico de 8 bandas (campana, repisa baja y alta, corte bajo y alto, muesca) y ganancia de salida. Las bandas se crean con doble clic y se arrastran sobre la curva; la rueda cambia el Q; detrás se ve el espectro de lo que sale. | 0.1.0 |
 
 ## Usarlos
 
@@ -39,7 +40,7 @@ en cualquier elemento que contenga la carátula:
 
 ```sh
 npm install
-npm test            # la prueba del cálculo, con Node y sin navegador
+npm test            # las pruebas del cálculo, con Node y sin navegador
 bash armar.sh       # prueba y arma a dist/
 bash armar.sh /ruta/al/sitio/wam   # además copia cada plugin armado a esa carpeta
 ```
@@ -50,10 +51,12 @@ minifica ni se baja la sintaxis.
 ## Cómo está ordenado
 
 - `comun/controles.js`: perilla, casilla de número, interruptor y lienzo, comunes a todas las carátulas.
+- `comun/hilo.js`: manda al hilo de audio una función que recibe otras funciones.
 - `<plugin>/procesador.js`: el cálculo y el procesador (hilo de audio).
 - `<plugin>/index.js`: el nodo y el módulo (lo que carga el anfitrión).
 - `<plugin>/caratula.js`: la interfaz.
-- `prueba.mjs`: mide el cálculo con números (un tono a −6 dB con umbral −18 y razón 4 tiene que salir a −15 dB, el limitador no puede pasar del techo, etc.).
+- `<plugin>/nucleo.js` (si lo hay): la cuenta que comparten el hilo de audio y la carátula (en el ecualizador, los coeficientes de cada banda: lo que se dibuja es lo que suena).
+- `<plugin>/prueba.mjs`: mide el cálculo con números. En el compresor, un tono a −6 dB con umbral −18 y razón 4 tiene que salir a −15 dB y el limitador no puede pasar del techo; en el ecualizador, cada tipo de banda tiene que dar su ganancia y lo que suena tiene que coincidir con la curva.
 
 ## Licencia
 

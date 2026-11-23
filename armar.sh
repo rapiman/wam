@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ARMA LOS PLUGINS: cada carpeta con un `index.js` sale a `dist/<carpeta>/`, con su
-# `descriptor.json` al lado. Antes corre la prueba del cálculo (`prueba.mjs`, con Node):
-# si falla, no arma.
+# `descriptor.json` al lado. Antes corre la prueba del cálculo de cada plugin
+# (`<carpeta>/prueba.mjs`, con Node): si alguna falla, no arma.
 #
 #   bash armar.sh                 arma a dist/
 #   bash armar.sh /ruta/sitio/wam además copia cada plugin armado a esa carpeta
@@ -11,7 +11,10 @@ AQUI="$(cd "$(dirname "$0")" && pwd)"
 ESBUILD="$AQUI/node_modules/.bin/esbuild"
 DESTINO="${1:-}"
 
-node "$AQUI/prueba.mjs"
+for p in "$AQUI"/*/prueba.mjs; do
+  echo "== prueba: $(basename "$(dirname "$p")")"
+  node "$p" | tail -1
+done
 
 # Las funciones que van al hilo de audio se pasan como texto (`addFunctionModule`): nada de
 # bajar la sintaxis ni minificar.

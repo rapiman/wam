@@ -269,3 +269,28 @@ export function interruptor(o) {
     puesto: () => puesto,
   };
 }
+
+// UN ELEGIDOR: una lista de opciones (el `select` del navegador, con los colores del plugin).
+//   { nombre, opciones: [texto…], alCambiar(índice) }
+export function elegidor(o) {
+  const s = el(
+    'select',
+    `font:inherit;color:${v('tinta')};background:${v('pantalla')};border:1px solid ${v('borde')};` +
+      `border-radius:0;padding:1px 2px;max-width:100%;`,
+  );
+  s.setAttribute('aria-label', o.nombre);
+  o.opciones.forEach((texto, i) => {
+    const op = document.createElement('option');
+    op.value = String(i);
+    op.textContent = texto;
+    s.append(op);
+  });
+  s.addEventListener('change', () => o.alCambiar(Number(s.value)));
+  return {
+    el: s,
+    poner: (i) => {
+      s.value = String(i);
+    },
+    agarrada: () => document.activeElement === s,
+  };
+}
