@@ -1,0 +1,28 @@
+{
+    "identifier": "org.wedwed.pizarrita.tremolo",
+    "name": "Trémolo",
+    "vendor": "Pizarrita",
+    "description": "El volumen sube y baja; con las orejas desfasadas, paneo automático",
+    "version": "0.1.0",
+    "apiVersion": "2.0.0",
+    "thumbnail": "",
+    "keywords": [
+        "effect",
+        "tremolo",
+        "modulation"
+    ],
+    "isInstrument": false,
+    "website": "",
+    "hasAudioInput": true,
+    "hasAudioOutput": true,
+    "hasAutomationInput": true,
+    "hasAutomationOutput": false,
+    "hasMidiInput": false,
+    "hasMidiOutput": false,
+    "hasMpeInput": false,
+    "hasMpeOutput": false,
+    "hasOscInput": false,
+    "hasOscOutput": false,
+    "hasSysexInput": false,
+    "hasSysexOutput": false
+}

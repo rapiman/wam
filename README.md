@@ -10,6 +10,11 @@ no dependen de ella: lo único que importan es `@webaudiomodules/sdk`.
 |---|---|---|
 | `compresor` | Compresor (umbral, razón, ataque, relajación, rodilla, ganancia, mezcla) y limitador con techo que mira 5 ms hacia adelante. El cálculo corre en el hilo de audio. | 0.1.0 |
 | `ecualizador` | Ecualizador paramétrico de 8 bandas (campana, repisa baja y alta, corte bajo y alto, muesca) y ganancia de salida; los cortes pueden ser de 12, 24, 36 o 48 dB por octava. Las bandas se crean con doble clic y se arrastran sobre la curva; la rueda cambia el Q; detrás se ven los dos espectros: cómo está el sonido al entrar y cómo queda al salir (para eso el nodo tiene una segunda salida con la entrada sin tocar, que no hay que conectar a nada). | 0.1.0 |
+| `filtro` | Pasa bajos, pasa altos, pasa banda o muesca, de 12 o 24 dB por octava, con resonancia y vaivén (un oscilador lento que mueve la frecuencia). La carátula dibuja la curva. | 0.1.0 |
+| `chorus` | Varias voces: el sonido sumado con una copia atrasada cuyo atraso sube y baja. | 0.1.0 |
+| `flanger` | Barrido metálico: un atraso corto con vaivén y realimentación. Mismo núcleo que el chorus, con otros rangos. | 0.1.0 |
+| `phaser` | Muescas que se pasean: 4, 6, 8 o 12 filtros «pasa todo» en cadena, con vaivén y realimentación. | 0.1.0 |
+| `tremolo` | El volumen sube y baja (seno, triángulo o cuadrada); con las orejas desfasadas, paneo automático. | 0.1.0 |
 
 ## Usarlos
 
@@ -63,8 +68,23 @@ minifica ni se baja la sintaxis.
 
 ## Cómo está ordenado
 
+Hay dos maneras de armar un plugin:
+
+- **Con el molde** (`comun/molde.js`), para un efecto simple: el plugin es su `nucleo.js` (la lista de
+  parámetros y el efecto: una función que se basta sola, que va al hilo de audio como texto y que
+  también usan la carátula y la prueba), un `descriptor.json` y un `index.js` de diez líneas. La
+  carátula sale de la lista de parámetros (`comun/caratulaSimple.js`): el gráfico con los dos
+  espectros («cómo está» y «cómo queda», `comun/espectros.js`) y un control por parámetro; cada
+  efecto puede dibujar encima lo suyo. Así están hechos el filtro, el chorus, el flanger, el phaser
+  y el trémolo. Todos sus nodos tienen dos salidas: la 0 es el sonido y la 1, la entrada sin tocar
+  (para el espectro; no hay que conectarla a nada).
+- **A mano**, cuando la carátula es propia: el compresor y el ecualizador.
+
 - `comun/controles.js`: perilla, casilla de número, interruptor y lienzo, comunes a todas las carátulas.
-- `comun/hilo.js`: manda al hilo de audio una función que recibe otras funciones.
+- `comun/hilo.js`: manda al hilo de audio una función que recibe otras funciones y datos.
+- `comun/molde.js`, `comun/caratulaSimple.js`, `comun/espectros.js`: el molde de los efectos simples.
+- `comun/nucleoRetardo.js`: el retardo con vaivén que comparten el chorus y el flanger.
+- `comun/probar.mjs`: lo común de las pruebas.
 - `<plugin>/procesador.js`: el cálculo y el procesador (hilo de audio).
 - `<plugin>/index.js`: el nodo y el módulo (lo que carga el anfitrión).
 - `<plugin>/caratula.js`: la interfaz.

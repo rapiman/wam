@@ -1,0 +1,27 @@
+{
+    "identifier": "org.wedwed.pizarrita.filtro",
+    "name": "Filtro",
+    "vendor": "Pizarrita",
+    "description": "Pasa bajos, pasa altos, pasa banda o muesca, de 12 o 24 dB por octava, con resonancia y vaivén",
+    "version": "0.1.0",
+    "apiVersion": "2.0.0",
+    "thumbnail": "",
+    "keywords": [
+        "effect",
+        "filter"
+    ],
+    "isInstrument": false,
+    "website": "",
+    "hasAudioInput": true,
+    "hasAudioOutput": true,
+    "hasAutomationInput": true,
+    "hasAutomationOutput": false,
+    "hasMidiInput": false,
+    "hasMidiOutput": false,
+    "hasMpeInput": false,
+    "hasMpeOutput": false,
+    "hasOscInput": false,
+    "hasOscOutput": false,
+    "hasSysexInput": false,
+    "hasSysexOutput": false
+}

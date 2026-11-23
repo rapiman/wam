@@ -1,0 +1,28 @@
+{
+    "identifier": "org.wedwed.pizarrita.flanger",
+    "name": "Flanger",
+    "vendor": "Pizarrita",
+    "description": "Barrido metálico: un atraso corto con vaivén y realimentación",
+    "version": "0.1.0",
+    "apiVersion": "2.0.0",
+    "thumbnail": "",
+    "keywords": [
+        "effect",
+        "flanger",
+        "modulation"
+    ],
+    "isInstrument": false,
+    "website": "",
+    "hasAudioInput": true,
+    "hasAudioOutput": true,
+    "hasAutomationInput": true,
+    "hasAutomationOutput": false,
+    "hasMidiInput": false,
+    "hasMidiOutput": false,
+    "hasMpeInput": false,
+    "hasMpeOutput": false,
+    "hasOscInput": false,
+    "hasOscOutput": false,
+    "hasSysexInput": false,
+    "hasSysexOutput": false
+}

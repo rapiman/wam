@@ -1,0 +1,28 @@
+{
+    "identifier": "org.wedwed.pizarrita.chorus",
+    "name": "Chorus",
+    "vendor": "Pizarrita",
+    "description": "Varias voces: el sonido sumado con una copia atrasada cuyo atraso sube y baja",
+    "version": "0.1.0",
+    "apiVersion": "2.0.0",
+    "thumbnail": "",
+    "keywords": [
+        "effect",
+        "chorus",
+        "modulation"
+    ],
+    "isInstrument": false,
+    "website": "",
+    "hasAudioInput": true,
+    "hasAudioOutput": true,
+    "hasAutomationInput": true,
+    "hasAutomationOutput": false,
+    "hasMidiInput": false,
+    "hasMidiOutput": false,
+    "hasMpeInput": false,
+    "hasMpeOutput": false,
+    "hasOscInput": false,
+    "hasOscOutput": false,
+    "hasSysexInput": false,
+    "hasSysexOutput": false
+}

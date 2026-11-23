@@ -1582,8 +1582,9 @@ var descriptor_default = {
 };
 
 // comun/hilo.js
-function mandarConFunciones(audioWorklet, fn, moduleId, ...funciones) {
-  const texto = `(${fn.toString()})(${JSON.stringify(moduleId)}${funciones.map((f) => `, ${f.toString()}`).join("")});`;
+function mandarConFunciones(audioWorklet, fn, moduleId, ...cosas) {
+  const args = cosas.map((c) => `, ${typeof c === "function" ? c.toString() : JSON.stringify(c === void 0 ? null : c)}`).join("");
+  const texto = `(${fn.toString()})(${JSON.stringify(moduleId)}${args});`;
   const url = URL.createObjectURL(new Blob([texto], { type: "text/javascript" }));
   return audioWorklet.addModule(url).finally(() => URL.revokeObjectURL(url));
 }
