@@ -31,8 +31,9 @@ class NodoEq extends WamNode {
   constructor(modulo) {
     super(modulo, {
       numberOfInputs: 1,
-      numberOfOutputs: 1,
-      outputChannelCount: [2],
+      // la salida 0 es el sonido ecualizado; la 1, la entrada sin tocar, para el espectro
+      numberOfOutputs: 2,
+      outputChannelCount: [2, 1],
       channelCount: 2,
       channelCountMode: 'explicit',
       channelInterpretation: 'speakers',

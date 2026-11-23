@@ -1793,6 +1793,8 @@ function procesadorEq(moduleId, nucleoEq2) {
       }
       const db = I.salida.values[desde];
       this._dsp.procesar(eI, eD, sal[0], sal[1] || sal[0], desde, hasta, db === 0 ? 1 : 10 ** (db / 20));
+      const copia = outputs[1] && outputs[1][0];
+      if (copia) for (let i = desde; i < hasta; i++) copia[i] = 0.5 * (eI[i] + eD[i]);
     }
   }
   try {
@@ -2225,15 +2227,17 @@ async function crearCaratula(nodo) {
     },
     { passive: false }
   );
-  let analizador = null;
-  let espectro = null;
-  try {
-    analizador = new AnalyserNode(nodo.context, { fftSize: 4096, smoothingTimeConstant: 0.8 });
-    nodo.connect(analizador);
-    espectro = new Float32Array(analizador.frequencyBinCount);
-  } catch (e) {
-    analizador = null;
-  }
+  const analizar = (salidaDelNodo) => {
+    try {
+      const an = new AnalyserNode(nodo.context, { fftSize: 4096, smoothingTimeConstant: 0.8 });
+      nodo.connect(an, salidaDelNodo);
+      return { an, datos: new Float32Array(an.frequencyBinCount) };
+    } catch (e) {
+      return null;
+    }
+  };
+  const queda = analizar(0);
+  const esta = nodo.numberOfOutputs > 1 ? analizar(1) : null;
   const curva = new Float32Array(W + 1);
   let C = coloresDe(caja);
   let cuadros = 0;
@@ -2280,34 +2284,68 @@ async function crearCaratula(nodo) {
       g.globalAlpha = 1;
       g.fillText(db > 0 ? "+12" : "\u221212", 4, y - 3);
     }
-    if (analizador) {
-      analizador.getFloatFrequencyData(espectro);
-      const binHz = fm / analizador.fftSize;
+    const trazo = (e) => {
+      e.an.getFloatFrequencyData(e.datos);
+      const d = e.datos;
+      const binHz = fm / e.an.fftSize;
       let hay = false;
       g.beginPath();
-      g.moveTo(0, H);
       for (let px = 0; px <= W; px++) {
         const pos = FX(px) / binHz;
-        const i0 = Math.min(espectro.length - 2, Math.floor(pos));
-        const i1 = Math.min(espectro.length - 1, Math.max(i0 + 1, Math.floor(FX(px + 1) / binHz)));
-        let d;
-        if (i1 === i0 + 1) d = espectro[i0] + (espectro[i1] - espectro[i0]) * (pos - i0);
+        const i0 = Math.min(d.length - 2, Math.floor(pos));
+        const i1 = Math.min(d.length - 1, Math.max(i0 + 1, Math.floor(FX(px + 1) / binHz)));
+        let x;
+        if (i1 === i0 + 1) x = d[i0] + (d[i1] - d[i0]) * (pos - i0);
         else {
-          d = espectro[i0];
-          for (let i = i0 + 1; i <= i1; i++) if (espectro[i] > d) d = espectro[i];
+          x = d[i0];
+          for (let i = i0 + 1; i <= i1; i++) if (d[i] > x) x = d[i];
         }
-        if (!(d > PISO_ESPECTRO)) d = PISO_ESPECTRO;
+        if (!(x > PISO_ESPECTRO)) x = PISO_ESPECTRO;
         else hay = true;
-        g.lineTo(px, H - (entre(d, PISO_ESPECTRO, TECHO_ESPECTRO) - PISO_ESPECTRO) / (TECHO_ESPECTRO - PISO_ESPECTRO) * (H - 2));
+        const y = H - (entre(x, PISO_ESPECTRO, TECHO_ESPECTRO) - PISO_ESPECTRO) / (TECHO_ESPECTRO - PISO_ESPECTRO) * (H - 2);
+        if (px === 0) g.moveTo(px, y);
+        else g.lineTo(px, y);
       }
+      return hay;
+    };
+    let hayEsta = false;
+    let hayQueda = false;
+    if (esta && trazo(esta)) {
+      hayEsta = true;
       g.lineTo(W, H);
+      g.lineTo(0, H);
       g.closePath();
-      if (hay) {
+      g.fillStyle = C.traza;
+      g.globalAlpha = 0.6;
+      g.fill();
+      g.globalAlpha = 1;
+    }
+    if (queda && trazo(queda)) {
+      hayQueda = true;
+      g.strokeStyle = C.tinta2;
+      g.lineWidth = 1.25;
+      g.stroke();
+      g.lineWidth = 1;
+    }
+    if (hayEsta || hayQueda) {
+      g.textAlign = "right";
+      g.fillStyle = C.tinta2;
+      g.fillText("c\xF3mo queda", W - 6, 14);
+      const a1 = W - 6 - g.measureText("c\xF3mo queda").width;
+      g.strokeStyle = C.tinta2;
+      g.lineWidth = 1.25;
+      g.beginPath();
+      g.moveTo(a1 - 18, 10.5);
+      g.lineTo(a1 - 5, 10.5);
+      g.stroke();
+      g.lineWidth = 1;
+      if (esta) {
+        g.fillText("c\xF3mo est\xE1", a1 - 28, 14);
+        const a2 = a1 - 28 - g.measureText("c\xF3mo est\xE1").width;
         g.fillStyle = C.traza;
-        g.globalAlpha = 0.6;
-        g.fill();
-        g.globalAlpha = 1;
+        g.fillRect(a2 - 16, 6, 11, 9);
       }
+      g.textAlign = "left";
     }
     g.strokeStyle = C.borde;
     g.beginPath();
@@ -2356,10 +2394,11 @@ async function crearCaratula(nodo) {
     clearInterval(reloj);
     cuadro = 0;
     reloj = 0;
-    if (analizador) {
+    for (const e of [queda, esta]) {
+      if (!e) continue;
       try {
-        nodo.disconnect(analizador);
-      } catch (e) {
+        nodo.disconnect(e.an);
+      } catch (err) {
       }
     }
   };
@@ -2373,6 +2412,13 @@ async function crearCaratula(nodo) {
   };
   const CAMPOS = ["on", "tipo", "frec", "gan", "q", "pend"];
   reloj = setInterval(() => {
+    [queda, esta].forEach((e, salidaDelNodo) => {
+      if (!e) return;
+      try {
+        nodo.connect(e.an, salidaDelNodo);
+      } catch (err) {
+      }
+    });
     nodo.getParameterValues(false).then((vals) => {
       if (!vals || !reloj) return;
       let cambio = false;
@@ -2424,8 +2470,9 @@ var NodoEq = class extends WamNode {
   constructor(modulo) {
     super(modulo, {
       numberOfInputs: 1,
-      numberOfOutputs: 1,
-      outputChannelCount: [2],
+      // la salida 0 es el sonido ecualizado; la 1, la entrada sin tocar, para el espectro
+      numberOfOutputs: 2,
+      outputChannelCount: [2, 1],
       channelCount: 2,
       channelCountMode: "explicit",
       channelInterpretation: "speakers"

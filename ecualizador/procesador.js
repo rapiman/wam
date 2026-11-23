@@ -147,6 +147,10 @@ export function procesadorEq(moduleId, nucleoEq) {
       }
       const db = I.salida.values[desde];
       this._dsp.procesar(eI, eD, sal[0], sal[1] || sal[0], desde, hasta, db === 0 ? 1 : 10 ** (db / 20));
+      // La segunda salida es la entrada tal como llegó (las dos orejas sumadas): no es para
+      // oírla, es para que la carátula dibuje el espectro de «cómo está» junto al de «cómo queda».
+      const copia = outputs[1] && outputs[1][0];
+      if (copia) for (let i = desde; i < hasta; i++) copia[i] = 0.5 * (eI[i] + eD[i]);
     }
   }
 
