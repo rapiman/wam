@@ -28,6 +28,19 @@ document.body.append(await plugin.createGui());
 
 El estado (`getState` / `setState`) es `{ parameterValues }`, el del SDK.
 
+### Automatizar
+
+Cada control es un parámetro WAM (`getParameterInfo` los declara con su rango y sus unidades) y
+acepta eventos `wam-automation` con hora exacta:
+
+```js
+plugin.audioNode.scheduleEvents({ type: 'wam-automation', time: contexto.currentTime, data: { id: 'umbral', value: -24, normalized: false } });
+```
+
+Las carátulas siguen solas esos cambios. El ecualizador, que tiene 49 parámetros, exporta además
+`paramsVisiblesPz(estado)`: los ids que vale la pena ofrecer con ese estado (los de las bandas
+encendidas y la salida).
+
 ### Colores
 
 Las carátulas usan variables CSS con un valor por defecto; la página las cambia desde afuera,

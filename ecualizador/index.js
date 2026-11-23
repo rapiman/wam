@@ -6,9 +6,23 @@
 import { WebAudioModule, WamNode } from '@webaudiomodules/sdk';
 import descriptor from './descriptor.json';
 import { mandarConFunciones } from '../comun/hilo.js';
-import { nucleoEq } from './nucleo.js';
+import { nucleoEq, BANDAS } from './nucleo.js';
 import { dspEq, procesadorEq } from './procesador.js';
 import { crearCaratula } from './caratula.js';
+
+// QUÉ PARÁMETROS VALE LA PENA MOSTRAR con este estado (lo usa Pizarrita para la lista de la
+// automatización; otro anfitrión puede ignorarlo): de los 49, los de las bandas encendidas y la
+// salida. Una banda apagada no aparece hasta que se la enciende en la carátula.
+export function paramsVisiblesPz(estado) {
+  const pv = (estado && estado.parameterValues) || {};
+  const ids = [];
+  for (let b = 1; b <= BANDAS; b++) {
+    const on = pv[`b${b}on`] ? Number(pv[`b${b}on`].value) >= 0.5 : false;
+    if (on) ids.push(`b${b}on`, `b${b}tipo`, `b${b}frec`, `b${b}gan`, `b${b}q`, `b${b}pend`);
+  }
+  ids.push('salida');
+  return ids;
+}
 
 // Los módulos del hilo de audio se mandan una vez por contexto, no una por instancia.
 const mandados = new WeakMap();

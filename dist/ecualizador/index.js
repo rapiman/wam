@@ -2452,6 +2452,16 @@ async function crearCaratula(nodo) {
 }
 
 // ecualizador/index.js
+function paramsVisiblesPz(estado) {
+  const pv = estado && estado.parameterValues || {};
+  const ids = [];
+  for (let b = 1; b <= BANDAS; b++) {
+    const on = pv[`b${b}on`] ? Number(pv[`b${b}on`].value) >= 0.5 : false;
+    if (on) ids.push(`b${b}on`, `b${b}tipo`, `b${b}frec`, `b${b}gan`, `b${b}q`, `b${b}pend`);
+  }
+  ids.push("salida");
+  return ids;
+}
 var mandados = /* @__PURE__ */ new WeakMap();
 var NodoEq = class extends WamNode {
   static addModules(contexto, moduleId) {
@@ -2501,5 +2511,6 @@ var Ecualizador = class extends WebAudioModule_default {
   }
 };
 export {
-  Ecualizador as default
+  Ecualizador as default,
+  paramsVisiblesPz
 };
