@@ -20,8 +20,85 @@ export const POR_DEFECTO = {
 };
 export const v = (nombre) => `var(--pzw-${nombre},${POR_DEFECTO[nombre]})`;
 
-// Los colores YA RESUELTOS, para dibujar en un lienzo (que no entiende variables).
+// SEGUIR EL TEMA DE LA VENTANA DONDE SE ABRE (2026-11-23, JP: «que lo cargue de la ventana donde
+// se abre, junto con todo lo de un skin si se puede»). Sin que nadie defina nada: se miran el
+// color de letra, el fondo y la tipografía del lugar donde quedó puesta la carátula, y de ahí
+// salen los demás tonos (la letra apagada, los bordes, la pantalla, las trazas). El acento es el
+// del sitio si lo declara (`--pz-acento` en Pizarrita, o `accent-color`). El verde del nivel y el
+// rojo de la reducción no se tocan: dicen algo.
+// Una variable `--pzw-*` que la página SÍ definió manda sobre lo deducido. Se vuelve a mirar cada
+// tanto (lo llama `coloresDe`), así un cambio de tema se nota sin reabrir la ventana.
+const PUESTAS = new WeakMap(); // por carátula: las variables que puso esta función
+function leerColor(texto) {
+  const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)$/.exec(String(texto || '').trim());
+  if (!m) return null;
+  const a = m[4] === undefined ? 1 : m[4].endsWith('%') ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+  return [Number(m[1]), Number(m[2]), Number(m[3]), a];
+}
+const mezclar = (a, b, t) => `rgb(${[0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t)).join(',')})`;
+const brillo = (c) => {
+  const f = (x) => {
+    const u = x / 255;
+    return u <= 0.03928 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+export function deducirColores(tinta, fondo) {
+  const lt = brillo(tinta);
+  const lf = brillo(fondo);
+  // Sin contraste suficiente entre letra y fondo no se deduce nada: quedan los de siempre.
+  if ((Math.max(lt, lf) + 0.05) / (Math.min(lt, lf) + 0.05) < 3) return null;
+  const claro = lf > lt; // fondo claro con letra oscura
+  return {
+    fondo: mezclar(fondo, fondo, 0),
+    tinta: mezclar(tinta, tinta, 0),
+    tinta2: mezclar(tinta, fondo, 0.38),
+    borde: mezclar(tinta, fondo, 0.6),
+    pantalla: claro ? mezclar(fondo, [255, 255, 255], 0.55) : mezclar(fondo, [0, 0, 0], 0.35),
+    traza: mezclar(tinta, fondo, 0.72),
+  };
+}
+export function seguirTema(caja) {
+  const padre = caja.parentElement;
+  if (!padre) return;
+  const antes = PUESTAS.get(caja) || {};
+  // Lo que esta función puso antes se saca para ver qué define la página por su cuenta.
+  for (const k of Object.keys(antes)) caja.style.removeProperty(k);
+  const cs = getComputedStyle(padre);
+  let fondo = null;
+  for (let e = padre; e && !fondo; e = e.parentElement) {
+    const c = leerColor(getComputedStyle(e).backgroundColor);
+    if (c && c[3] > 0.5) fondo = c;
+  }
+  const tinta = leerColor(cs.color);
+  const nuevas = {};
+  const poner = (nombre, valor) => {
+    if (!valor || cs.getPropertyValue('--pzw-' + nombre).trim()) return;
+    nuevas['--pzw-' + nombre] = valor;
+  };
+  const deducidos = fondo && tinta ? deducirColores(tinta, fondo) : null;
+  if (deducidos) for (const k of Object.keys(deducidos)) poner(k, deducidos[k]);
+  const acento = cs.getPropertyValue('--pz-acento').trim() || (cs.accentColor && cs.accentColor !== 'auto' ? cs.accentColor : '');
+  poner('acento', acento);
+  if (cs.fontFamily) poner('letra', cs.fontFamily);
+  for (const k of Object.keys(nuevas)) caja.style.setProperty(k, nuevas[k]);
+  PUESTAS.set(caja, nuevas);
+}
+
+// Los colores YA RESUELTOS, para dibujar en un lienzo (que no entiende variables). De paso
+// vuelve a mirar el tema de la ventana (`seguirTema`).
 export function coloresDe(el) {
+  const seguir = () => {
+    try {
+      seguirTema(el);
+    } catch (e) {
+      /* sin tema que seguir: los colores de siempre */
+    }
+  };
+  // La primera vez la carátula todavía no está puesta en ninguna ventana: se mira apenas lo esté
+  // (con un reloj y no con el dibujo, que no corre mientras la ventana no se ve).
+  if (el.parentElement) seguir();
+  else setTimeout(seguir, 60);
   const cs = getComputedStyle(el);
   const c = {};
   for (const k of Object.keys(POR_DEFECTO)) c[k] = cs.getPropertyValue('--pzw-' + k).trim() || POR_DEFECTO[k];

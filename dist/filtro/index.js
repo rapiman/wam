@@ -1702,7 +1702,69 @@ var POR_DEFECTO = {
   traza: "#bdbdbd"
 };
 var v = (nombre) => `var(--pzw-${nombre},${POR_DEFECTO[nombre]})`;
+var PUESTAS = /* @__PURE__ */ new WeakMap();
+function leerColor(texto) {
+  const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)$/.exec(String(texto || "").trim());
+  if (!m) return null;
+  const a = m[4] === void 0 ? 1 : m[4].endsWith("%") ? parseFloat(m[4]) / 100 : parseFloat(m[4]);
+  return [Number(m[1]), Number(m[2]), Number(m[3]), a];
+}
+var mezclar = (a, b, t) => `rgb(${[0, 1, 2].map((i) => Math.round(a[i] + (b[i] - a[i]) * t)).join(",")})`;
+var brillo = (c) => {
+  const f = (x) => {
+    const u = x / 255;
+    return u <= 0.03928 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+};
+function deducirColores(tinta, fondo) {
+  const lt = brillo(tinta);
+  const lf = brillo(fondo);
+  if ((Math.max(lt, lf) + 0.05) / (Math.min(lt, lf) + 0.05) < 3) return null;
+  const claro = lf > lt;
+  return {
+    fondo: mezclar(fondo, fondo, 0),
+    tinta: mezclar(tinta, tinta, 0),
+    tinta2: mezclar(tinta, fondo, 0.38),
+    borde: mezclar(tinta, fondo, 0.6),
+    pantalla: claro ? mezclar(fondo, [255, 255, 255], 0.55) : mezclar(fondo, [0, 0, 0], 0.35),
+    traza: mezclar(tinta, fondo, 0.72)
+  };
+}
+function seguirTema(caja) {
+  const padre = caja.parentElement;
+  if (!padre) return;
+  const antes = PUESTAS.get(caja) || {};
+  for (const k of Object.keys(antes)) caja.style.removeProperty(k);
+  const cs = getComputedStyle(padre);
+  let fondo = null;
+  for (let e = padre; e && !fondo; e = e.parentElement) {
+    const c = leerColor(getComputedStyle(e).backgroundColor);
+    if (c && c[3] > 0.5) fondo = c;
+  }
+  const tinta = leerColor(cs.color);
+  const nuevas = {};
+  const poner = (nombre, valor) => {
+    if (!valor || cs.getPropertyValue("--pzw-" + nombre).trim()) return;
+    nuevas["--pzw-" + nombre] = valor;
+  };
+  const deducidos = fondo && tinta ? deducirColores(tinta, fondo) : null;
+  if (deducidos) for (const k of Object.keys(deducidos)) poner(k, deducidos[k]);
+  const acento = cs.getPropertyValue("--pz-acento").trim() || (cs.accentColor && cs.accentColor !== "auto" ? cs.accentColor : "");
+  poner("acento", acento);
+  if (cs.fontFamily) poner("letra", cs.fontFamily);
+  for (const k of Object.keys(nuevas)) caja.style.setProperty(k, nuevas[k]);
+  PUESTAS.set(caja, nuevas);
+}
 function coloresDe(el2) {
+  const seguir = () => {
+    try {
+      seguirTema(el2);
+    } catch (e) {
+    }
+  };
+  if (el2.parentElement) seguir();
+  else setTimeout(seguir, 60);
   const cs = getComputedStyle(el2);
   const c = {};
   for (const k of Object.keys(POR_DEFECTO)) c[k] = cs.getPropertyValue("--pzw-" + k).trim() || POR_DEFECTO[k];

@@ -55,6 +55,12 @@ en cualquier elemento que contenga la carátula:
 `--pzw-fondo` `--pzw-tinta` `--pzw-tinta2` `--pzw-borde` `--pzw-pantalla` `--pzw-acento`
 `--pzw-nivel` `--pzw-reduccion` `--pzw-traza` `--pzw-letra`
 
+**Sin definir nada, la carátula sigue el tema de la ventana donde se abre** (`seguirTema` en
+`comun/controles.js`): toma el color de letra, el fondo y la tipografía del lugar donde quedó
+puesta y deduce los demás tonos; el acento es `--pz-acento` o `accent-color` si la página lo
+declara. Una variable `--pzw-*` definida por la página manda sobre lo deducido. Si letra y fondo
+no contrastan lo suficiente, quedan los colores de siempre.
+
 ## Armar
 
 ```sh
