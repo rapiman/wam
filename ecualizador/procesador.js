@@ -5,33 +5,39 @@
 // ámbito del módulo; la segunda registra el procesador. Separadas para probar el filtrado con
 // Node (`prueba.mjs`).
 
-// EL FILTRADO: hasta `bandas` filtros de segundo orden en serie, en las dos orejas.
+// EL FILTRADO: hasta `bandas` bandas en serie, en las dos orejas. Cada banda es un filtro de
+// segundo orden; un corte más duro son hasta 4 seguidos.
 export function dspEq(moduleId, nucleoEq) {
   const ambito = globalThis.webAudioModules.getModuleScope(moduleId);
-  const { coefs } = nucleoEq();
+  const { coefs, etapas, qEtapa } = nucleoEq();
+  const MAX = 4; // etapas por banda
 
   ambito.pzCrearEq = (fm, bandas) => {
     const c = [];
-    for (let b = 0; b < bandas; b++) c.push(new Float64Array(5));
+    for (let i = 0; i < bandas * MAX; i++) c.push(new Float64Array(5));
     const activa = new Uint8Array(bandas);
-    const puesto = new Float64Array(bandas * 4).fill(NaN); // tipo, frec, gan, q con que se calculó
-    const z = new Float64Array(bandas * 4); // la memoria de cada filtro: dos por oreja
+    const cuantas = new Uint8Array(bandas).fill(1); // etapas de cada banda
+    const puesto = new Float64Array(bandas * 5).fill(NaN); // tipo, frec, gan, q, pend con que se calculó
+    const z = new Float64Array(bandas * MAX * 4); // la memoria de cada filtro: dos por oreja
 
     // Pone una banda. Solo recalcula si cambió algo; al encenderse parte de cero.
-    const poner = (b, encendida, tipo, frec, gan, q) => {
+    const poner = (b, encendida, tipo, frec, gan, q, pend) => {
       if (!encendida) {
         activa[b] = 0;
         return;
       }
-      const k = b * 4;
-      if (!activa[b]) z.fill(0, k, k + 4);
+      const n = etapas(tipo, pend);
+      if (!activa[b] || n !== cuantas[b]) z.fill(0, b * MAX * 4, (b + 1) * MAX * 4);
       activa[b] = 1;
-      if (puesto[k] === tipo && puesto[k + 1] === frec && puesto[k + 2] === gan && puesto[k + 3] === q) return;
+      const k = b * 5;
+      if (puesto[k] === tipo && puesto[k + 1] === frec && puesto[k + 2] === gan && puesto[k + 3] === q && puesto[k + 4] === n) return;
       puesto[k] = tipo;
       puesto[k + 1] = frec;
       puesto[k + 2] = gan;
       puesto[k + 3] = q;
-      coefs(c[b], tipo, frec, gan, q, fm);
+      puesto[k + 4] = n;
+      cuantas[b] = n;
+      for (let s = 0; s < n; s++) coefs(c[b * MAX + s], tipo, frec, gan, qEtapa(q, s, n), fm);
     };
 
     // Lee eI/eD y escribe sI/sD entre `desde` y `hasta`; `gan` es la ganancia de salida (lineal).
@@ -40,15 +46,16 @@ export function dspEq(moduleId, nucleoEq) {
         sI[i] = eI[i];
         sD[i] = eD[i];
       }
-      for (let b = 0; b < bandas; b++) {
-        if (!activa[b]) continue;
-        const cb = c[b];
+      for (let e = 0; e < bandas * MAX; e++) {
+        const b = (e / MAX) | 0;
+        if (!activa[b] || e - b * MAX >= cuantas[b]) continue;
+        const cb = c[e];
         const b0 = cb[0];
         const b1 = cb[1];
         const b2 = cb[2];
         const a1 = cb[3];
         const a2 = cb[4];
-        const k = b * 4;
+        const k = e * 4;
         let z1 = z[k];
         let z2 = z[k + 1];
         let y1 = z[k + 2];
@@ -83,12 +90,12 @@ export function dspEq(moduleId, nucleoEq) {
   };
 }
 
-// EL PROCESADOR: los parámetros de cada banda (`b1on`, `b1tipo`, `b1frec`, `b1gan`, `b1q`…
-// hasta la 8) y `salida`.
+// EL PROCESADOR: los parámetros de cada banda (`b1on`, `b1tipo`, `b1frec`, `b1gan`, `b1q`,
+// `b1pend`… hasta la 8) y `salida`.
 export function procesadorEq(moduleId, nucleoEq) {
   const ambito = globalThis.webAudioModules.getModuleScope(moduleId);
   const { WamProcessor, WamParameterInfo, pzCrearEq } = ambito;
-  const { TIPOS } = nucleoEq();
+  const { TIPOS, PENDIENTES } = nucleoEq();
   const BANDAS = 8;
   const FRECUENCIAS = [30, 100, 250, 600, 1500, 3500, 8000, 16000];
 
@@ -99,7 +106,7 @@ export function procesadorEq(moduleId, nucleoEq) {
       this._cero = new Float32Array(128);
       // los nombres de los parámetros, armados una vez (nada de armar textos en cada bloque)
       this._ids = [];
-      for (let b = 1; b <= BANDAS; b++) this._ids.push([`b${b}on`, `b${b}tipo`, `b${b}frec`, `b${b}gan`, `b${b}q`]);
+      for (let b = 1; b <= BANDAS; b++) this._ids.push([`b${b}on`, `b${b}tipo`, `b${b}frec`, `b${b}gan`, `b${b}q`, `b${b}pend`]);
     }
 
     _generateWamParameterInfo() {
@@ -113,6 +120,7 @@ export function procesadorEq(moduleId, nucleoEq) {
         f(`b${b}frec`, `Banda ${b}: frecuencia`, FRECUENCIAS[b - 1], 20, 20000, 'Hz');
         f(`b${b}gan`, `Banda ${b}: ganancia`, 0, -24, 24, 'dB');
         f(`b${b}q`, `Banda ${b}: Q`, 1, 0.1, 18, '');
+        info[`b${b}pend`] = new WamParameterInfo(`b${b}pend`, { type: 'choice', label: `Banda ${b}: pendiente del corte`, defaultValue: 0, choices: PENDIENTES });
       }
       f('salida', 'Salida', 0, -24, 24, 'dB');
       return info;
@@ -134,6 +142,7 @@ export function procesadorEq(moduleId, nucleoEq) {
           I[id[2]].values[desde],
           I[id[3]].values[desde],
           I[id[4]].values[desde],
+          Math.round(I[id[5]].values[desde]),
         );
       }
       const db = I.salida.values[desde];

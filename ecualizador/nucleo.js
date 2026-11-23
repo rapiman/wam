@@ -8,6 +8,20 @@ export function nucleoEq() {
   // ¿La ganancia de la banda hace algo en este tipo? (en los cortes y la muesca, no)
   const conGanancia = (tipo) => tipo <= 2;
 
+  // QUÉ TAN DURO ES UN CORTE: cada 12 dB por octava es un filtro de segundo orden más, en serie.
+  const PENDIENTES = ['12 dB/oct', '24 dB/oct', '36 dB/oct', '48 dB/oct'];
+  const esCorte = (tipo) => tipo === 3 || tipo === 4;
+  // Cuántos filtros en serie lleva una banda (solo los cortes llevan más de uno).
+  const etapas = (tipo, pend) => (esCorte(tipo) ? Math.min(4, Math.max(1, (pend | 0) + 1)) : 1);
+  // El Q de la etapa k (0…n−1) de una banda de n etapas: los de Butterworth, que juntos dan una
+  // caída pareja sin joroba; el Q de la banda se aplica a la etapa más resonante (0,71 = plano,
+  // más alto = resonancia en el corte). Con una sola etapa es el Q de la banda tal cual.
+  const qEtapa = (q, k, n) => {
+    if (n <= 1) return q;
+    const plano = 1 / (2 * Math.cos((Math.PI * (2 * k + 1)) / (4 * n)));
+    return k === n - 1 ? plano * (q / Math.SQRT1_2) : plano;
+  };
+
   // Coeficientes de un filtro de segundo orden (las fórmulas del «Audio EQ Cookbook» de
   // Robert Bristow-Johnson), normalizados: deja en `c` [b0, b1, b2, a1, a2].
   const coefs = (c, tipo, frec, ganDb, q, fm) => {
@@ -74,7 +88,7 @@ export function nucleoEq() {
     return 10 * Math.log10(Math.max(1e-12, num / Math.max(1e-12, den)));
   };
 
-  return { TIPOS, conGanancia, coefs, magnitud };
+  return { TIPOS, PENDIENTES, conGanancia, esCorte, etapas, qEtapa, coefs, magnitud };
 }
 
 // Lo que comparten el procesador y la carátula sobre las bandas.

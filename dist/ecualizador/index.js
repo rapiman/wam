@@ -1592,6 +1592,14 @@ function mandarConFunciones(audioWorklet, fn, moduleId, ...funciones) {
 function nucleoEq() {
   const TIPOS2 = ["Campana", "Repisa baja", "Repisa alta", "Corte bajo", "Corte alto", "Muesca"];
   const conGanancia2 = (tipo) => tipo <= 2;
+  const PENDIENTES2 = ["12 dB/oct", "24 dB/oct", "36 dB/oct", "48 dB/oct"];
+  const esCorte2 = (tipo) => tipo === 3 || tipo === 4;
+  const etapas2 = (tipo, pend) => esCorte2(tipo) ? Math.min(4, Math.max(1, (pend | 0) + 1)) : 1;
+  const qEtapa2 = (q, k, n) => {
+    if (n <= 1) return q;
+    const plano = 1 / (2 * Math.cos(Math.PI * (2 * k + 1) / (4 * n)));
+    return k === n - 1 ? plano * (q / Math.SQRT1_2) : plano;
+  };
   const coefs2 = (c, tipo, frec, ganDb, q, fm) => {
     const f = Math.min(0.49 * fm, Math.max(10, frec));
     const w = 2 * Math.PI * f / fm;
@@ -1653,7 +1661,7 @@ function nucleoEq() {
     const den = 1 + c[3] * c[3] + c[4] * c[4] + 2 * (c[3] + c[3] * c[4]) * c1 + 2 * c[4] * c2;
     return 10 * Math.log10(Math.max(1e-12, num / Math.max(1e-12, den)));
   };
-  return { TIPOS: TIPOS2, conGanancia: conGanancia2, coefs: coefs2, magnitud: magnitud2 };
+  return { TIPOS: TIPOS2, PENDIENTES: PENDIENTES2, conGanancia: conGanancia2, esCorte: esCorte2, etapas: etapas2, qEtapa: qEtapa2, coefs: coefs2, magnitud: magnitud2 };
 }
 var BANDAS = 8;
 var FRECUENCIAS = [30, 100, 250, 600, 1500, 3500, 8e3, 16e3];
@@ -1661,42 +1669,48 @@ var FRECUENCIAS = [30, 100, 250, 600, 1500, 3500, 8e3, 16e3];
 // ecualizador/procesador.js
 function dspEq(moduleId, nucleoEq2) {
   const ambito = globalThis.webAudioModules.getModuleScope(moduleId);
-  const { coefs: coefs2 } = nucleoEq2();
+  const { coefs: coefs2, etapas: etapas2, qEtapa: qEtapa2 } = nucleoEq2();
+  const MAX = 4;
   ambito.pzCrearEq = (fm, bandas) => {
     const c = [];
-    for (let b = 0; b < bandas; b++) c.push(new Float64Array(5));
+    for (let i = 0; i < bandas * MAX; i++) c.push(new Float64Array(5));
     const activa = new Uint8Array(bandas);
-    const puesto = new Float64Array(bandas * 4).fill(NaN);
-    const z = new Float64Array(bandas * 4);
-    const poner = (b, encendida, tipo, frec, gan, q) => {
+    const cuantas = new Uint8Array(bandas).fill(1);
+    const puesto = new Float64Array(bandas * 5).fill(NaN);
+    const z = new Float64Array(bandas * MAX * 4);
+    const poner = (b, encendida, tipo, frec, gan, q, pend) => {
       if (!encendida) {
         activa[b] = 0;
         return;
       }
-      const k = b * 4;
-      if (!activa[b]) z.fill(0, k, k + 4);
+      const n = etapas2(tipo, pend);
+      if (!activa[b] || n !== cuantas[b]) z.fill(0, b * MAX * 4, (b + 1) * MAX * 4);
       activa[b] = 1;
-      if (puesto[k] === tipo && puesto[k + 1] === frec && puesto[k + 2] === gan && puesto[k + 3] === q) return;
+      const k = b * 5;
+      if (puesto[k] === tipo && puesto[k + 1] === frec && puesto[k + 2] === gan && puesto[k + 3] === q && puesto[k + 4] === n) return;
       puesto[k] = tipo;
       puesto[k + 1] = frec;
       puesto[k + 2] = gan;
       puesto[k + 3] = q;
-      coefs2(c[b], tipo, frec, gan, q, fm);
+      puesto[k + 4] = n;
+      cuantas[b] = n;
+      for (let s = 0; s < n; s++) coefs2(c[b * MAX + s], tipo, frec, gan, qEtapa2(q, s, n), fm);
     };
     const procesar = (eI, eD, sI, sD, desde, hasta, gan) => {
       for (let i = desde; i < hasta; i++) {
         sI[i] = eI[i];
         sD[i] = eD[i];
       }
-      for (let b = 0; b < bandas; b++) {
-        if (!activa[b]) continue;
-        const cb = c[b];
+      for (let e = 0; e < bandas * MAX; e++) {
+        const b = e / MAX | 0;
+        if (!activa[b] || e - b * MAX >= cuantas[b]) continue;
+        const cb = c[e];
         const b0 = cb[0];
         const b1 = cb[1];
         const b2 = cb[2];
         const a1 = cb[3];
         const a2 = cb[4];
-        const k = b * 4;
+        const k = e * 4;
         let z1 = z[k];
         let z2 = z[k + 1];
         let y1 = z[k + 2];
@@ -1731,7 +1745,7 @@ function dspEq(moduleId, nucleoEq2) {
 function procesadorEq(moduleId, nucleoEq2) {
   const ambito = globalThis.webAudioModules.getModuleScope(moduleId);
   const { WamProcessor, WamParameterInfo, pzCrearEq } = ambito;
-  const { TIPOS: TIPOS2 } = nucleoEq2();
+  const { TIPOS: TIPOS2, PENDIENTES: PENDIENTES2 } = nucleoEq2();
   const BANDAS2 = 8;
   const FRECUENCIAS2 = [30, 100, 250, 600, 1500, 3500, 8e3, 16e3];
   class ProcesadorEq extends WamProcessor {
@@ -1740,7 +1754,7 @@ function procesadorEq(moduleId, nucleoEq2) {
       this._dsp = pzCrearEq(sampleRate, BANDAS2);
       this._cero = new Float32Array(128);
       this._ids = [];
-      for (let b = 1; b <= BANDAS2; b++) this._ids.push([`b${b}on`, `b${b}tipo`, `b${b}frec`, `b${b}gan`, `b${b}q`]);
+      for (let b = 1; b <= BANDAS2; b++) this._ids.push([`b${b}on`, `b${b}tipo`, `b${b}frec`, `b${b}gan`, `b${b}q`, `b${b}pend`]);
     }
     _generateWamParameterInfo() {
       const info = {};
@@ -1753,6 +1767,7 @@ function procesadorEq(moduleId, nucleoEq2) {
         f(`b${b}frec`, `Banda ${b}: frecuencia`, FRECUENCIAS2[b - 1], 20, 2e4, "Hz");
         f(`b${b}gan`, `Banda ${b}: ganancia`, 0, -24, 24, "dB");
         f(`b${b}q`, `Banda ${b}: Q`, 1, 0.1, 18, "");
+        info[`b${b}pend`] = new WamParameterInfo(`b${b}pend`, { type: "choice", label: `Banda ${b}: pendiente del corte`, defaultValue: 0, choices: PENDIENTES2 });
       }
       f("salida", "Salida", 0, -24, 24, "dB");
       return info;
@@ -1772,7 +1787,8 @@ function procesadorEq(moduleId, nucleoEq2) {
           Math.round(I[id[1]].values[desde]),
           I[id[2]].values[desde],
           I[id[3]].values[desde],
-          I[id[4]].values[desde]
+          I[id[4]].values[desde],
+          Math.round(I[id[5]].values[desde])
         );
       }
       const db = I.salida.values[desde];
@@ -2010,7 +2026,7 @@ function elegidor(o) {
 }
 
 // ecualizador/caratula.js
-var { TIPOS, conGanancia, coefs, magnitud } = nucleoEq();
+var { TIPOS, PENDIENTES, conGanancia, esCorte, etapas, qEtapa, coefs, magnitud } = nucleoEq();
 var F_MIN = 20;
 var F_MAX = 2e4;
 var RANGO = 24;
@@ -2032,7 +2048,8 @@ async function crearCaratula(nodo) {
       frec: lee(`b${n}frec`, FRECUENCIAS[i]),
       gan: lee(`b${n}gan`, 0),
       q: lee(`b${n}q`, 1),
-      c: new Float64Array(5)
+      pend: Math.round(lee(`b${n}pend`, 0)),
+      c: [new Float64Array(5), new Float64Array(5), new Float64Array(5), new Float64Array(5)]
     });
   }
   let salida = lee("salida", 0);
@@ -2089,7 +2106,8 @@ async function crearCaratula(nodo) {
   }
   const encendida = interruptor({ nombre: "Encendida", porDefecto: false, alCambiar: (si) => sel >= 0 && (ponerBanda(sel, { on: si }), pintarFranja()) });
   const tipo = elegidor({ nombre: "Tipo de banda", opciones: TIPOS, alCambiar: (t) => sel >= 0 && (ponerBanda(sel, { tipo: t }), pintarFranja()) });
-  franja.append(botones, encendida.el, tipo.el);
+  const pend = elegidor({ nombre: "Pendiente del corte", opciones: PENDIENTES, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { pend: x }) });
+  franja.append(botones, encendida.el, tipo.el, pend.el);
   const fila = el("div", `display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px 10px 10px;`);
   const pFrec = perilla({ nombre: "Frecuencia", min: F_MIN, max: F_MAX, paso: 1, log: true, porDefecto: 1e3, formato: hz, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { frec: x }) });
   const pGan = perilla({ nombre: "Ganancia", min: -RANGO, max: RANGO, paso: 0.1, porDefecto: 0, formato: dB, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { gan: x }) });
@@ -2123,9 +2141,11 @@ async function crearCaratula(nodo) {
     const b = sel >= 0 ? B[sel] : null;
     for (const e of [encendida.el, tipo.el, pFrec.el, pQ.el]) apagar(e, !b);
     apagar(pGan.el, !b || !conGanancia(b.tipo));
+    pend.el.style.visibility = b && esCorte(b.tipo) ? "" : "hidden";
     if (!b) return;
     encendida.poner(b.on);
     tipo.poner(b.tipo);
+    pend.poner(b.pend);
     pFrec.poner(b.frec);
     pGan.poner(b.gan);
     pQ.poner(b.q);
@@ -2221,8 +2241,11 @@ async function crearCaratula(nodo) {
     curva.fill(salida);
     for (const b of B) {
       if (!b.on) continue;
-      coefs(b.c, b.tipo, b.frec, b.gan, b.q, fm);
-      for (let px = 0; px <= W; px++) curva[px] += magnitud(b.c, FX(px), fm);
+      const n = etapas(b.tipo, b.pend);
+      for (let s = 0; s < n; s++) {
+        coefs(b.c[s], b.tipo, b.frec, b.gan, qEtapa(b.q, s, n), fm);
+        for (let px = 0; px <= W; px++) curva[px] += magnitud(b.c[s], FX(px), fm);
+      }
     }
     sucio = false;
   };
@@ -2348,19 +2371,20 @@ async function crearCaratula(nodo) {
     dibujar();
     cuadro = requestAnimationFrame(pintar);
   };
-  const CAMPOS = ["on", "tipo", "frec", "gan", "q"];
+  const CAMPOS = ["on", "tipo", "frec", "gan", "q", "pend"];
   reloj = setInterval(() => {
     nodo.getParameterValues(false).then((vals) => {
       if (!vals || !reloj) return;
       let cambio = false;
       for (let i = 0; i < BANDAS; i++) {
         if (i === arrastrando) continue;
-        if (i === sel && (pFrec.agarrada() || pGan.agarrada() || pQ.agarrada() || tipo.agarrada())) continue;
+        if (i === sel && (pFrec.agarrada() || pGan.agarrada() || pQ.agarrada() || tipo.agarrada() || pend.agarrada())) continue;
         for (const campo of CAMPOS) {
           const dato = vals[`b${i + 1}${campo}`];
           if (!dato) continue;
-          const x = campo === "on" ? Number(dato.value) >= 0.5 : campo === "tipo" ? Math.round(Number(dato.value)) : Number(dato.value);
-          if (campo === "on" || campo === "tipo" ? x === B[i][campo] : Math.abs(x - B[i][campo]) < 1e-4) continue;
+          const entero = campo === "tipo" || campo === "pend";
+          const x = campo === "on" ? Number(dato.value) >= 0.5 : entero ? Math.round(Number(dato.value)) : Number(dato.value);
+          if (campo === "on" || entero ? x === B[i][campo] : Math.abs(x - B[i][campo]) < 1e-4) continue;
           B[i][campo] = x;
           cambio = true;
         }

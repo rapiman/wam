@@ -1,14 +1,15 @@
 // CARÁTULA DEL ECUALIZADOR PARAMÉTRICO (2026-11-23). El gráfico manda: doble clic crea una
 // banda, se arrastra para moverla (a lo ancho la frecuencia, a lo alto la ganancia), la rueda
 // le cambia el Q y doble clic sobre ella la apaga. Detrás se ve el espectro de lo que sale.
-// Abajo, la banda elegida con sus controles y la ganancia de salida.
+// Abajo, la banda elegida con sus controles (en los cortes, además, qué tan duro es: 12 a
+// 48 dB por octava) y la ganancia de salida.
 //
 // Los controles y los colores (`--pzw-*`) son los comunes: `../comun/controles.js`. La curva se
 // dibuja con la misma cuenta que filtra en el hilo de audio (`nucleo.js`).
 import { v, coloresDe, numero, el, lienzo, perilla, interruptor, elegidor } from '../comun/controles.js';
 import { nucleoEq, BANDAS, FRECUENCIAS } from './nucleo.js';
 
-const { TIPOS, conGanancia, coefs, magnitud } = nucleoEq();
+const { TIPOS, PENDIENTES, conGanancia, esCorte, etapas, qEtapa, coefs, magnitud } = nucleoEq();
 const F_MIN = 20;
 const F_MAX = 20000;
 const RANGO = 24; // dB hacia arriba y hacia abajo que caben en el gráfico
@@ -31,7 +32,8 @@ export async function crearCaratula(nodo) {
       frec: lee(`b${n}frec`, FRECUENCIAS[i]),
       gan: lee(`b${n}gan`, 0),
       q: lee(`b${n}q`, 1),
-      c: new Float64Array(5),
+      pend: Math.round(lee(`b${n}pend`, 0)),
+      c: [new Float64Array(5), new Float64Array(5), new Float64Array(5), new Float64Array(5)],
     });
   }
   let salida = lee('salida', 0);
@@ -100,7 +102,8 @@ export async function crearCaratula(nodo) {
   }
   const encendida = interruptor({ nombre: 'Encendida', porDefecto: false, alCambiar: (si) => sel >= 0 && (ponerBanda(sel, { on: si }), pintarFranja()) });
   const tipo = elegidor({ nombre: 'Tipo de banda', opciones: TIPOS, alCambiar: (t) => sel >= 0 && (ponerBanda(sel, { tipo: t }), pintarFranja()) });
-  franja.append(botones, encendida.el, tipo.el);
+  const pend = elegidor({ nombre: 'Pendiente del corte', opciones: PENDIENTES, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { pend: x }) });
+  franja.append(botones, encendida.el, tipo.el, pend.el);
 
   const fila = el('div', `display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px 10px 10px;`);
   const pFrec = perilla({ nombre: 'Frecuencia', min: F_MIN, max: F_MAX, paso: 1, log: true, porDefecto: 1000, formato: hz, alCambiar: (x) => sel >= 0 && ponerBanda(sel, { frec: x }) });
@@ -136,9 +139,12 @@ export async function crearCaratula(nodo) {
     const b = sel >= 0 ? B[sel] : null;
     for (const e of [encendida.el, tipo.el, pFrec.el, pQ.el]) apagar(e, !b);
     apagar(pGan.el, !b || !conGanancia(b.tipo));
+    // la pendiente solo existe en los cortes
+    pend.el.style.visibility = b && esCorte(b.tipo) ? '' : 'hidden';
     if (!b) return;
     encendida.poner(b.on);
     tipo.poner(b.tipo);
+    pend.poner(b.pend);
     pFrec.poner(b.frec);
     pGan.poner(b.gan);
     pQ.poner(b.q);
@@ -243,8 +249,11 @@ export async function crearCaratula(nodo) {
     curva.fill(salida);
     for (const b of B) {
       if (!b.on) continue;
-      coefs(b.c, b.tipo, b.frec, b.gan, b.q, fm);
-      for (let px = 0; px <= W; px++) curva[px] += magnitud(b.c, FX(px), fm);
+      const n = etapas(b.tipo, b.pend);
+      for (let s = 0; s < n; s++) {
+        coefs(b.c[s], b.tipo, b.frec, b.gan, qEtapa(b.q, s, n), fm);
+        for (let px = 0; px <= W; px++) curva[px] += magnitud(b.c[s], FX(px), fm);
+      }
     }
     sucio = false;
   };
@@ -382,19 +391,20 @@ export async function crearCaratula(nodo) {
 
   // Si los parámetros cambian por otro lado (el anfitrión pone un estado, una automatización),
   // la carátula se pone al día, salvo lo que se está moviendo.
-  const CAMPOS = ['on', 'tipo', 'frec', 'gan', 'q'];
+  const CAMPOS = ['on', 'tipo', 'frec', 'gan', 'q', 'pend'];
   reloj = setInterval(() => {
     nodo.getParameterValues(false).then((vals) => {
       if (!vals || !reloj) return;
       let cambio = false;
       for (let i = 0; i < BANDAS; i++) {
         if (i === arrastrando) continue;
-        if (i === sel && (pFrec.agarrada() || pGan.agarrada() || pQ.agarrada() || tipo.agarrada())) continue;
+        if (i === sel && (pFrec.agarrada() || pGan.agarrada() || pQ.agarrada() || tipo.agarrada() || pend.agarrada())) continue;
         for (const campo of CAMPOS) {
           const dato = vals[`b${i + 1}${campo}`];
           if (!dato) continue;
-          const x = campo === 'on' ? Number(dato.value) >= 0.5 : campo === 'tipo' ? Math.round(Number(dato.value)) : Number(dato.value);
-          if (campo === 'on' || campo === 'tipo' ? x === B[i][campo] : Math.abs(x - B[i][campo]) < 1e-4) continue;
+          const entero = campo === 'tipo' || campo === 'pend';
+          const x = campo === 'on' ? Number(dato.value) >= 0.5 : entero ? Math.round(Number(dato.value)) : Number(dato.value);
+          if (campo === 'on' || entero ? x === B[i][campo] : Math.abs(x - B[i][campo]) < 1e-4) continue;
           B[i][campo] = x;
           cambio = true;
         }

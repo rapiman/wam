@@ -8,12 +8,12 @@ import { dspEq } from './procesador.js';
 const ambito = {};
 globalThis.webAudioModules = { getModuleScope: () => ambito };
 dspEq('prueba', nucleoEq);
-const { coefs, magnitud } = nucleoEq();
+const { coefs, magnitud, etapas, qEtapa } = nucleoEq();
 const FM = 48000;
 const db = (x) => 20 * Math.log10(x + 1e-12);
 
 // Cuántos dB cambia un tono de `hz` al pasar por un ecualizador con esas bandas
-// ([tipo, frec, gan, q]…) y esa ganancia de salida.
+// ([tipo, frec, gan, q, pendiente]…) y esa ganancia de salida.
 function medir(hz, bandas, salidaDb = 0) {
   const eq = ambito.pzCrearEq(FM, 8);
   bandas.forEach((b, i) => eq.poner(i, true, ...b));
@@ -34,7 +34,12 @@ function medir(hz, bandas, salidaDb = 0) {
   if (Math.abs(pI - pD) > 1e-9) throw new Error('las dos orejas no salen iguales');
   return db(pI) - db(0.1);
 }
-const curva = (hz, bandas) => bandas.reduce((s, b) => s + magnitud(coefs(new Float64Array(5), ...b, FM), hz, FM), 0);
+const curva = (hz, bandas) =>
+  bandas.reduce((suma, [tipo, frec, gan, q, pend]) => {
+    const n = etapas(tipo, pend);
+    for (let s = 0; s < n; s++) suma += magnitud(coefs(new Float64Array(5), tipo, frec, gan, qEtapa(q, s, n), FM), hz, FM);
+    return suma;
+  }, 0);
 
 let fallas = 0;
 function ver(nombre, valor, esperado, margen) {
@@ -65,6 +70,18 @@ ver('corte bajo en 200 Hz, tono de 50 Hz (dB)', medir(50, [[3, 200, 0, Math.SQRT
 // (en digital el corte alto cae un poco más que en la teoría analógica, que daría −24,1)
 ver('corte alto en 2 kHz, tono de 8 kHz (dB)', medir(8000, [[4, 2000, 0, Math.SQRT1_2]]), -25.7, 0.1);
 ver('corte alto en 2 kHz, tono de 100 Hz (dB)', medir(100, [[4, 2000, 0, Math.SQRT1_2]]), 0, 0.05);
+// 4b. Cortes más duros: siguen en −3 dB en su frecuencia, caen 24, 36 o 48 dB por octava
+// y no tocan lo que dejan pasar.
+ver('corte bajo de 24 dB/oct en 200 Hz, tono de 200 Hz (dB)', medir(200, [[3, 200, 0, Math.SQRT1_2, 1]]), -3.01, 0.05);
+ver('corte bajo de 24 dB/oct en 200 Hz, tono de 100 Hz (dB)', medir(100, [[3, 200, 0, Math.SQRT1_2, 1]]), -24.1, 0.3);
+ver('corte bajo de 36 dB/oct en 200 Hz, tono de 100 Hz (dB)', medir(100, [[3, 200, 0, Math.SQRT1_2, 2]]), -36.1, 0.3);
+ver('corte bajo de 48 dB/oct en 200 Hz, tono de 100 Hz (dB)', medir(100, [[3, 200, 0, Math.SQRT1_2, 3]]), -48.2, 0.3);
+ver('corte bajo de 48 dB/oct en 200 Hz, tono de 200 Hz (dB)', medir(200, [[3, 200, 0, Math.SQRT1_2, 3]]), -3.01, 0.05);
+ver('corte bajo de 48 dB/oct en 200 Hz, tono de 1 kHz (dB)', medir(1000, [[3, 200, 0, Math.SQRT1_2, 3]]), 0, 0.01);
+ver('corte alto de 48 dB/oct en 4 kHz, tono de 1 kHz (dB)', medir(1000, [[4, 4000, 0, Math.SQRT1_2, 3]]), 0, 0.01);
+menorQue('corte alto de 48 dB/oct en 4 kHz, tono de 8 kHz (dB)', medir(8000, [[4, 4000, 0, Math.SQRT1_2, 3]]), -48);
+// en una campana la pendiente no hace nada
+ver('campana +6 dB con pendiente puesta, tono de 1 kHz (dB)', medir(1000, [[0, 1000, 6, 1, 3]]), 6, 0.02);
 // 5. Muesca: borra su frecuencia.
 menorQue('muesca en 1 kHz, tono de 1 kHz (dB)', medir(1000, [[5, 1000, 0, 4]]), -50);
 // 6. Salida.
@@ -72,16 +89,17 @@ ver('salida −6 dB (dB)', medir(1000, [], -6), -6, 1e-4);
 // 7. Varias bandas a la vez: lo que suena es lo que dibuja la curva.
 {
   const bandas = [
-    [3, 40, 0, 0.71],
+    [3, 40, 0, 0.71, 2],
     [0, 250, -4, 1.4],
     [0, 3000, 5, 2],
     [2, 9000, 3, 0.71],
+    [4, 15000, 0, 1.2, 3],
   ];
   let peor = 0;
   for (const hz of [30, 60, 125, 250, 500, 1000, 2000, 3000, 6000, 12000, 18000]) {
     peor = Math.max(peor, Math.abs(medir(hz, bandas) - curva(hz, bandas)));
   }
-  ver('cuatro bandas: mayor diferencia entre lo que suena y la curva (dB)', peor, 0, 0.05);
+  ver('cinco bandas (con cortes duros): mayor diferencia entre lo que suena y la curva (dB)', peor, 0, 0.05);
 }
 
 console.log(fallas ? `\n${fallas} FALLA(S)` : '\ntodo bien');

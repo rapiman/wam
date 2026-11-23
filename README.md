@@ -9,7 +9,7 @@ no dependen de ella: lo único que importan es `@webaudiomodules/sdk`.
 | Carpeta | Qué es | Estado |
 |---|---|---|
 | `compresor` | Compresor (umbral, razón, ataque, relajación, rodilla, ganancia, mezcla) y limitador con techo que mira 5 ms hacia adelante. El cálculo corre en el hilo de audio. | 0.1.0 |
-| `ecualizador` | Ecualizador paramétrico de 8 bandas (campana, repisa baja y alta, corte bajo y alto, muesca) y ganancia de salida. Las bandas se crean con doble clic y se arrastran sobre la curva; la rueda cambia el Q; detrás se ve el espectro de lo que sale. | 0.1.0 |
+| `ecualizador` | Ecualizador paramétrico de 8 bandas (campana, repisa baja y alta, corte bajo y alto, muesca) y ganancia de salida; los cortes pueden ser de 12, 24, 36 o 48 dB por octava. Las bandas se crean con doble clic y se arrastran sobre la curva; la rueda cambia el Q; detrás se ve el espectro de lo que sale. | 0.1.0 |
 
 ## Usarlos
 
