@@ -1,0 +1,3 @@
+2026-11-23: por ahora Pizarrita sigue con el Microverb y no lleva reverb propia.
+Este plugin se arma y se prueba, pero `armar.sh` no lo copia al sitio. Para volver a
+usarlo: borrar este archivo y agregarlo a `wam/catalogo.json` de Pizarrita.

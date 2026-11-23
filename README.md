@@ -15,7 +15,7 @@ no dependen de ella: lo único que importan es `@webaudiomodules/sdk`.
 | `flanger` | Barrido metálico: un atraso corto con vaivén y realimentación. Mismo núcleo que el chorus, con otros rangos. | 0.1.0 |
 | `phaser` | Muescas que se pasean: 4, 6, 8 o 12 filtros «pasa todo» en cadena, con vaivén y realimentación. | 0.1.0 |
 | `tremolo` | El volumen sube y baja (seno, triángulo o cuadrada); con las orejas desfasadas, paneo automático. Muestra el volumen en el tiempo: cómo está y cómo queda. | 0.1.0 |
-| `reverberacion` | Reverb de espacios, por convolución: cuarto, sala, salón, iglesia, placa y túnel, con largo, atraso («antes»), brillo y mezcla. Los espacios de hoy son GENERADOS (se calculan, no son grabaciones). Es un nodo compuesto: usa el `ConvolverNode` del navegador. | 0.1.0 |
+| `reverberacion` | Reverb de espacios, por convolución: cuarto, sala, salón, iglesia, placa y túnel, con largo, atraso («antes»), brillo y mezcla. Los espacios de hoy son GENERADOS (se calculan, no son grabaciones). Es un nodo compuesto: usa el `ConvolverNode` del navegador. **Guardado**: no está puesto en Pizarrita (archivo `GUARDADO`). | 0.1.0 |
 
 ## Usarlos
 

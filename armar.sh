@@ -26,7 +26,10 @@ for dir in "$AQUI"/*/; do
   mkdir -p "$AQUI/dist/$id"
   "$ESBUILD" "$dir/index.js" --bundle --format=esm --target=esnext --log-level=warning --outfile="$AQUI/dist/$id/index.js"
   cp "$dir/descriptor.json" "$AQUI/dist/$id/"
-  if [ -n "$DESTINO" ]; then
+  # Un plugin con el archivo `GUARDADO` se arma y se prueba, pero no se copia al sitio.
+  if [ -n "$DESTINO" ] && [ -f "$dir/GUARDADO" ]; then
+    echo "   guardado: no se copia"
+  elif [ -n "$DESTINO" ]; then
     # No pisar un plugin ajeno que se llame igual (2026-11-23: `reverb` ya era el Microverb en
     # Pizarrita): si la carpeta existe y su descriptor no es de los nuestros, se detiene.
     if [ -f "$DESTINO/$id/descriptor.json" ] && ! grep -q '"identifier": *"org\.wedwed\.pizarrita\.' "$DESTINO/$id/descriptor.json"; then
