@@ -9,14 +9,13 @@
 // dibuja con la misma cuenta que filtra en el hilo de audio (`nucleo.js`).
 import { v, coloresDe, numero, el, lienzo, perilla, interruptor, elegidor } from '../comun/controles.js';
 import { nucleoEq, BANDAS, FRECUENCIAS } from './nucleo.js';
+import { espectros } from '../comun/espectros.js';
 import { t } from '../comun/idiomas.js';
 
 const { TIPOS, PENDIENTES, conGanancia, esCorte, etapas, qEtapa, coefs, magnitud } = nucleoEq();
 const F_MIN = 20;
 const F_MAX = 20000;
 const RANGO = 24; // dB hacia arriba y hacia abajo que caben en el gráfico
-const PISO_ESPECTRO = -100; // dB: el espectro se dibuja entre esto…
-const TECHO_ESPECTRO = -10; // …y esto
 const hz = (f) => (f < 1000 ? `${Math.round(f)} Hz` : `${numero(f / 1000, f < 10000 ? 2 : 1)} kHz`);
 const dB = (x) => `${x > 0 ? '+' : ''}${numero(x, 1)} dB`;
 const entre = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -232,19 +231,8 @@ export async function crearCaratula(nodo) {
     { passive: false },
   );
 
-  // --- los espectros: dos analizadores del navegador colgados del nodo. La salida 0 es el
-  // sonido ecualizado («cómo queda»); la 1, la entrada tal como llegó («cómo está»).
-  const analizar = (salidaDelNodo) => {
-    try {
-      const an = new AnalyserNode(nodo.context, { fftSize: 4096, smoothingTimeConstant: 0.8 });
-      nodo.connect(an, salidaDelNodo);
-      return { an, datos: new Float32Array(an.frequencyBinCount) };
-    } catch (e) {
-      return null;
-    }
-  };
-  const queda = analizar(0);
-  const esta = nodo.numberOfOutputs > 1 ? analizar(1) : null;
+  // --- los espectros (comun/espectros.js): cómo está el sonido al entrar y cómo queda al salir.
+  const esp = espectros(nodo);
 
   // --- lo que se dibuja en cada cuadro
   const curva = new Float32Array(W + 1);
@@ -295,71 +283,8 @@ export async function crearCaratula(nodo) {
       g.globalAlpha = 1;
       g.fillText(db > 0 ? '+12' : '−12', 4, y - 3);
     }
-    // los espectros: cómo está (relleno) y cómo queda (línea)
-    const trazo = (e) => {
-      e.an.getFloatFrequencyData(e.datos);
-      const d = e.datos;
-      const binHz = fm / e.an.fftSize;
-      let hay = false;
-      g.beginPath();
-      for (let px = 0; px <= W; px++) {
-        const pos = FX(px) / binHz;
-        const i0 = Math.min(d.length - 2, Math.floor(pos));
-        const i1 = Math.min(d.length - 1, Math.max(i0 + 1, Math.floor(FX(px + 1) / binHz)));
-        let x;
-        if (i1 === i0 + 1) x = d[i0] + (d[i1] - d[i0]) * (pos - i0);
-        else {
-          x = d[i0];
-          for (let i = i0 + 1; i <= i1; i++) if (d[i] > x) x = d[i];
-        }
-        if (!(x > PISO_ESPECTRO)) x = PISO_ESPECTRO;
-        else hay = true;
-        const y = H - ((entre(x, PISO_ESPECTRO, TECHO_ESPECTRO) - PISO_ESPECTRO) / (TECHO_ESPECTRO - PISO_ESPECTRO)) * (H - 2);
-        if (px === 0) g.moveTo(px, y);
-        else g.lineTo(px, y);
-      }
-      return hay;
-    };
-    let hayEsta = false;
-    let hayQueda = false;
-    if (esta && trazo(esta)) {
-      hayEsta = true;
-      g.lineTo(W, H);
-      g.lineTo(0, H);
-      g.closePath();
-      g.fillStyle = C.traza;
-      g.globalAlpha = 0.6;
-      g.fill();
-      g.globalAlpha = 1;
-    }
-    if (queda && trazo(queda)) {
-      hayQueda = true;
-      g.strokeStyle = C.tinta2;
-      g.lineWidth = 1.25;
-      g.stroke();
-      g.lineWidth = 1;
-    }
-    // la leyenda de los espectros, mientras haya sonido
-    if (hayEsta || hayQueda) {
-      g.textAlign = 'right';
-      g.fillStyle = C.tinta2;
-      g.fillText(t('cómo queda'), W - 6, 14);
-      const a1 = W - 6 - g.measureText(t('cómo queda')).width;
-      g.strokeStyle = C.tinta2;
-      g.lineWidth = 1.25;
-      g.beginPath();
-      g.moveTo(a1 - 18, 10.5);
-      g.lineTo(a1 - 5, 10.5);
-      g.stroke();
-      g.lineWidth = 1;
-      if (esta) {
-        g.fillText(t('cómo está'), a1 - 28, 14);
-        const a2 = a1 - 28 - g.measureText(t('cómo está')).width;
-        g.fillStyle = C.traza;
-        g.fillRect(a2 - 16, 6, 11, 9);
-      }
-      g.textAlign = 'left';
-    }
+    // los espectros: cómo está (relleno) y cómo queda (línea), con su leyenda mientras haya sonido
+    esp.dibujar(g, W, H, C, FX);
     // la línea de 0 dB
     g.strokeStyle = C.borde;
     g.beginPath();
@@ -411,14 +336,7 @@ export async function crearCaratula(nodo) {
     clearInterval(reloj);
     cuadro = 0;
     reloj = 0;
-    for (const e of [queda, esta]) {
-      if (!e) continue;
-      try {
-        nodo.disconnect(e.an);
-      } catch (err) {
-        // ya lo habían desconectado
-      }
-    }
+    esp.soltar();
   };
   const pintar = () => {
     // si sacaron la carátula de la página sin avisar, se deja de dibujar
@@ -436,14 +354,7 @@ export async function crearCaratula(nodo) {
   reloj = setInterval(() => {
     // si el anfitrión rearmó sus cables (desconectó todo y volvió a conectar), los analizadores
     // se vuelven a colgar; conectar dos veces lo mismo no hace nada
-    [queda, esta].forEach((e, salidaDelNodo) => {
-      if (!e) return;
-      try {
-        nodo.connect(e.an, salidaDelNodo);
-      } catch (err) {
-        // el nodo ya no existe
-      }
-    });
+    esp.recolgar();
     nodo.getParameterValues(false).then((vals) => {
       if (!vals || !reloj) return;
       let cambio = false;

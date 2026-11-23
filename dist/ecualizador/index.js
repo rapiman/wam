@@ -2227,16 +2227,124 @@ function traducirInfo(info, cual = idioma()) {
   return sal;
 }
 
+// comun/espectros.js
+var PISO = -100;
+var TECHO = -10;
+var entre = (x, a, b) => Math.min(b, Math.max(a, x));
+function espectros(nodo) {
+  const fm = nodo.context.sampleRate;
+  const analizar = (salidaDelNodo) => {
+    try {
+      const an = new AnalyserNode(nodo.context, { fftSize: 4096, smoothingTimeConstant: 0.8 });
+      nodo.connect(an, salidaDelNodo);
+      return { an, datos: new Float32Array(an.frequencyBinCount), salidaDelNodo };
+    } catch (e) {
+      return null;
+    }
+  };
+  const queda = analizar(0);
+  const esta = nodo.numberOfOutputs > 1 ? analizar(1) : null;
+  const trazo = (g, e, W, H, FX) => {
+    e.an.getFloatFrequencyData(e.datos);
+    const d = e.datos;
+    const binHz = fm / e.an.fftSize;
+    let hay = false;
+    g.beginPath();
+    for (let px = 0; px <= W; px++) {
+      const pos = FX(px) / binHz;
+      const i0 = Math.min(d.length - 2, Math.floor(pos));
+      const i1 = Math.min(d.length - 1, Math.max(i0 + 1, Math.floor(FX(px + 1) / binHz)));
+      let x;
+      if (i1 === i0 + 1) x = d[i0] + (d[i1] - d[i0]) * (pos - i0);
+      else {
+        x = d[i0];
+        for (let i = i0 + 1; i <= i1; i++) if (d[i] > x) x = d[i];
+      }
+      if (!(x > PISO)) x = PISO;
+      else hay = true;
+      const y = H - (entre(x, PISO, TECHO) - PISO) / (TECHO - PISO) * (H - 2);
+      if (px === 0) g.moveTo(px, y);
+      else g.lineTo(px, y);
+    }
+    return hay;
+  };
+  return {
+    // Dibuja los dos espectros y su leyenda en un gráfico de W×H con el eje `FX` (px → Hz) y
+    // los colores ya resueltos `C` (coloresDe).
+    dibujar(g, W, H, C, FX) {
+      let hayEsta = false;
+      let hayQueda = false;
+      if (esta && trazo(g, esta, W, H, FX)) {
+        hayEsta = true;
+        g.lineTo(W, H);
+        g.lineTo(0, H);
+        g.closePath();
+        g.fillStyle = C.traza;
+        g.globalAlpha = 0.6;
+        g.fill();
+        g.globalAlpha = 1;
+      }
+      if (queda && trazo(g, queda, W, H, FX)) {
+        hayQueda = true;
+        g.strokeStyle = C.tinta2;
+        g.lineWidth = 1.25;
+        g.stroke();
+        g.lineWidth = 1;
+      }
+      if (!hayEsta && !hayQueda) return false;
+      g.font = "11px system-ui, sans-serif";
+      g.textBaseline = "alphabetic";
+      g.textAlign = "right";
+      g.fillStyle = C.tinta2;
+      g.fillText(t("c\xF3mo queda"), W - 6, 14);
+      const a1 = W - 6 - g.measureText(t("c\xF3mo queda")).width;
+      g.strokeStyle = C.tinta2;
+      g.lineWidth = 1.25;
+      g.beginPath();
+      g.moveTo(a1 - 18, 10.5);
+      g.lineTo(a1 - 5, 10.5);
+      g.stroke();
+      g.lineWidth = 1;
+      if (esta) {
+        g.fillText(t("c\xF3mo est\xE1"), a1 - 28, 14);
+        const a2 = a1 - 28 - g.measureText(t("c\xF3mo est\xE1")).width;
+        g.fillStyle = C.traza;
+        g.fillRect(a2 - 16, 6, 11, 9);
+      }
+      g.textAlign = "left";
+      return true;
+    },
+    // Si el anfitrión rearmó sus cables (desconectó todo y volvió a conectar), los analizadores
+    // se vuelven a colgar; conectar dos veces lo mismo no hace nada.
+    recolgar() {
+      for (const e of [queda, esta]) {
+        if (!e) continue;
+        try {
+          nodo.connect(e.an, e.salidaDelNodo);
+        } catch (err) {
+        }
+      }
+    },
+    soltar() {
+      for (const e of [queda, esta]) {
+        if (!e) continue;
+        try {
+          nodo.disconnect(e.an);
+        } catch (err) {
+        }
+      }
+    }
+  };
+}
+
 // ecualizador/caratula.js
 var { TIPOS, PENDIENTES, conGanancia, esCorte, etapas, qEtapa, coefs, magnitud } = nucleoEq();
 var F_MIN = 20;
 var F_MAX = 2e4;
 var RANGO = 24;
-var PISO_ESPECTRO = -100;
-var TECHO_ESPECTRO = -10;
 var hz = (f) => f < 1e3 ? `${Math.round(f)} Hz` : `${numero(f / 1e3, f < 1e4 ? 2 : 1)} kHz`;
 var dB = (x) => `${x > 0 ? "+" : ""}${numero(x, 1)} dB`;
-var entre = (x, a, b) => Math.min(b, Math.max(a, x));
+var entre2 = (x, a, b) => Math.min(b, Math.max(a, x));
 async function crearCaratula(nodo) {
   const fm = nodo.context.sampleRate;
   const leidos = await nodo.getParameterValues(false);
@@ -2391,8 +2499,8 @@ async function crearCaratula(nodo) {
     if (arrastrando < 0) return;
     const [x, y] = lugar(ev);
     const b = B[arrastrando];
-    const campos = { frec: Math.round(entre(FX(x), F_MIN, F_MAX)) };
-    if (conGanancia(b.tipo)) campos.gan = Math.round(entre(GY(y), -RANGO, RANGO) * 10) / 10;
+    const campos = { frec: Math.round(entre2(FX(x), F_MIN, F_MAX)) };
+    if (conGanancia(b.tipo)) campos.gan = Math.round(entre2(GY(y), -RANGO, RANGO) * 10) / 10;
     ponerBanda(arrastrando, campos);
     pFrec.poner(b.frec);
     pGan.poner(b.gan);
@@ -2409,9 +2517,9 @@ async function crearCaratula(nodo) {
     } else {
       const libre = B.findIndex((b) => !b.on);
       if (libre < 0) return;
-      const frec = Math.round(entre(FX(x), F_MIN, F_MAX));
+      const frec = Math.round(entre2(FX(x), F_MIN, F_MAX));
       const t2 = frec < 40 ? 3 : frec > 12e3 ? 4 : 0;
-      ponerBanda(libre, { tipo: t2, frec, gan: t2 === 0 ? Math.round(entre(GY(y), -RANGO, RANGO) * 10) / 10 : 0, q: t2 === 0 ? 1 : 0.71, on: true });
+      ponerBanda(libre, { tipo: t2, frec, gan: t2 === 0 ? Math.round(entre2(GY(y), -RANGO, RANGO) * 10) / 10 : 0, q: t2 === 0 ? 1 : 0.71, on: true });
       sel = libre;
     }
     pintarFranja();
@@ -2421,23 +2529,13 @@ async function crearCaratula(nodo) {
     (ev) => {
       if (sel < 0 || !B[sel].on) return;
       ev.preventDefault();
-      const q = Math.round(entre(B[sel].q * (ev.deltaY < 0 ? 1.12 : 1 / 1.12), 0.1, 18) * 100) / 100;
+      const q = Math.round(entre2(B[sel].q * (ev.deltaY < 0 ? 1.12 : 1 / 1.12), 0.1, 18) * 100) / 100;
       ponerBanda(sel, { q });
       pQ.poner(q);
     },
     { passive: false }
   );
-  const analizar = (salidaDelNodo) => {
-    try {
-      const an = new AnalyserNode(nodo.context, { fftSize: 4096, smoothingTimeConstant: 0.8 });
-      nodo.connect(an, salidaDelNodo);
-      return { an, datos: new Float32Array(an.frequencyBinCount) };
-    } catch (e) {
-      return null;
-    }
-  };
-  const queda = analizar(0);
-  const esta = nodo.numberOfOutputs > 1 ? analizar(1) : null;
+  const esp = espectros(nodo);
   const curva = new Float32Array(W + 1);
   let C = coloresDe(caja);
   let cuadros = 0;
@@ -2484,69 +2582,7 @@ async function crearCaratula(nodo) {
       g.globalAlpha = 1;
       g.fillText(db > 0 ? "+12" : "\u221212", 4, y - 3);
     }
-    const trazo = (e) => {
-      e.an.getFloatFrequencyData(e.datos);
-      const d = e.datos;
-      const binHz = fm / e.an.fftSize;
-      let hay = false;
-      g.beginPath();
-      for (let px = 0; px <= W; px++) {
-        const pos = FX(px) / binHz;
-        const i0 = Math.min(d.length - 2, Math.floor(pos));
-        const i1 = Math.min(d.length - 1, Math.max(i0 + 1, Math.floor(FX(px + 1) / binHz)));
-        let x;
-        if (i1 === i0 + 1) x = d[i0] + (d[i1] - d[i0]) * (pos - i0);
-        else {
-          x = d[i0];
-          for (let i = i0 + 1; i <= i1; i++) if (d[i] > x) x = d[i];
-        }
-        if (!(x > PISO_ESPECTRO)) x = PISO_ESPECTRO;
-        else hay = true;
-        const y = H - (entre(x, PISO_ESPECTRO, TECHO_ESPECTRO) - PISO_ESPECTRO) / (TECHO_ESPECTRO - PISO_ESPECTRO) * (H - 2);
-        if (px === 0) g.moveTo(px, y);
-        else g.lineTo(px, y);
-      }
-      return hay;
-    };
-    let hayEsta = false;
-    let hayQueda = false;
-    if (esta && trazo(esta)) {
-      hayEsta = true;
-      g.lineTo(W, H);
-      g.lineTo(0, H);
-      g.closePath();
-      g.fillStyle = C.traza;
-      g.globalAlpha = 0.6;
-      g.fill();
-      g.globalAlpha = 1;
-    }
-    if (queda && trazo(queda)) {
-      hayQueda = true;
-      g.strokeStyle = C.tinta2;
-      g.lineWidth = 1.25;
-      g.stroke();
-      g.lineWidth = 1;
-    }
-    if (hayEsta || hayQueda) {
-      g.textAlign = "right";
-      g.fillStyle = C.tinta2;
-      g.fillText(t("c\xF3mo queda"), W - 6, 14);
-      const a1 = W - 6 - g.measureText(t("c\xF3mo queda")).width;
-      g.strokeStyle = C.tinta2;
-      g.lineWidth = 1.25;
-      g.beginPath();
-      g.moveTo(a1 - 18, 10.5);
-      g.lineTo(a1 - 5, 10.5);
-      g.stroke();
-      g.lineWidth = 1;
-      if (esta) {
-        g.fillText(t("c\xF3mo est\xE1"), a1 - 28, 14);
-        const a2 = a1 - 28 - g.measureText(t("c\xF3mo est\xE1")).width;
-        g.fillStyle = C.traza;
-        g.fillRect(a2 - 16, 6, 11, 9);
-      }
-      g.textAlign = "left";
-    }
+    esp.dibujar(g, W, H, C, FX);
     g.strokeStyle = C.borde;
     g.beginPath();
     g.moveTo(1, Math.round(Y(0)) + 0.5);
@@ -2554,7 +2590,7 @@ async function crearCaratula(nodo) {
     g.stroke();
     g.beginPath();
     for (let px = 0; px <= W; px++) {
-      const y = entre(Y(curva[px]), 0, H);
+      const y = entre2(Y(curva[px]), 0, H);
       if (px === 0) g.moveTo(px, y);
       else g.lineTo(px, y);
     }
@@ -2594,13 +2630,7 @@ async function crearCaratula(nodo) {
     clearInterval(reloj);
     cuadro = 0;
     reloj = 0;
-    for (const e of [queda, esta]) {
-      if (!e) continue;
-      try {
-        nodo.disconnect(e.an);
-      } catch (err) {
-      }
-    }
+    esp.soltar();
   };
   const pintar = () => {
     if (caja.isConnected) visto = true;
@@ -2612,13 +2642,7 @@ async function crearCaratula(nodo) {
   };
   const CAMPOS = ["on", "tipo", "frec", "gan", "q", "pend"];
   reloj = setInterval(() => {
-    [queda, esta].forEach((e, salidaDelNodo) => {
-      if (!e) return;
-      try {
-        nodo.connect(e.an, salidaDelNodo);
-      } catch (err) {
-      }
-    });
+    esp.recolgar();
     nodo.getParameterValues(false).then((vals) => {
       if (!vals || !reloj) return;
       let cambio = false;
