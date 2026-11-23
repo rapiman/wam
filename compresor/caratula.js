@@ -1,5 +1,6 @@
 // CARÁTULA DEL COMPRESOR Y LIMITADOR (2026-11-23), la que aprobó JP: arriba la curva (con el
-// umbral que se arrastra), la historia del nivel con la reducción encima y los medidores;
+// umbral que se arrastra), la historia del nivel —cómo está al entrar (relleno) y cómo queda
+// al salir (línea)— con la reducción encima, y los medidores;
 // al medio las siete perillas; abajo la franja del limitador.
 //
 // Los controles y los colores (`--pzw-*`) son los comunes: `../comun/controles.js`.
@@ -120,6 +121,7 @@ export async function crearCaratula(nodo) {
   // --- lo que se dibuja en cada cuadro
   const N = historia.ancho;
   const hE = new Float32Array(N).fill(-180); // nivel de entrada, una columna por medida
+  const hS = new Float32Array(N).fill(-180); // nivel de salida
   const hR = new Float32Array(N); // reducción (dB, negativa)
   let hPos = 0;
   let ultima = nodo.medidor;
@@ -190,6 +192,17 @@ export async function crearCaratula(nodo) {
     g.lineTo(W - 1, H - 1);
     g.closePath();
     g.fill();
+    // cómo queda: el nivel de salida, en línea sobre el de entrada
+    g.strokeStyle = C.tinta;
+    g.lineWidth = 1.25;
+    g.beginPath();
+    for (let i = 0; i < N; i++) {
+      const y = Y(hS[(hPos + i) % N]);
+      if (i === 0) g.moveTo(i, y);
+      else g.lineTo(i, y);
+    }
+    g.stroke();
+    g.lineWidth = 1;
     const yU = Math.round(Y(P.umbral)) + 0.5;
     g.strokeStyle = C.acento;
     g.setLineDash([4, 3]);
@@ -198,22 +211,42 @@ export async function crearCaratula(nodo) {
     g.lineTo(W - 1, yU);
     g.stroke();
     g.setLineDash([]);
-    g.strokeStyle = C.reduccion;
-    g.lineWidth = 1.5;
+    // la reducción cuelga de arriba y ocupa a lo más la mitad del alto, para no tapar los niveles
     g.beginPath();
     for (let i = 0; i < N; i++) {
-      const y = 1.5 + (Math.min(RED_MAX, -hR[(hPos + i) % N]) / RED_MAX) * (H - 3);
+      const y = 1.5 + (Math.min(RED_MAX, -hR[(hPos + i) % N]) / RED_MAX) * (H / 2);
       if (i === 0) g.moveTo(i, y);
       else g.lineTo(i, y);
     }
+    g.strokeStyle = C.reduccion;
+    g.lineWidth = 1.25;
     g.stroke();
+    g.lineTo(W - 1, 1);
+    g.lineTo(0, 1);
+    g.closePath();
+    g.fillStyle = C.reduccion;
+    g.globalAlpha = 0.2;
+    g.fill();
+    g.globalAlpha = 1;
     g.lineWidth = 1;
     g.font = '11px system-ui, sans-serif';
+    // la leyenda
+    g.fillStyle = C.traza;
+    g.fillRect(6, H - 15, 11, 9);
     g.fillStyle = C.tinta2;
-    g.fillText('Nivel de entrada', 6, H - 6);
+    g.fillText('cómo está', 21, H - 6);
+    const x2 = 21 + g.measureText('cómo está').width + 12;
+    g.strokeStyle = C.tinta;
+    g.lineWidth = 1.25;
+    g.beginPath();
+    g.moveTo(x2, H - 10.5);
+    g.lineTo(x2 + 13, H - 10.5);
+    g.stroke();
+    g.lineWidth = 1;
+    g.fillText('cómo queda', x2 + 17, H - 6);
     g.fillStyle = C.reduccion;
     g.textAlign = 'right';
-    g.fillText('Reducción', W - 6, H - 6);
+    g.fillText('reducción', W - 6, H - 6);
     g.textAlign = 'left';
   };
 
@@ -274,6 +307,7 @@ export async function crearCaratula(nodo) {
     if (m !== ultima) {
       ultima = m;
       hE[hPos] = m.e;
+      hS[hPos] = m.s;
       hR[hPos] = P.comp >= 0.5 ? m.r : 0;
       hPos = (hPos + 1) % N;
     }

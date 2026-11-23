@@ -2126,6 +2126,7 @@ async function crearCaratula(nodo) {
   curva.c.addEventListener("pointercancel", soltarUmbral);
   const N = historia.ancho;
   const hE = new Float32Array(N).fill(-180);
+  const hS = new Float32Array(N).fill(-180);
   const hR = new Float32Array(N);
   let hPos = 0;
   let ultima = nodo.medidor;
@@ -2192,6 +2193,16 @@ async function crearCaratula(nodo) {
     g.lineTo(W - 1, H - 1);
     g.closePath();
     g.fill();
+    g.strokeStyle = C.tinta;
+    g.lineWidth = 1.25;
+    g.beginPath();
+    for (let i = 0; i < N; i++) {
+      const y = Y(hS[(hPos + i) % N]);
+      if (i === 0) g.moveTo(i, y);
+      else g.lineTo(i, y);
+    }
+    g.stroke();
+    g.lineWidth = 1;
     const yU = Math.round(Y(P.umbral)) + 0.5;
     g.strokeStyle = C.acento;
     g.setLineDash([4, 3]);
@@ -2200,22 +2211,40 @@ async function crearCaratula(nodo) {
     g.lineTo(W - 1, yU);
     g.stroke();
     g.setLineDash([]);
-    g.strokeStyle = C.reduccion;
-    g.lineWidth = 1.5;
     g.beginPath();
     for (let i = 0; i < N; i++) {
-      const y = 1.5 + Math.min(RED_MAX, -hR[(hPos + i) % N]) / RED_MAX * (H - 3);
+      const y = 1.5 + Math.min(RED_MAX, -hR[(hPos + i) % N]) / RED_MAX * (H / 2);
       if (i === 0) g.moveTo(i, y);
       else g.lineTo(i, y);
     }
+    g.strokeStyle = C.reduccion;
+    g.lineWidth = 1.25;
     g.stroke();
+    g.lineTo(W - 1, 1);
+    g.lineTo(0, 1);
+    g.closePath();
+    g.fillStyle = C.reduccion;
+    g.globalAlpha = 0.2;
+    g.fill();
+    g.globalAlpha = 1;
     g.lineWidth = 1;
     g.font = "11px system-ui, sans-serif";
+    g.fillStyle = C.traza;
+    g.fillRect(6, H - 15, 11, 9);
     g.fillStyle = C.tinta2;
-    g.fillText("Nivel de entrada", 6, H - 6);
+    g.fillText("c\xF3mo est\xE1", 21, H - 6);
+    const x2 = 21 + g.measureText("c\xF3mo est\xE1").width + 12;
+    g.strokeStyle = C.tinta;
+    g.lineWidth = 1.25;
+    g.beginPath();
+    g.moveTo(x2, H - 10.5);
+    g.lineTo(x2 + 13, H - 10.5);
+    g.stroke();
+    g.lineWidth = 1;
+    g.fillText("c\xF3mo queda", x2 + 17, H - 6);
     g.fillStyle = C.reduccion;
     g.textAlign = "right";
-    g.fillText("Reducci\xF3n", W - 6, H - 6);
+    g.fillText("reducci\xF3n", W - 6, H - 6);
     g.textAlign = "left";
   };
   const dibujarMedidores = () => {
@@ -2272,6 +2301,7 @@ async function crearCaratula(nodo) {
     if (m !== ultima) {
       ultima = m;
       hE[hPos] = m.e;
+      hS[hPos] = m.s;
       hR[hPos] = P.comp >= 0.5 ? m.r : 0;
       hPos = (hPos + 1) % N;
     }
