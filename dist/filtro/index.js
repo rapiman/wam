@@ -2209,14 +2209,15 @@ async function caratulaSimple(nodo, { titulo, PARAMS, conEspectros = true, conNi
   const W = grafico.ancho;
   const H = grafico.alto;
   const { X, FX } = ejeFrecuencias(W);
-  const columnas = Math.min(7, Math.max(4, PARAMS.length));
+  const lugares = PARAMS.reduce((n, p) => n + (p.tipo === "choice" ? 2 : 1), 0);
+  const columnas = Math.min(8, Math.max(4, lugares));
   const fila = el("div", `display:grid;grid-template-columns:repeat(${columnas},minmax(0,1fr));gap:6px 4px;padding:4px 10px 10px;align-items:start;`);
   const controles = {};
   for (const p of PARAMS) {
     if (p.tipo === "choice") {
       const c = elegidor({ nombre: p.nombre, opciones: p.opciones, alCambiar: (i) => mandar(p.id, i) });
       c.poner(Math.round(V[p.id]));
-      const celda = el("div", "display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;");
+      const celda = el("div", "display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;grid-column:span 2;");
       celda.append(el("div", `color:${v("tinta2")};font-size:11px;white-space:nowrap;`, p.nombre), c.el);
       controles[p.id] = { ...c, el: celda, poner: (x) => c.poner(Math.round(x)) };
     } else if (p.tipo === "boolean") {
