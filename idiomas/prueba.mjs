@@ -45,7 +45,13 @@ for (const a of archivos) {
   for (const m of s.matchAll(/\bt\(([^)]*\?[^)]*)\)/g)) for (const q of m[1].matchAll(/'([^']+)'/g)) mirar(q[1]);
   for (const m of s.matchAll(/nombre: '([^']+)'/g)) mirar(m[1]);
   for (const m of s.matchAll(/\b(?:f|b)\('\w+', '([^']+)'/g)) mirar(m[1]);
-  for (const m of s.matchAll(/(?:TIPOS|PENDIENTES|FORMAS) = \[([^\]]+)\]/g)) for (const q of m[1].matchAll(/'([^']+)'/g)) mirar(q[1]);
+  for (const m of s.matchAll(/(?:TIPOS|TIPOS_FILTRO|PENDIENTES|FORMAS|DESTINOS) = \[([^\]]+)\]/g)) for (const q of m[1].matchAll(/'([^']+)'/g)) mirar(q[1]);
+  // el sampler: nombres cortos, listas escritas ahí mismo, nombres con el número del vaivén y
+  // los títulos de sus pestañas
+  for (const m of s.matchAll(/corto: '([^']+)'/g)) mirar(m[1]);
+  for (const m of s.matchAll(/opciones: \[([^\]]+)\]/g)) for (const q of m[1].matchAll(/'([^']+)'/g)) mirar(q[1]);
+  for (const m of s.matchAll(/nombre: `([^`]+)\$\{k\}`/g)) for (const k of [1, 2]) mirar(`${m[1]}${k}`);
+  for (const m of s.matchAll(/^\s*\['\w+', '([^']+)'\],$/gm)) mirar(m[1]);
   for (const m of s.matchAll(/label: `Banda \$\{b\}: ([^`]+)`/g)) mirar(m[1]);
   for (const m of s.matchAll(/titulo: '([^']+)'/g)) mirar(m[1]);
 }

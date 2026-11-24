@@ -48,9 +48,19 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
    la energía que se calcula al abrir el audio, o parte en partes iguales. En la carátula: «+ Tajadas»
    (desde C3), al abrir un audio se detecta solo; los cortes se arrastran, doble clic agrega o
    quita uno, clic en una tajada la hace sonar. La zona se alarga sola, una tecla por tajada.
-3. **Filtro, efectos y moduladores**: filtro por voz con su envolvente; distorsión, ruido, desafinado,
-   **sub** (oscilador una o dos octavas abajo de la nota, con su volumen y su forma, para dar peso);
-   osciladores lentos (LFO) que van a la altura, el volumen, el filtro o el efecto.
+3. **Filtro, efectos y moduladores** — HECHO (todo parámetro del plugin, se automatiza):
+   - filtro por voz (variable de estado de 12 dB/oct: pasa bajos, altos o banda; corte, resonancia)
+     con su envolvente (ataque y caída propios, hasta ±8 octavas);
+   - «color»: distorsión (tanh, con mezcla, al final de todo), ruido blanco por voz, desafinado (dos
+     cabezas por capa, una por oreja, separadas hasta 100 centésimas) y **sub** (seno o cuadrada,
+     una o dos octavas abajo de la nota);
+   - dos vaivenes (seno, triángulo, cuadrada, sierra, azar; 0,05–30 Hz) hacia la altura (hasta
+     ±12 st, con la profundidad al cuadrado para afinar lo chico), el volumen, el corte del filtro
+     (±4 oct), la distorsión (±24 dB) o el paneo. La altura se mueve por bloque de 128 muestras; lo
+     demás, muestra por muestra.
+   - En la carátula, abajo, en pestañas: General, Filtro, Color, Vaivén 1, Vaivén 2.
+   - Costo medido en wedwed (Node): 16 voces × 3 capas ≈ 25 % del tiempo real sin nada, ≈ 38 % con
+     todo prendido. Si pesa en la caja, lo primero es achicar el ciclo de cada cabeza.
 4. **Estirar al tempo** cada parte (necesita que la caja y Edit Pro le avisen el tempo).
 5. **Osciladores de síntesis** «al estilo Massive», como capas además de los audios.
 6. **La pieza de Pizarrita**: elegir, subir y grabar audios desde la carátula.

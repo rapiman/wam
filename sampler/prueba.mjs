@@ -179,4 +179,49 @@ const la = [tono(0.5, 440, 2)];
   a.ver('partes iguales: el cuarto de cuatro en 2 s (s)', parejos(2, 4)[3], 1.5, 1e-9);
 }
 
+// --- paso 3: filtro, sub, ruido, desafinado, distorsión y vaivenes
+const unaZona = (capa = { m: 'la' }) => [{ baja: 0, alta: 127, raiz: 69, capas: [capa] }];
+const pico2 = (x, s0, s1) => pico(x.subarray(...tramo(s0, s1)));
+{
+  const agudo = [tono(0.5, 5000, 2)];
+  const sin = correr(nuevo(unaZona({ m: 'g' }), [['g', agudo, FM]]), 0.5, [[0, 'on', 69]]).L;
+  const con = correr(nuevo(unaZona({ m: 'g' }), [['g', agudo, FM]]), 0.5, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, ftipo: 1, corte: 500, reso: 0 })).L;
+  a.menorQue('pasa bajos en 500 Hz: un tono de 5 kHz baja más de 30 dB (razón)', pico2(con, 0.2, 0.45) / pico2(sin, 0.2, 0.45), 0.032);
+  const alto = correr(nuevo(unaZona(), [['la', la, FM]]), 0.5, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, ftipo: 2, corte: 5000, reso: 0 })).L;
+  a.menorQue('pasa altos en 5 kHz: el La casi no pasa (pico)', pico2(alto, 0.2, 0.45), 0.02);
+  const env = correr(nuevo(unaZona({ m: 'g' }), [['g', agudo, FM]]), 1, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, ftipo: 1, corte: 300, reso: 0, fenv: 5, fatq: 0.5, fdec: 300 })).L;
+  a.mayorQue('la envolvente del filtro lo abre al comienzo… (pico)', pico2(env, 0.01, 0.05), 0.08);
+  a.menorQue('… y después se cierra (pico)', pico2(env, 0.6, 0.9), 0.02);
+}
+{
+  const callada = [tono(0.0001, 440, 2)];
+  const { L } = correr(nuevo(unaZona({ m: 'c' }), [['c', callada, FM]]), 0.6, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, sub: 100 }));
+  a.ver('el sub, una octava abajo de la nota (Hz)', frecuencia(L, ...tramo(0.1, 0.5)), 220, 4);
+  const { L: L2 } = correr(nuevo(unaZona({ m: 'c' }), [['c', callada, FM]]), 0.6, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, sub: 100, subOct: 1 }));
+  a.ver('con −2, dos octavas abajo (Hz)', frecuencia(L2, ...tramo(0.1, 0.5)), 110, 4);
+  const { L: L3 } = correr(nuevo(unaZona({ m: 'c' }), [['c', callada, FM]]), 0.3, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, ruido: 100 }));
+  a.mayorQue('el ruido suena aunque el audio esté callado (pico)', pico2(L3, 0.1, 0.25), 0.1);
+}
+{
+  const { L, R } = correr(nuevo(unaZona(), [['la', la, FM]]), 1, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, desaf: 100 }));
+  a.ver('desafinado 100 ct: la izquierda medio semitono abajo (Hz)', frecuencia(L, ...tramo(0.1, 0.9)), 440 * Math.pow(2, -50 / 1200), 4);
+  a.ver('… y la derecha medio semitono arriba (Hz)', frecuencia(R, ...tramo(0.1, 0.9)), 440 * Math.pow(2, 50 / 1200), 4);
+}
+{
+  const { L } = correr(nuevo(unaZona(), [['la', la, FM]]), 0.5, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, dist: 24 }));
+  a.ver('distorsión de 24 dB: el pico queda en 1/√g', pico2(L, 0.1, 0.45), 1 / Math.sqrt(dB24()), 0.01);
+}
+function dB24() {
+  return Math.pow(10, 24 / 20);
+}
+{
+  // un vaivén cuadrado de 2 Hz al volumen, al 100 %: un cuarto de segundo suena, el otro no
+  const { L } = correr(nuevo(unaZona(), [['la', la, FM]]), 1.2, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, l1f: 2, l1v: 2, l1p: 100, l1d: 1 }));
+  const tr = [pico2(L, 0.05, 0.2), pico2(L, 0.3, 0.45), pico2(L, 0.55, 0.7), pico2(L, 0.8, 0.95)];
+  a.mayorQue('vaivén al volumen: la mitad arriba suena (pico)', Math.min(tr[0], tr[2]), 0.3);
+  a.menorQue('… y la mitad abajo, callada (pico)', Math.max(tr[1], tr[3]), 1e-3);
+  const { L: L2 } = correr(nuevo(unaZona(), [['la', la, FM]]), 1, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, l2f: 2, l2v: 1, l2p: 100, l2d: 0 }));
+  a.ver('vaivén cuadrado a la altura, al 100 %: una octava arriba la primera mitad (Hz)', frecuencia(L2, ...tramo(0.05, 0.45)), 880, 8);
+}
+
 a.cerrar();

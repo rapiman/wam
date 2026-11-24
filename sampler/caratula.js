@@ -6,7 +6,7 @@
 //
 // Mismos controles y colores que los demás plugins propios (`comun/controles.js`), sigue el tema
 // de la ventana y habla el idioma de la página (`comun/idiomas.js`).
-import { v, coloresDe, numero, el, lienzo, perilla, casilla, interruptor } from '../comun/controles.js';
+import { v, coloresDe, numero, el, lienzo, perilla, casilla, interruptor, elegidor } from '../comun/controles.js';
 import { t } from '../comun/idiomas.js';
 import { nucleoSampler } from './nucleo.js';
 import { parejos } from './tajadas.js';
@@ -406,25 +406,70 @@ export function crearCaratula(nodo) {
   );
 
   // --- lo general: los parámetros del plugin
-  const filaGeneral = el('div', 'display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding:6px 10px 10px;');
+  // En pestañas: lo general (volumen, envolvente…), el filtro, el color (distorsión, ruido,
+  // desafinado, sub) y los dos vaivenes. Una lista ocupa dos lugares.
+  const GRUPOS = [
+    ['general', 'General'],
+    ['filtro', 'Filtro'],
+    ['color', 'Color'],
+    ['v1', 'Vaivén 1'],
+    ['v2', 'Vaivén 2'],
+  ];
   const textoDe = (p, x) => `${numero(x, p.dec !== undefined ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ''}`;
+  const mandar = (id, x) => void nodo.setParameterValues({ [id]: { id, value: x, normalized: false } });
   const generales = {};
-  for (const p of N.PARAMS) {
-    const c = perilla({
-      nombre: t(p.nombre),
-      min: p.min,
-      max: p.max,
-      paso: p.paso || 1,
-      log: p.id === 'atq' || p.id === 'dec' || p.id === 'sol',
-      porDefecto: p.defecto,
-      formato: (x) => textoDe(p, x),
-      alCambiar: (x) => void nodo.setParameterValues({ [p.id]: { id: p.id, value: x, normalized: false } }),
+  const hojas = {};
+  const filaPestanas = el('div', `display:flex;gap:4px;padding:6px 10px 0;`);
+  const filaGeneral = el('div', 'padding:4px 10px 10px;');
+  let grupoSel = 'general';
+  const botonesGrupo = {};
+  for (const [g, titulo] of GRUPOS) {
+    const ps = N.PARAMS.filter((p) => p.grupo === g);
+    const lugares = Math.max(6, ps.reduce((n, p) => n + (p.tipo === 'choice' ? 2 : 1), 0));
+    const hoja = el('div', `display:grid;grid-template-columns:repeat(${lugares},minmax(0,1fr));gap:4px;align-items:start;`);
+    for (const p of ps) {
+      const nombre = t(p.corto || p.nombre);
+      if (p.tipo === 'choice') {
+        const c = elegidor({ nombre, opciones: p.opciones.map((x) => t(x)), alCambiar: (i) => mandar(p.id, i) });
+        c.poner(p.defecto);
+        const celda = el('div', 'display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;grid-column:span 2;');
+        celda.append(el('div', `color:${v('tinta2')};font-size:11px;white-space:nowrap;`, nombre), c.el);
+        generales[p.id] = { ...c, poner: (x) => c.poner(Math.round(x)) };
+        hoja.append(celda);
+      } else {
+        const c = perilla({
+          nombre,
+          min: p.min,
+          max: p.max,
+          paso: p.paso || 1,
+          log: !!p.log,
+          porDefecto: p.defecto,
+          formato: (x) => textoDe(p, x),
+          alCambiar: (x) => mandar(p.id, x),
+        });
+        generales[p.id] = c;
+        hoja.append(c.el);
+      }
+    }
+    hojas[g] = hoja;
+    const b = boton(t(titulo), () => {
+      grupoSel = g;
+      pintarPestanas();
     });
-    generales[p.id] = c;
-    filaGeneral.append(c.el);
+    botonesGrupo[g] = b;
+    filaPestanas.append(b);
+    filaGeneral.append(hoja);
   }
+  const pintarPestanas = () => {
+    for (const [g] of GRUPOS) {
+      hojas[g].style.display = g === grupoSel ? 'grid' : 'none';
+      botonesGrupo[g].style.fontWeight = g === grupoSel ? 'bold' : '';
+      botonesGrupo[g].style.background = g === grupoSel ? v('acento') : v('pantalla');
+    }
+  };
+  pintarPestanas();
 
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaGeneral);
+  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaPestanas, filaGeneral);
 
   // --- dibujar
   let C = coloresDe(caja);

@@ -1591,30 +1591,77 @@ function mandarConFunciones(audioWorklet, fn, moduleId, ...cosas) {
 
 // sampler/nucleo.js
 function nucleoSampler() {
+  const TIPOS_FILTRO = ["Apagado", "Pasa bajos", "Pasa altos", "Pasa banda"];
+  const FORMAS = ["Seno", "Tri\xE1ngulo", "Cuadrada", "Sierra", "Azar"];
+  const DESTINOS = ["Altura", "Volumen", "Filtro", "Distorsi\xF3n", "Paneo"];
+  const vaiven = (k) => [
+    { id: `l${k}f`, nombre: `Forma del vaiv\xE9n ${k}`, corto: "Forma", grupo: `v${k}`, tipo: "choice", opciones: FORMAS, defecto: 0, min: 0, max: FORMAS.length - 1 },
+    { id: `l${k}v`, nombre: `Velocidad del vaiv\xE9n ${k}`, corto: "Velocidad", grupo: `v${k}`, min: 0.05, max: 30, defecto: 2, unidad: "Hz", paso: 0.01, dec: 2, log: true },
+    { id: `l${k}p`, nombre: `Profundidad del vaiv\xE9n ${k}`, corto: "Profundidad", grupo: `v${k}`, min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+    { id: `l${k}d`, nombre: `Destino del vaiv\xE9n ${k}`, corto: "Destino", grupo: `v${k}`, tipo: "choice", opciones: DESTINOS, defecto: k === 1 ? 0 : 2, min: 0, max: DESTINOS.length - 1 }
+  ];
   const PARAMS = [
-    { id: "vol", nombre: "Volumen", min: -60, max: 6, defecto: 0, unidad: "dB", paso: 0.1, dec: 1 },
-    { id: "atq", nombre: "Ataque", min: 0, max: 5e3, defecto: 2, unidad: "ms", paso: 1, log: false },
-    { id: "dec", nombre: "Decaimiento", min: 1, max: 5e3, defecto: 300, unidad: "ms", paso: 1 },
-    { id: "sos", nombre: "Sostenido", min: 0, max: 100, defecto: 100, unidad: "%", paso: 1 },
-    { id: "sol", nombre: "Soltado", min: 1, max: 8e3, defecto: 200, unidad: "ms", paso: 1 },
-    { id: "afinar", nombre: "Afinaci\xF3n", min: -24, max: 24, defecto: 0, unidad: "st", paso: 0.01, dec: 2 },
-    { id: "vel", nombre: "Sensibilidad", min: 0, max: 100, defecto: 70, unidad: "%", paso: 1 }
+    { id: "vol", nombre: "Volumen", grupo: "general", min: -60, max: 6, defecto: 0, unidad: "dB", paso: 0.1, dec: 1 },
+    { id: "atq", nombre: "Ataque", grupo: "general", min: 0.5, max: 5e3, defecto: 2, unidad: "ms", paso: 0.1, dec: 1, log: true },
+    { id: "dec", nombre: "Decaimiento", grupo: "general", min: 1, max: 5e3, defecto: 300, unidad: "ms", paso: 1, log: true },
+    { id: "sos", nombre: "Sostenido", grupo: "general", min: 0, max: 100, defecto: 100, unidad: "%", paso: 1 },
+    { id: "sol", nombre: "Soltado", grupo: "general", min: 1, max: 8e3, defecto: 200, unidad: "ms", paso: 1, log: true },
+    { id: "afinar", nombre: "Afinaci\xF3n", grupo: "general", min: -24, max: 24, defecto: 0, unidad: "st", paso: 0.01, dec: 2 },
+    { id: "vel", nombre: "Sensibilidad", grupo: "general", min: 0, max: 100, defecto: 70, unidad: "%", paso: 1 },
+    { id: "ftipo", nombre: "Filtro", corto: "Tipo", grupo: "filtro", tipo: "choice", opciones: TIPOS_FILTRO, defecto: 0, min: 0, max: 3 },
+    { id: "corte", nombre: "Corte", grupo: "filtro", min: 20, max: 2e4, defecto: 2e3, unidad: "Hz", paso: 1, log: true },
+    { id: "reso", nombre: "Resonancia", grupo: "filtro", min: 0, max: 100, defecto: 10, unidad: "%", paso: 1 },
+    { id: "fenv", nombre: "Envolvente del filtro", corto: "Envolvente", grupo: "filtro", min: -8, max: 8, defecto: 0, unidad: "oct", paso: 0.05, dec: 2 },
+    { id: "fatq", nombre: "Ataque del filtro", corto: "Ataque", grupo: "filtro", min: 0.5, max: 5e3, defecto: 2, unidad: "ms", paso: 0.1, dec: 1, log: true },
+    { id: "fdec", nombre: "Ca\xEDda del filtro", corto: "Ca\xEDda", grupo: "filtro", min: 1, max: 5e3, defecto: 400, unidad: "ms", paso: 1, log: true },
+    { id: "dist", nombre: "Distorsi\xF3n", grupo: "color", min: 0, max: 36, defecto: 0, unidad: "dB", paso: 0.5, dec: 1 },
+    { id: "dmez", nombre: "Mezcla de la distorsi\xF3n", corto: "Mezcla", grupo: "color", min: 0, max: 100, defecto: 100, unidad: "%", paso: 1 },
+    { id: "ruido", nombre: "Ruido", grupo: "color", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+    { id: "desaf", nombre: "Desafinado", grupo: "color", min: 0, max: 100, defecto: 0, unidad: "ct", paso: 1 },
+    { id: "sub", nombre: "Sub", grupo: "color", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+    { id: "subOct", nombre: "Octava del sub", corto: "Octava", grupo: "color", tipo: "choice", opciones: ["\u22121", "\u22122"], defecto: 0, min: 0, max: 1 },
+    { id: "subForma", nombre: "Forma del sub", corto: "Forma", grupo: "color", tipo: "choice", opciones: ["Seno", "Cuadrada"], defecto: 0, min: 0, max: 1 },
+    ...vaiven(1),
+    ...vaiven(2)
   ];
   const VOCES = 32;
   const CRUCE_S = 4e-3;
   const AHOGO_S = 6e-3;
   const BORDE_S = 2e-3;
+  const CADA_FILTRO = 16;
   const dB = (x) => Math.pow(10, x / 20);
+  const val = (p, id, def) => p[id] === void 0 ? def : p[id];
   function crear(fm) {
     const muestras = /* @__PURE__ */ new Map();
     let zonas = [];
     const voces = [];
     let orden = 0;
+    const lfo = [
+      { fase: 0, azar: 0 },
+      { fase: 0, azar: 0 }
+    ];
+    let semilla = 22222;
+    const azar = () => {
+      semilla = semilla * 1664525 + 1013904223 >>> 0;
+      return semilla / 2147483648 - 1;
+    };
+    let mVol = new Float32Array(128);
+    let mFil = new Float32Array(128);
+    let mDis = new Float32Array(128);
+    let mPan = new Float32Array(128);
     const prepararCapa = (c, tajada = -1) => {
       const mu = muestras.get(c.m);
       if (!mu || !mu.c.length || !mu.c[0].length) return null;
       const largo = mu.c[0].length;
       const s = (x) => Math.max(0, Math.min(largo - 1, Math.round((Number(x) || 0) * mu.fm)));
+      const pan = Math.max(-1, Math.min(1, Number(c.pan) || 0));
+      const ang = (pan + 1) * Math.PI / 4;
+      const comun = {
+        mu,
+        gL: dB(Number(c.gan) || 0) * Math.cos(ang),
+        gR: dB(Number(c.gan) || 0) * Math.sin(ang),
+        afinar: Number(c.afinar) || 0
+      };
       if (tajada >= 0) {
         const cortes = Array.isArray(c.cortes) ? c.cortes : [];
         if (tajada >= cortes.length) return null;
@@ -1622,19 +1669,14 @@ function nucleoSampler() {
         const finTodo = c.fin === void 0 || c.fin === null ? largo - 1 : s(c.fin);
         const fin2 = tajada + 1 < cortes.length ? Math.min(finTodo, s(cortes[tajada + 1])) : finTodo;
         if (fin2 - ini2 < 2) return null;
-        const pan2 = Math.max(-1, Math.min(1, Number(c.pan) || 0));
-        const ang2 = (pan2 + 1) * Math.PI / 4;
         return {
-          mu,
+          ...comun,
           ini: ini2,
           lIni: fin2,
           lFin: fin2,
           fin: fin2,
           loop: false,
           alt: [false, false, false],
-          gL: dB(Number(c.gan) || 0) * Math.cos(ang2),
-          gR: dB(Number(c.gan) || 0) * Math.sin(ang2),
-          afinar: Number(c.afinar) || 0,
           cruce: 1,
           borde: Math.max(1, Math.min(Math.floor((fin2 - ini2) / 2), Math.round(BORDE_S * mu.fm)))
         };
@@ -1650,30 +1692,39 @@ function nucleoSampler() {
         lFin = Math.min(lFin, fin);
       }
       const alt = Array.isArray(c.alt) ? [c.alt[0] !== false, c.alt[1] !== false, c.alt[2] !== false] : [true, true, true];
-      const pan = Math.max(-1, Math.min(1, Number(c.pan) || 0));
-      const ang = (pan + 1) * Math.PI / 4;
       return {
-        mu,
+        ...comun,
         ini,
         lIni,
         lFin,
         fin,
         loop,
         alt,
-        gL: dB(Number(c.gan) || 0) * Math.cos(ang),
-        gR: dB(Number(c.gan) || 0) * Math.sin(ang),
-        afinar: Number(c.afinar) || 0,
         cruce: Math.max(1, Math.min(Math.floor((lFin - lIni) / 2), Math.round(CRUCE_S * mu.fm))),
         borde: 0
       };
     };
     const leer = (canal, pos) => {
-      const i = Math.floor(pos);
+      const i = pos | 0;
       const f = pos - i;
-      const a = canal[i] || 0;
-      const b = canal[i + 1] === void 0 ? a : canal[i + 1];
+      const a = canal[i];
+      const b = i + 1 < canal.length ? canal[i + 1] : a;
       return a + (b - a) * f;
     };
+    const cabeza = (c, canal, pos, enLoop) => {
+      if (!enLoop && !c.borde) return leer(canal, pos);
+      let x = leer(canal, pos);
+      if (enLoop && pos >= c.lIni && pos < c.lFin && pos > c.lFin - c.cruce) {
+        const a = (pos - (c.lFin - c.cruce)) / c.cruce;
+        x = x * (1 - a) + leer(canal, pos - (c.lFin - c.lIni)) * a;
+      }
+      if (c.borde) {
+        const d = Math.min(pos - c.ini, c.fin - pos);
+        if (d < c.borde) x *= Math.max(0, d) / c.borde;
+      }
+      return x;
+    };
+    const parteDe = (c, pos) => pos < c.lIni ? 0 : pos < c.lFin ? 1 : 2;
     const zonaDe = (nota) => {
       for (const z of zonas) if (nota >= z.baja && nota <= z.alta) return z;
       return null;
@@ -1689,7 +1740,7 @@ function nucleoSampler() {
       const capas = [];
       for (const c of (z.capas || []).slice(0, 3)) {
         const pc = prepararCapa(c, tajadas ? nota - z.baja : -1);
-        if (pc) capas.push({ c: pc, pos: pc.ini, viva: true });
+        if (pc) capas.push({ c: pc, pos: pc.ini, pos2: pc.ini, viva: true, viva2: true });
       }
       if (!capas.length) return;
       if (voces.length >= VOCES) {
@@ -1698,7 +1749,7 @@ function nucleoSampler() {
         vieja.ahogo = vieja.ahogo || AHOGO_S * fm;
         if (voces.length >= VOCES + 8) voces.splice(voces.indexOf(vieja), 1);
       }
-      const sens = Math.max(0, Math.min(1, (p.vel === void 0 ? 70 : p.vel) / 100));
+      const sens = Math.max(0, Math.min(1, val(p, "vel", 70) / 100));
       voces.push({
         nota,
         raiz: tajadas ? nota : Number(z.raiz) || 60,
@@ -1710,7 +1761,15 @@ function nucleoSampler() {
         env: 0,
         soltada: false,
         ahogo: 0,
-        orden: orden++
+        orden: orden++,
+        // la envolvente del filtro (sube y cae a cero) y su estado, una pareja por oreja
+        fEnv: 0,
+        fSube: true,
+        f: [0, 0, 0, 0],
+        fG: 0,
+        fK: 1,
+        fCuenta: 0,
+        subFase: 0
       });
     }
     function notaOff(nota) {
@@ -1719,23 +1778,85 @@ function nucleoSampler() {
     function callar() {
       for (const v2 of voces) v2.ahogo = v2.ahogo || AHOGO_S * fm;
     }
+    const forma = (k, ph, l) => {
+      if (k === 0) return Math.sin(2 * Math.PI * ph);
+      if (k === 1) return 1 - 4 * Math.abs(ph - 0.5);
+      if (k === 2) return ph < 0.5 ? 1 : -1;
+      if (k === 3) return 2 * ph - 1;
+      return l.azar;
+    };
     function procesar(sL, sR, desde, hasta, p) {
-      const atq = Math.max(1, (p.atq === void 0 ? 2 : p.atq) / 1e3 * fm);
-      const dec = Math.max(1, (p.dec === void 0 ? 300 : p.dec) / 1e3 * fm);
-      const sos = Math.max(0, Math.min(1, (p.sos === void 0 ? 100 : p.sos) / 100));
-      const sol = Math.max(1, (p.sol === void 0 ? 200 : p.sol) / 1e3 * fm);
-      const vol = dB(p.vol === void 0 ? 0 : p.vol);
-      const afinar = p.afinar || 0;
+      const n = hasta - desde;
+      if (n <= 0) return;
+      if (mVol.length < n) {
+        mVol = new Float32Array(n);
+        mFil = new Float32Array(n);
+        mDis = new Float32Array(n);
+        mPan = new Float32Array(n);
+      }
+      const atq = Math.max(1, val(p, "atq", 2) / 1e3 * fm);
+      const dec = Math.max(1, val(p, "dec", 300) / 1e3 * fm);
+      const sos = Math.max(0, Math.min(1, val(p, "sos", 100) / 100));
+      const sol = Math.max(1, val(p, "sol", 200) / 1e3 * fm);
+      const vol = dB(val(p, "vol", 0));
+      const afinar = val(p, "afinar", 0);
+      const ftipo = Math.round(val(p, "ftipo", 0));
+      const corte = val(p, "corte", 2e3);
+      const fK = 1 / (0.5 * Math.pow(40, Math.max(0, Math.min(100, val(p, "reso", 10))) / 100));
+      const fenv = val(p, "fenv", 0);
+      const fatq = Math.max(1, val(p, "fatq", 2) / 1e3 * fm);
+      const fdec = Math.max(1, val(p, "fdec", 400) / 1e3 * fm);
+      const ruido = Math.pow(Math.max(0, val(p, "ruido", 0)) / 100, 2) * 0.5;
+      const desaf = Math.max(0, val(p, "desaf", 0));
+      const sub = Math.max(0, val(p, "sub", 0)) / 100 * 0.6;
+      const subOct = Math.round(val(p, "subOct", 0)) === 1 ? 2 : 1;
+      const subCuadrada = Math.round(val(p, "subForma", 0)) === 1;
+      let altSt = 0;
+      mVol.fill(1, 0, n);
+      mFil.fill(0, 0, n);
+      mDis.fill(0, 0, n);
+      mPan.fill(0, 0, n);
+      let hayPan = false;
+      for (let k = 0; k < 2; k++) {
+        const pre = `l${k + 1}`;
+        const prof = Math.max(0, Math.min(100, val(p, `${pre}p`, 0))) / 100;
+        const l = lfo[k];
+        const paso = Math.max(0, val(p, `${pre}v`, 2)) / fm;
+        if (prof <= 0) {
+          l.fase = (l.fase + paso * n) % 1;
+          continue;
+        }
+        const fo = Math.round(val(p, `${pre}f`, 0));
+        const de = Math.round(val(p, `${pre}d`, 0));
+        if (de === 0) altSt += forma(fo, l.fase, l) * 12 * prof * prof;
+        if (de === 4) hayPan = true;
+        for (let i = 0; i < n; i++) {
+          const x = forma(fo, l.fase, l);
+          if (de === 1) mVol[i] *= 1 - prof * (1 - x) / 2;
+          else if (de === 2) mFil[i] += x * prof * 4;
+          else if (de === 3) mDis[i] += x * prof * 24;
+          else if (de === 4) mPan[i] += x * prof;
+          l.fase += paso;
+          if (l.fase >= 1) {
+            l.fase -= 1;
+            l.azar = azar();
+          }
+        }
+      }
       for (let k = voces.length - 1; k >= 0; k--) {
         const v2 = voces[k];
+        const dA = Math.pow(2, -desaf / 2400);
+        const dB2 = Math.pow(2, desaf / 2400);
         const rates = v2.capas.map(({ c }) => {
           const base = c.mu.fm / fm;
-          const conNota = Math.pow(2, (v2.nota - v2.raiz + c.afinar + afinar) / 12);
-          const sinNota = Math.pow(2, (c.afinar + afinar) / 12);
+          const conNota = Math.pow(2, (v2.nota - v2.raiz + c.afinar + afinar + altSt) / 12);
+          const sinNota = Math.pow(2, (c.afinar + afinar + altSt) / 12);
           return [base * (c.alt[0] ? conNota : sinNota), base * (c.alt[1] ? conNota : sinNota), base * (c.alt[2] ? conNota : sinNota)];
         });
+        const subPaso = 440 * Math.pow(2, (v2.nota - 69 - 12 * subOct + afinar + altSt) / 12) / fm;
         let terminada = false;
-        for (let i = desde; i < hasta; i++) {
+        for (let j = 0; j < n; j++) {
+          const i = desde + j;
           if (v2.ahogo) {
             v2.env -= 1 / Math.max(1, v2.ahogo);
             if (v2.env <= 0) {
@@ -1765,42 +1886,102 @@ function nucleoSampler() {
               v2.fase = 2;
             }
           }
-          const g = v2.env * v2.gan * vol;
+          let xL = 0;
+          let xR = 0;
           let vivas = 0;
-          for (let n = 0; n < v2.capas.length; n++) {
-            const cap = v2.capas[n];
-            if (!cap.viva) continue;
+          for (let q = 0; q < v2.capas.length; q++) {
+            const cap = v2.capas[q];
             const c = cap.c;
             const enLoop = c.loop && !v2.golpe && !v2.soltada;
-            const parte = cap.pos < c.lIni ? 0 : cap.pos < c.lFin ? 1 : 2;
             const L = c.mu.c[0];
             const R = c.mu.c[1] || L;
-            let xL = leer(L, cap.pos);
-            let xR = R === L ? xL : leer(R, cap.pos);
-            if (enLoop && parte === 1 && cap.pos > c.lFin - c.cruce) {
-              const a = (cap.pos - (c.lFin - c.cruce)) / c.cruce;
-              const otra = cap.pos - (c.lFin - c.lIni);
-              xL = xL * (1 - a) + leer(L, otra) * a;
-              xR = R === L ? xL : xR * (1 - a) + leer(R, otra) * a;
+            if (cap.viva) {
+              xL += cabeza(c, L, cap.pos, enLoop) * c.gL;
+              cap.pos += rates[q][parteDe(c, cap.pos)] * dA;
+              if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
+              if (cap.pos >= c.fin) cap.viva = false;
             }
-            let gb = g;
-            if (c.borde) {
-              const d = Math.min(cap.pos - c.ini, c.fin - cap.pos);
-              if (d < c.borde) gb *= Math.max(0, d) / c.borde;
+            if (cap.viva2) {
+              xR += cabeza(c, R, cap.pos2, enLoop) * c.gR;
+              cap.pos2 += rates[q][parteDe(c, cap.pos2)] * dB2;
+              if (enLoop && cap.pos2 >= c.lFin) cap.pos2 -= c.lFin - c.lIni;
+              if (cap.pos2 >= c.fin) cap.viva2 = false;
             }
-            sL[i] += xL * c.gL * gb;
-            sR[i] += xR * c.gR * gb;
-            cap.pos += rates[n][parte];
-            if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
-            if (cap.pos >= c.fin) cap.viva = false;
-            else vivas++;
+            if (cap.viva || cap.viva2) vivas++;
           }
           if (!vivas) {
             terminada = true;
             break;
           }
+          if (ruido > 0) {
+            const r = azar() * ruido;
+            xL += r;
+            xR += r;
+          }
+          if (sub > 0) {
+            const s = (subCuadrada ? v2.subFase < 0.5 ? 0.7 : -0.7 : Math.sin(2 * Math.PI * v2.subFase)) * sub;
+            xL += s;
+            xR += s;
+            v2.subFase += subPaso;
+            if (v2.subFase >= 1) v2.subFase -= 1;
+          }
+          if (v2.fSube) {
+            v2.fEnv += 1 / fatq;
+            if (v2.fEnv >= 1) {
+              v2.fEnv = 1;
+              v2.fSube = false;
+            }
+          } else if (v2.fEnv > 0) v2.fEnv = Math.max(0, v2.fEnv - 1 / fdec);
+          if (ftipo > 0) {
+            if (v2.fCuenta-- <= 0) {
+              v2.fCuenta = CADA_FILTRO - 1;
+              const f = Math.min(0.45 * fm, Math.max(20, corte * Math.pow(2, fenv * v2.fEnv + mFil[j])));
+              v2.fG = Math.tan(Math.PI * f / fm);
+              v2.fK = fK;
+            }
+            const g2 = v2.fG;
+            const kk = v2.fK;
+            const a1 = 1 / (1 + g2 * (g2 + kk));
+            const a2 = g2 * a1;
+            const a3 = g2 * a2;
+            const st = v2.f;
+            for (let o = 0; o < 2; o++) {
+              const x = o === 0 ? xL : xR;
+              const v3 = x - st[2 * o + 1];
+              const v1 = a1 * st[2 * o] + a2 * v3;
+              const v22 = st[2 * o + 1] + a2 * st[2 * o] + a3 * v3;
+              st[2 * o] = 2 * v1 - st[2 * o];
+              st[2 * o + 1] = 2 * v22 - st[2 * o + 1];
+              const y = ftipo === 1 ? v22 : ftipo === 2 ? x - kk * v1 - v22 : v1;
+              if (o === 0) xL = y;
+              else xR = y;
+            }
+          }
+          let g = v2.env * v2.gan * vol * mVol[j];
+          let gL = g;
+          let gR = g;
+          if (hayPan) {
+            const a = (Math.max(-1, Math.min(1, mPan[j])) + 1) * Math.PI / 4;
+            gL *= Math.cos(a) * Math.SQRT2;
+            gR *= Math.sin(a) * Math.SQRT2;
+          }
+          sL[i] += xL * gL;
+          sR[i] += xR * gR;
         }
         if (terminada) voces.splice(k, 1);
+      }
+      const dist = val(p, "dist", 0);
+      const mez = Math.max(0, Math.min(100, val(p, "dmez", 100))) / 100;
+      if (mez > 0 && (dist > 0 || mDis.some((x, j) => j < n && x !== 0))) {
+        for (let j = 0; j < n; j++) {
+          const d = dist + mDis[j];
+          if (d <= 0) continue;
+          const g = dB(d);
+          const comp = 1 / Math.sqrt(g);
+          const i = desde + j;
+          sL[i] = sL[i] * (1 - mez) + Math.tanh(g * sL[i]) * comp * mez;
+          sR[i] = sR[i] * (1 - mez) + Math.tanh(g * sR[i]) * comp * mez;
+        }
       }
     }
     return {
@@ -1820,7 +2001,7 @@ function nucleoSampler() {
       cuantasVoces: () => voces.length
     };
   }
-  return { PARAMS, crear };
+  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, crear };
 }
 
 // sampler/procesador.js
@@ -2190,6 +2371,27 @@ function interruptor(o) {
     puesto: () => puesto
   };
 }
+function elegidor(o) {
+  const s = el(
+    "select",
+    `font:inherit;color:${v("tinta")};background:${v("pantalla")};border:1px solid ${v("borde")};border-radius:0;padding:1px 2px;max-width:100%;`
+  );
+  s.setAttribute("aria-label", o.nombre);
+  o.opciones.forEach((texto, i) => {
+    const op = document.createElement("option");
+    op.value = String(i);
+    op.textContent = texto;
+    s.append(op);
+  });
+  s.addEventListener("change", () => o.alCambiar(Number(s.value)));
+  return {
+    el: s,
+    poner: (i) => {
+      s.value = String(i);
+    },
+    agarrada: () => document.activeElement === s
+  };
+}
 
 // comun/idiomas.js
 var IDIOMAS = ["EN", "PT", "FR", "EU", "RU", "JA", "KO", "ZH", "TH"];
@@ -2265,6 +2467,37 @@ var TEXTOS = {
   Bater\u00EDa: ["Drums", "Bateria", "Batterie", "Bateria", "\u0423\u0434\u0430\u0440\u043D\u044B\u0435", "\u30C9\u30E9\u30E0", "\uB4DC\uB7FC", "\u9F13", "\u0E01\u0E25\u0E2D\u0E07"],
   "Nueva zona de piano": ["New piano zone", "Nova zona de piano", "Nouvelle zone de piano", "Piano-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u0444\u043E\u0440\u0442\u0435\u043F\u0438\u0430\u043D\u043E", "\u65B0\u3057\u3044\u30D4\u30A2\u30CE\u30BE\u30FC\u30F3", "\uC0C8 \uD53C\uC544\uB178 \uC874", "\u65B0\u5EFA\u94A2\u7434\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E40\u0E1B\u0E35\u0E22\u0E42\u0E19\u0E43\u0E2B\u0E21\u0E48"],
   "Nueva zona de bater\xEDa": ["New drum zone", "Nova zona de bateria", "Nouvelle zone de batterie", "Bateria-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u0443\u0434\u0430\u0440\u043D\u044B\u0445", "\u65B0\u3057\u3044\u30C9\u30E9\u30E0\u30BE\u30FC\u30F3", "\uC0C8 \uB4DC\uB7FC \uC874", "\u65B0\u5EFA\u9F13\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E01\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48"],
+  General: ["General", "Geral", "G\xE9n\xE9ral", "Orokorra", "\u041E\u0431\u0449\u0435\u0435", "\u5168\u822C", "\uC77C\uBC18", "\u5E38\u89C4", "\u0E17\u0E31\u0E48\u0E27\u0E44\u0E1B"],
+  Color: ["Color", "Cor", "Couleur", "Kolorea", "\u041E\u043A\u0440\u0430\u0441\u043A\u0430", "\u30AB\u30E9\u30FC", "\uCEEC\uB7EC", "\u97F3\u8272", "\u0E2A\u0E35\u0E2A\u0E31\u0E19"],
+  "Vaiv\xE9n 1": ["LFO 1", "LFO 1", "LFO 1", "LFO 1", "LFO 1", "LFO 1", "LFO 1", "LFO 1", "LFO 1"],
+  "Vaiv\xE9n 2": ["LFO 2", "LFO 2", "LFO 2", "LFO 2", "LFO 2", "LFO 2", "LFO 2", "LFO 2", "LFO 2"],
+  Corte: ["Cutoff", "Corte", "Coupure", "Ebaketa", "\u0421\u0440\u0435\u0437", "\u30AB\u30C3\u30C8\u30AA\u30D5", "\uCEF7\uC624\uD504", "\u622A\u6B62", "\u0E04\u0E31\u0E15\u0E2D\u0E2D\u0E1F"],
+  Envolvente: ["Envelope", "Envelope", "Enveloppe", "Inguratzailea", "\u041E\u0433\u0438\u0431\u0430\u044E\u0449\u0430\u044F", "\u30A8\u30F3\u30D9\u30ED\u30FC\u30D7", "\uC5D4\uBC8C\uB85C\uD504", "\u5305\u7EDC", "\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B"],
+  "Envolvente del filtro": ["Filter envelope", "Envelope do filtro", "Enveloppe du filtre", "Iragazkiaren inguratzailea", "\u041E\u0433\u0438\u0431\u0430\u044E\u0449\u0430\u044F \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u30A8\u30F3\u30D9\u30ED\u30FC\u30D7", "\uD544\uD130 \uC5D4\uBC8C\uB85C\uD504", "\u6EE4\u6CE2\u5668\u5305\u7EDC", "\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Ataque del filtro": ["Filter attack", "Ataque do filtro", "Attaque du filtre", "Iragazkiaren erasoa", "\u0410\u0442\u0430\u043A\u0430 \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30A2\u30BF\u30C3\u30AF", "\uD544\uD130 \uC5B4\uD0DD", "\u6EE4\u6CE2\u5668\u8D77\u97F3", "\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  Ca\u00EDda: ["Decay", "Queda", "Chute", "Jaitsiera", "\u0421\u043F\u0430\u0434", "\u30C7\u30A3\u30B1\u30A4", "\uB514\uCF00\uC774", "\u8870\u51CF", "\u0E14\u0E35\u0E40\u0E04\u0E22\u0E4C"],
+  "Ca\xEDda del filtro": ["Filter decay", "Queda do filtro", "Chute du filtre", "Iragazkiaren jaitsiera", "\u0421\u043F\u0430\u0434 \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30C7\u30A3\u30B1\u30A4", "\uD544\uD130 \uB514\uCF00\uC774", "\u6EE4\u6CE2\u5668\u8870\u51CF", "\u0E14\u0E35\u0E40\u0E04\u0E22\u0E4C\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  Distorsi\u00F3n: ["Distortion", "Distor\xE7\xE3o", "Distorsion", "Distortsioa", "\u0418\u0441\u043A\u0430\u0436\u0435\u043D\u0438\u0435", "\u30C7\u30A3\u30B9\u30C8\u30FC\u30B7\u30E7\u30F3", "\uB514\uC2A4\uD1A0\uC158", "\u5931\u771F", "\u0E14\u0E34\u0E2A\u0E17\u0E2D\u0E23\u0E4C\u0E0A\u0E31\u0E19"],
+  "Mezcla de la distorsi\xF3n": ["Distortion mix", "Mistura da distor\xE7\xE3o", "M\xE9lange de la distorsion", "Distortsioaren nahasketa", "\u041C\u0438\u043A\u0441 \u0438\u0441\u043A\u0430\u0436\u0435\u043D\u0438\u044F", "\u30C7\u30A3\u30B9\u30C8\u30FC\u30B7\u30E7\u30F3\u306E\u30DF\u30C3\u30AF\u30B9", "\uB514\uC2A4\uD1A0\uC158 \uBBF9\uC2A4", "\u5931\u771F\u6DF7\u5408", "\u0E21\u0E34\u0E01\u0E0B\u0E4C\u0E02\u0E2D\u0E07\u0E14\u0E34\u0E2A\u0E17\u0E2D\u0E23\u0E4C\u0E0A\u0E31\u0E19"],
+  Ruido: ["Noise", "Ru\xEDdo", "Bruit", "Zarata", "\u0428\u0443\u043C", "\u30CE\u30A4\u30BA", "\uB178\uC774\uC988", "\u566A\u58F0", "\u0E19\u0E2D\u0E22\u0E2A\u0E4C"],
+  Desafinado: ["Detune", "Desafina\xE7\xE3o", "D\xE9saccord", "Desafinazioa", "\u0420\u0430\u0441\u0441\u0442\u0440\u043E\u0439\u043A\u0430", "\u30C7\u30C1\u30E5\u30FC\u30F3", "\uB514\uD2A0", "\u5931\u8C10", "\u0E14\u0E35\u0E08\u0E39\u0E19"],
+  Sub: ["Sub", "Sub", "Sub", "Sub", "\u0421\u0430\u0431", "\u30B5\u30D6", "\uC11C\uBE0C", "\u526F\u632F\u8361\u5668", "\u0E0B\u0E31\u0E1A"],
+  Octava: ["Octave", "Oitava", "Octave", "Zortzidun", "\u041E\u043A\u0442\u0430\u0432\u0430", "\u30AA\u30AF\u30BF\u30FC\u30D6", "\uC625\uD0C0\uBE0C", "\u516B\u5EA6", "\u0E2D\u0E47\u0E2D\u0E01\u0E40\u0E17\u0E1F"],
+  "Octava del sub": ["Sub octave", "Oitava do sub", "Octave du sub", "Subaren zortziduna", "\u041E\u043A\u0442\u0430\u0432\u0430 \u0441\u0430\u0431\u0430", "\u30B5\u30D6\u306E\u30AA\u30AF\u30BF\u30FC\u30D6", "\uC11C\uBE0C \uC625\uD0C0\uBE0C", "\u526F\u632F\u8361\u5668\u516B\u5EA6", "\u0E2D\u0E47\u0E2D\u0E01\u0E40\u0E17\u0E1F\u0E02\u0E2D\u0E07\u0E0B\u0E31\u0E1A"],
+  "Forma del sub": ["Sub shape", "Forma do sub", "Forme du sub", "Subaren forma", "\u0424\u043E\u0440\u043C\u0430 \u0441\u0430\u0431\u0430", "\u30B5\u30D6\u306E\u6CE2\u5F62", "\uC11C\uBE0C \uD30C\uD615", "\u526F\u632F\u8361\u5668\u6CE2\u5F62", "\u0E23\u0E39\u0E1B\u0E04\u0E25\u0E37\u0E48\u0E19\u0E02\u0E2D\u0E07\u0E0B\u0E31\u0E1A"],
+  Apagado: ["Off", "Desligado", "\xC9teint", "Itzalita", "\u0412\u044B\u043A\u043B.", "\u30AA\u30D5", "\uB054", "\u5173\u95ED", "\u0E1B\u0E34\u0E14"],
+  Sierra: ["Saw", "Serra", "Scie", "Zerra", "\u041F\u0438\u043B\u0430", "\u30CE\u30B3\u30AE\u30EA", "\uD1B1\uB2C8", "\u952F\u9F7F", "\u0E1F\u0E31\u0E19\u0E40\u0E25\u0E37\u0E48\u0E2D\u0E22"],
+  Azar: ["Random", "Aleat\xF3rio", "Al\xE9atoire", "Ausazkoa", "\u0421\u043B\u0443\u0447\u0430\u0439\u043D\u043E", "\u30E9\u30F3\u30C0\u30E0", "\uB79C\uB364", "\u968F\u673A", "\u0E2A\u0E38\u0E48\u0E21"],
+  Altura: ["Pitch", "Altura", "Hauteur", "Altuera", "\u0412\u044B\u0441\u043E\u0442\u0430", "\u30D4\u30C3\u30C1", "\uD53C\uCE58", "\u97F3\u9AD8", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  Destino: ["Target", "Destino", "Cible", "Helburua", "\u0426\u0435\u043B\u044C", "\u9001\u308A\u5148", "\uB300\uC0C1", "\u76EE\u6807", "\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07"],
+  "Forma del vaiv\xE9n 1": ["LFO 1 shape", "Forma do LFO 1", "Forme du LFO 1", "LFO 1aren forma", "\u0424\u043E\u0440\u043C\u0430 LFO 1", "LFO 1\u306E\u6CE2\u5F62", "LFO 1 \uD30C\uD615", "LFO 1 \u6CE2\u5F62", "\u0E23\u0E39\u0E1B\u0E04\u0E25\u0E37\u0E48\u0E19\u0E02\u0E2D\u0E07 LFO 1"],
+  "Forma del vaiv\xE9n 2": ["LFO 2 shape", "Forma do LFO 2", "Forme du LFO 2", "LFO 2aren forma", "\u0424\u043E\u0440\u043C\u0430 LFO 2", "LFO 2\u306E\u6CE2\u5F62", "LFO 2 \uD30C\uD615", "LFO 2 \u6CE2\u5F62", "\u0E23\u0E39\u0E1B\u0E04\u0E25\u0E37\u0E48\u0E19\u0E02\u0E2D\u0E07 LFO 2"],
+  "Velocidad del vaiv\xE9n 1": ["LFO 1 rate", "Velocidade do LFO 1", "Vitesse du LFO 1", "LFO 1aren abiadura", "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C LFO 1", "LFO 1\u306E\u901F\u3055", "LFO 1 \uC18D\uB3C4", "LFO 1 \u901F\u7387", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E23\u0E47\u0E27\u0E02\u0E2D\u0E07 LFO 1"],
+  "Velocidad del vaiv\xE9n 2": ["LFO 2 rate", "Velocidade do LFO 2", "Vitesse du LFO 2", "LFO 2aren abiadura", "\u0421\u043A\u043E\u0440\u043E\u0441\u0442\u044C LFO 2", "LFO 2\u306E\u901F\u3055", "LFO 2 \uC18D\uB3C4", "LFO 2 \u901F\u7387", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E23\u0E47\u0E27\u0E02\u0E2D\u0E07 LFO 2"],
+  "Profundidad del vaiv\xE9n 1": ["LFO 1 depth", "Profundidade do LFO 1", "Profondeur du LFO 1", "LFO 1aren sakonera", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430 LFO 1", "LFO 1\u306E\u6DF1\u3055", "LFO 1 \uAE4A\uC774", "LFO 1 \u6DF1\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E25\u0E36\u0E01\u0E02\u0E2D\u0E07 LFO 1"],
+  "Profundidad del vaiv\xE9n 2": ["LFO 2 depth", "Profundidade do LFO 2", "Profondeur du LFO 2", "LFO 2aren sakonera", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430 LFO 2", "LFO 2\u306E\u6DF1\u3055", "LFO 2 \uAE4A\uC774", "LFO 2 \u6DF1\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E25\u0E36\u0E01\u0E02\u0E2D\u0E07 LFO 2"],
+  "Destino del vaiv\xE9n 1": ["LFO 1 target", "Destino do LFO 1", "Cible du LFO 1", "LFO 1aren helburua", "\u0426\u0435\u043B\u044C LFO 1", "LFO 1\u306E\u9001\u308A\u5148", "LFO 1 \uB300\uC0C1", "LFO 1 \u76EE\u6807", "\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07\u0E02\u0E2D\u0E07 LFO 1"],
+  "Destino del vaiv\xE9n 2": ["LFO 2 target", "Destino do LFO 2", "Cible du LFO 2", "LFO 2aren helburua", "\u0426\u0435\u043B\u044C LFO 2", "LFO 2\u306E\u9001\u308A\u5148", "LFO 2 \uB300\uC0C1", "LFO 2 \u76EE\u6807", "\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07\u0E02\u0E2D\u0E07 LFO 2"],
   Tajadas: ["Slices", "Fatias", "Tranches", "Xerrak", "\u041D\u0430\u0440\u0435\u0437\u043A\u0430", "\u30B9\u30E9\u30A4\u30B9", "\uC2AC\uB77C\uC774\uC2A4", "\u5207\u7247", "\u0E2A\u0E44\u0E25\u0E0B\u0E4C"],
   "Nueva zona de tajadas": ["New slice zone", "Nova zona de fatias", "Nouvelle zone de tranches", "Xerra-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u043D\u0430\u0440\u0435\u0437\u043A\u0438", "\u65B0\u3057\u3044\u30B9\u30E9\u30A4\u30B9\u30BE\u30FC\u30F3", "\uC0C8 \uC2AC\uB77C\uC774\uC2A4 \uC874", "\u65B0\u5EFA\u5207\u7247\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E2A\u0E44\u0E25\u0E0B\u0E4C\u0E43\u0E2B\u0E21\u0E48"],
   Detectar: ["Detect", "Detectar", "D\xE9tecter", "Detektatu", "\u041D\u0430\u0439\u0442\u0438", "\u691C\u51FA", "\uAC10\uC9C0", "\u68C0\u6D4B", "\u0E15\u0E23\u0E27\u0E08\u0E2B\u0E32"],
@@ -2793,24 +3026,67 @@ function crearCaratula(nodo) {
     }),
     el("span", `margin-left:auto;color:${v("tinta2")};font-size:11px;`, t("Clic: o\xEDr la tajada \xB7 doble clic: agregar o quitar un corte"))
   );
-  const filaGeneral = el("div", "display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding:6px 10px 10px;");
+  const GRUPOS = [
+    ["general", "General"],
+    ["filtro", "Filtro"],
+    ["color", "Color"],
+    ["v1", "Vaiv\xE9n 1"],
+    ["v2", "Vaiv\xE9n 2"]
+  ];
   const textoDe = (p, x) => `${numero(x, p.dec !== void 0 ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ""}`;
+  const mandar = (id, x) => void nodo.setParameterValues({ [id]: { id, value: x, normalized: false } });
   const generales = {};
-  for (const p of N.PARAMS) {
-    const c = perilla({
-      nombre: t(p.nombre),
-      min: p.min,
-      max: p.max,
-      paso: p.paso || 1,
-      log: p.id === "atq" || p.id === "dec" || p.id === "sol",
-      porDefecto: p.defecto,
-      formato: (x) => textoDe(p, x),
-      alCambiar: (x) => void nodo.setParameterValues({ [p.id]: { id: p.id, value: x, normalized: false } })
+  const hojas = {};
+  const filaPestanas = el("div", `display:flex;gap:4px;padding:6px 10px 0;`);
+  const filaGeneral = el("div", "padding:4px 10px 10px;");
+  let grupoSel = "general";
+  const botonesGrupo = {};
+  for (const [g, titulo] of GRUPOS) {
+    const ps = N.PARAMS.filter((p) => p.grupo === g);
+    const lugares = Math.max(6, ps.reduce((n, p) => n + (p.tipo === "choice" ? 2 : 1), 0));
+    const hoja = el("div", `display:grid;grid-template-columns:repeat(${lugares},minmax(0,1fr));gap:4px;align-items:start;`);
+    for (const p of ps) {
+      const nombre = t(p.corto || p.nombre);
+      if (p.tipo === "choice") {
+        const c = elegidor({ nombre, opciones: p.opciones.map((x) => t(x)), alCambiar: (i) => mandar(p.id, i) });
+        c.poner(p.defecto);
+        const celda = el("div", "display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;grid-column:span 2;");
+        celda.append(el("div", `color:${v("tinta2")};font-size:11px;white-space:nowrap;`, nombre), c.el);
+        generales[p.id] = { ...c, poner: (x) => c.poner(Math.round(x)) };
+        hoja.append(celda);
+      } else {
+        const c = perilla({
+          nombre,
+          min: p.min,
+          max: p.max,
+          paso: p.paso || 1,
+          log: !!p.log,
+          porDefecto: p.defecto,
+          formato: (x) => textoDe(p, x),
+          alCambiar: (x) => mandar(p.id, x)
+        });
+        generales[p.id] = c;
+        hoja.append(c.el);
+      }
+    }
+    hojas[g] = hoja;
+    const b = boton(t(titulo), () => {
+      grupoSel = g;
+      pintarPestanas();
     });
-    generales[p.id] = c;
-    filaGeneral.append(c.el);
+    botonesGrupo[g] = b;
+    filaPestanas.append(b);
+    filaGeneral.append(hoja);
   }
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaGeneral);
+  const pintarPestanas = () => {
+    for (const [g] of GRUPOS) {
+      hojas[g].style.display = g === grupoSel ? "grid" : "none";
+      botonesGrupo[g].style.fontWeight = g === grupoSel ? "bold" : "";
+      botonesGrupo[g].style.background = g === grupoSel ? v("acento") : v("pantalla");
+    }
+  };
+  pintarPestanas();
+  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaPestanas, filaGeneral);
   let C = coloresDe(caja);
   const pintarTeclado = () => {
     const g = tec.g;
