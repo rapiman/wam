@@ -38,13 +38,14 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar }
 
 ## Por partes
 
-1. **El reproductor** — HECHO el corazón (`nucleo.js`, 18 comprobaciones): zonas, capas, las tres
-   partes con o sin la altura de la nota, golpe, envolvente. FALTA: el procesador (recibe MIDI y
-   las muestras), la carátula (teclado con las zonas, la forma de onda con las marcas que se
-   arrastran, cargar audios) y el módulo.
+1. **El reproductor** — HECHO: el corazón (`nucleo.js`, 18 comprobaciones: zonas, capas, las tres
+   partes con o sin la altura de la nota, golpe, envolvente), el procesador (recibe MIDI y las
+   muestras), la carátula (teclado con las zonas, la forma de onda con las marcas que se
+   arrastran, cargar audios por archivo o dirección web) y el módulo. FALTA probarlo en un navegador.
 2. **Las tajadas**: cortar un audio en pedazos (marcas que se mueven) y detectar los golpes; cada
    pedazo, una zona de golpe en una tecla.
-3. **Filtro, efectos y moduladores**: filtro por voz con su envolvente; distorsión, ruido, desafinado;
+3. **Filtro, efectos y moduladores**: filtro por voz con su envolvente; distorsión, ruido, desafinado,
+   **sub** (oscilador una o dos octavas abajo de la nota, con su volumen y su forma, para dar peso);
    osciladores lentos (LFO) que van a la altura, el volumen, el filtro o el efecto.
 4. **Estirar al tempo** cada parte (necesita que la caja y Edit Pro le avisen el tempo).
 5. **Osciladores de síntesis** «al estilo Massive», como capas además de los audios.
