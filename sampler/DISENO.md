@@ -22,8 +22,8 @@ pedazo en una tecla). Más adelante, osciladores y moduladores «al estilo Massi
 
 ```
 { zonas: [ZONA…] }
-ZONA = { baja, alta, raiz, golpe, capas: [CAPA…] }      hasta 3 capas
-CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar }
+ZONA = { baja, alta, raiz, golpe, tajadas, sens, capas: [CAPA…] }      hasta 3 capas
+CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes: [s…] }
 ```
 
 - Una ZONA cubre las notas `baja…alta`; `raiz` es la nota en la que la muestra suena tal cual.
@@ -42,8 +42,12 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar }
    partes con o sin la altura de la nota, golpe, envolvente), el procesador (recibe MIDI y las
    muestras), la carátula (teclado con las zonas, la forma de onda con las marcas que se
    arrastran, cargar audios por archivo o dirección web) y el módulo. FALTA probarlo en un navegador.
-2. **Las tajadas**: cortar un audio en pedazos (marcas que se mueven) y detectar los golpes; cada
-   pedazo, una zona de golpe en una tecla.
+2. **Las tajadas** — HECHO: una zona con `tajadas: true` y `cortes` en cada capa; la nota
+   `baja + i` toca la tajada i entera, a la altura de la muestra, con bordes fundidos de 2 ms.
+   `tajadas.js` detecta los golpes (subidas de la energía de lo agudo; sensibilidad 0–100) sobre
+   la energía que se calcula al abrir el audio, o parte en partes iguales. En la carátula: «+ Tajadas»
+   (desde C3), al abrir un audio se detecta solo; los cortes se arrastran, doble clic agrega o
+   quita uno, clic en una tajada la hace sonar. La zona se alarga sola, una tecla por tajada.
 3. **Filtro, efectos y moduladores**: filtro por voz con su envolvente; distorsión, ruido, desafinado,
    **sub** (oscilador una o dos octavas abajo de la nota, con su volumen y su forma, para dar peso);
    osciladores lentos (LFO) que van a la altura, el volumen, el filtro o el efecto.

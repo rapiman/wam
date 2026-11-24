@@ -13,6 +13,7 @@ import { mandarConFunciones } from '../comun/hilo.js';
 import { nucleoSampler } from './nucleo.js';
 import { procesadorSampler } from './procesador.js';
 import { crearCaratula } from './caratula.js';
+import { energias, golpes } from './tajadas.js';
 import { traducirInfo } from '../comun/idiomas.js';
 
 const mandados = new WeakMap();
@@ -118,9 +119,21 @@ class NodoSampler extends WamNode {
       picos[2 * k] = lo;
       picos[2 * k + 1] = hi;
     }
-    Object.assign(this.muestras[m], { estado: 'lista', dur: b.duration, picos });
+    // La energía de lo agudo, para detectar los golpes (las tajadas) sin guardar el audio acá.
+    const en = energias(canales, b.sampleRate);
+    Object.assign(this.muestras[m], { estado: 'lista', dur: b.duration, picos, en });
     if (!this._destroyed) this.port.postMessage({ pz: 'muestra', m, canales, fm: b.sampleRate }, canales.map((c) => c.buffer));
     this._avisar();
+  }
+  // Dónde empiezan los golpes de una muestra (segundos); `sens` 0…100.
+  detectarGolpes(m, sens) {
+    const mu = this.muestras[m];
+    return mu && mu.en ? golpes(mu.en, sens) : [];
+  }
+  // Tocar una nota desde la carátula (para oír una tajada).
+  tocar(nota) {
+    const t0 = this.context.currentTime;
+    this.scheduleEvents({ type: 'wam-midi', time: t0, data: { bytes: [0x90, nota, 100] } }, { type: 'wam-midi', time: t0 + 0.05, data: { bytes: [0x80, nota, 0] } });
   }
   quitarMuestra(m) {
     delete this.muestras[m];

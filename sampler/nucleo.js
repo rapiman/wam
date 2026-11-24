@@ -16,6 +16,12 @@
 //           release (lFin…fin). `alt[k]`: si esa parte sigue la altura de la nota (si no, suena a
 //           la altura de la muestra). `gan` en dB, `pan` −1…1, `afinar` en semitonos.
 // Las muestras llegan aparte (`ponerMuestra`), como canales Float32Array con su frecuencia.
+//
+// TAJADAS (paso 2): una ZONA con `tajadas: true` reparte un audio en las teclas. Cada CAPA lleva
+// `cortes` (dónde empieza cada tajada, en segundos, en orden): la nota `baja + i` toca la tajada i,
+// desde `cortes[i]` hasta el corte que sigue (la última, hasta `fin`). Suena entera como un golpe,
+// a la altura de la muestra (solo la afinación la mueve), con un fundido de 2 ms en cada borde
+// para que no haga clic.
 
 export function nucleoSampler() {
   const PARAMS = [
@@ -30,6 +36,7 @@ export function nucleoSampler() {
   const VOCES = 32;
   const CRUCE_S = 0.004; // el loop se junta con un fundido de 4 ms, para que no haga clic
   const AHOGO_S = 0.006; // una voz robada o ahogada se apaga en 6 ms
+  const BORDE_S = 0.002; // los bordes de una tajada se funden en 2 ms
   const dB = (x) => Math.pow(10, x / 20);
 
   function crear(fm) {
@@ -39,11 +46,36 @@ export function nucleoSampler() {
     let orden = 0;
 
     // Una capa lista para sonar: sus límites en muestras de la muestra.
-    const prepararCapa = (c) => {
+    // `tajada`: el número de tajada que toca (en una zona de tajadas), o −1.
+    const prepararCapa = (c, tajada = -1) => {
       const mu = muestras.get(c.m);
       if (!mu || !mu.c.length || !mu.c[0].length) return null;
       const largo = mu.c[0].length;
       const s = (x) => Math.max(0, Math.min(largo - 1, Math.round((Number(x) || 0) * mu.fm)));
+      if (tajada >= 0) {
+        const cortes = Array.isArray(c.cortes) ? c.cortes : [];
+        if (tajada >= cortes.length) return null;
+        const ini = s(cortes[tajada]);
+        const finTodo = c.fin === undefined || c.fin === null ? largo - 1 : s(c.fin);
+        const fin = tajada + 1 < cortes.length ? Math.min(finTodo, s(cortes[tajada + 1])) : finTodo;
+        if (fin - ini < 2) return null;
+        const pan = Math.max(-1, Math.min(1, Number(c.pan) || 0));
+        const ang = ((pan + 1) * Math.PI) / 4;
+        return {
+          mu,
+          ini,
+          lIni: fin,
+          lFin: fin,
+          fin,
+          loop: false,
+          alt: [false, false, false],
+          gL: dB(Number(c.gan) || 0) * Math.cos(ang),
+          gR: dB(Number(c.gan) || 0) * Math.sin(ang),
+          afinar: Number(c.afinar) || 0,
+          cruce: 1,
+          borde: Math.max(1, Math.min(Math.floor((fin - ini) / 2), Math.round(BORDE_S * mu.fm))),
+        };
+      }
       const fin = c.fin === undefined || c.fin === null ? largo - 1 : s(c.fin);
       const ini = Math.min(s(c.ini), fin);
       let lIni = c.lIni === undefined || c.lIni === null ? ini : Math.max(ini, s(c.lIni));
@@ -69,6 +101,7 @@ export function nucleoSampler() {
         gR: dB(Number(c.gan) || 0) * Math.sin(ang),
         afinar: Number(c.afinar) || 0,
         cruce: Math.max(1, Math.min(Math.floor((lFin - lIni) / 2), Math.round(CRUCE_S * mu.fm))),
+        borde: 0,
       };
     };
 
@@ -90,10 +123,12 @@ export function nucleoSampler() {
       const z = zonaDe(nota);
       if (!z) return;
       // En batería, la misma nota ahoga a la que sonaba (como un tambor que se vuelve a golpear).
-      if (z.golpe) for (const v of voces) if (v.nota === nota && !v.ahogo) v.ahogo = AHOGO_S * fm;
+      const tajadas = !!z.tajadas;
+      const golpe = !!z.golpe || tajadas;
+      if (golpe) for (const v of voces) if (v.nota === nota && !v.ahogo) v.ahogo = AHOGO_S * fm;
       const capas = [];
       for (const c of (z.capas || []).slice(0, 3)) {
-        const pc = prepararCapa(c);
+        const pc = prepararCapa(c, tajadas ? nota - z.baja : -1);
         if (pc) capas.push({ c: pc, pos: pc.ini, viva: true });
       }
       if (!capas.length) return;
@@ -107,8 +142,8 @@ export function nucleoSampler() {
       const sens = Math.max(0, Math.min(1, (p.vel === undefined ? 70 : p.vel) / 100));
       voces.push({
         nota,
-        raiz: Number(z.raiz) || 60,
-        golpe: !!z.golpe,
+        raiz: tajadas ? nota : Number(z.raiz) || 60,
+        golpe,
         capas,
         gan: 1 - sens + (sens * Math.max(0, Math.min(127, vel))) / 127,
         // la envolvente: fase 0 ataque, 1 decaimiento, 2 sostenido, 3 soltado
@@ -196,8 +231,14 @@ export function nucleoSampler() {
               xL = xL * (1 - a) + leer(L, otra) * a;
               xR = R === L ? xL : xR * (1 - a) + leer(R, otra) * a;
             }
-            sL[i] += xL * c.gL * g;
-            sR[i] += xR * c.gR * g;
+            let gb = g;
+            if (c.borde) {
+              // los bordes de una tajada, fundidos
+              const d = Math.min(cap.pos - c.ini, c.fin - cap.pos);
+              if (d < c.borde) gb *= Math.max(0, d) / c.borde;
+            }
+            sL[i] += xL * c.gL * gb;
+            sR[i] += xR * c.gR * gb;
             cap.pos += rates[n][parte];
             if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
             if (cap.pos >= c.fin) cap.viva = false;

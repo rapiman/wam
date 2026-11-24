@@ -1603,17 +1603,42 @@ function nucleoSampler() {
   const VOCES = 32;
   const CRUCE_S = 4e-3;
   const AHOGO_S = 6e-3;
+  const BORDE_S = 2e-3;
   const dB = (x) => Math.pow(10, x / 20);
   function crear(fm) {
     const muestras = /* @__PURE__ */ new Map();
     let zonas = [];
     const voces = [];
     let orden = 0;
-    const prepararCapa = (c) => {
+    const prepararCapa = (c, tajada = -1) => {
       const mu = muestras.get(c.m);
       if (!mu || !mu.c.length || !mu.c[0].length) return null;
       const largo = mu.c[0].length;
       const s = (x) => Math.max(0, Math.min(largo - 1, Math.round((Number(x) || 0) * mu.fm)));
+      if (tajada >= 0) {
+        const cortes = Array.isArray(c.cortes) ? c.cortes : [];
+        if (tajada >= cortes.length) return null;
+        const ini2 = s(cortes[tajada]);
+        const finTodo = c.fin === void 0 || c.fin === null ? largo - 1 : s(c.fin);
+        const fin2 = tajada + 1 < cortes.length ? Math.min(finTodo, s(cortes[tajada + 1])) : finTodo;
+        if (fin2 - ini2 < 2) return null;
+        const pan2 = Math.max(-1, Math.min(1, Number(c.pan) || 0));
+        const ang2 = (pan2 + 1) * Math.PI / 4;
+        return {
+          mu,
+          ini: ini2,
+          lIni: fin2,
+          lFin: fin2,
+          fin: fin2,
+          loop: false,
+          alt: [false, false, false],
+          gL: dB(Number(c.gan) || 0) * Math.cos(ang2),
+          gR: dB(Number(c.gan) || 0) * Math.sin(ang2),
+          afinar: Number(c.afinar) || 0,
+          cruce: 1,
+          borde: Math.max(1, Math.min(Math.floor((fin2 - ini2) / 2), Math.round(BORDE_S * mu.fm)))
+        };
+      }
       const fin = c.fin === void 0 || c.fin === null ? largo - 1 : s(c.fin);
       const ini = Math.min(s(c.ini), fin);
       let lIni = c.lIni === void 0 || c.lIni === null ? ini : Math.max(ini, s(c.lIni));
@@ -1638,7 +1663,8 @@ function nucleoSampler() {
         gL: dB(Number(c.gan) || 0) * Math.cos(ang),
         gR: dB(Number(c.gan) || 0) * Math.sin(ang),
         afinar: Number(c.afinar) || 0,
-        cruce: Math.max(1, Math.min(Math.floor((lFin - lIni) / 2), Math.round(CRUCE_S * mu.fm)))
+        cruce: Math.max(1, Math.min(Math.floor((lFin - lIni) / 2), Math.round(CRUCE_S * mu.fm))),
+        borde: 0
       };
     };
     const leer = (canal, pos) => {
@@ -1655,12 +1681,14 @@ function nucleoSampler() {
     function notaOn(nota, vel, p) {
       const z = zonaDe(nota);
       if (!z) return;
-      if (z.golpe) {
+      const tajadas = !!z.tajadas;
+      const golpe = !!z.golpe || tajadas;
+      if (golpe) {
         for (const v2 of voces) if (v2.nota === nota && !v2.ahogo) v2.ahogo = AHOGO_S * fm;
       }
       const capas = [];
       for (const c of (z.capas || []).slice(0, 3)) {
-        const pc = prepararCapa(c);
+        const pc = prepararCapa(c, tajadas ? nota - z.baja : -1);
         if (pc) capas.push({ c: pc, pos: pc.ini, viva: true });
       }
       if (!capas.length) return;
@@ -1673,8 +1701,8 @@ function nucleoSampler() {
       const sens = Math.max(0, Math.min(1, (p.vel === void 0 ? 70 : p.vel) / 100));
       voces.push({
         nota,
-        raiz: Number(z.raiz) || 60,
-        golpe: !!z.golpe,
+        raiz: tajadas ? nota : Number(z.raiz) || 60,
+        golpe,
         capas,
         gan: 1 - sens + sens * Math.max(0, Math.min(127, vel)) / 127,
         // la envolvente: fase 0 ataque, 1 decaimiento, 2 sostenido, 3 soltado
@@ -1755,8 +1783,13 @@ function nucleoSampler() {
               xL = xL * (1 - a) + leer(L, otra) * a;
               xR = R === L ? xL : xR * (1 - a) + leer(R, otra) * a;
             }
-            sL[i] += xL * c.gL * g;
-            sR[i] += xR * c.gR * g;
+            let gb = g;
+            if (c.borde) {
+              const d = Math.min(cap.pos - c.ini, c.fin - cap.pos);
+              if (d < c.borde) gb *= Math.max(0, d) / c.borde;
+            }
+            sL[i] += xL * c.gL * gb;
+            sR[i] += xR * c.gR * gb;
             cap.pos += rates[n][parte];
             if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
             if (cap.pos >= c.fin) cap.viva = false;
@@ -2232,6 +2265,13 @@ var TEXTOS = {
   Bater\u00EDa: ["Drums", "Bateria", "Batterie", "Bateria", "\u0423\u0434\u0430\u0440\u043D\u044B\u0435", "\u30C9\u30E9\u30E0", "\uB4DC\uB7FC", "\u9F13", "\u0E01\u0E25\u0E2D\u0E07"],
   "Nueva zona de piano": ["New piano zone", "Nova zona de piano", "Nouvelle zone de piano", "Piano-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u0444\u043E\u0440\u0442\u0435\u043F\u0438\u0430\u043D\u043E", "\u65B0\u3057\u3044\u30D4\u30A2\u30CE\u30BE\u30FC\u30F3", "\uC0C8 \uD53C\uC544\uB178 \uC874", "\u65B0\u5EFA\u94A2\u7434\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E40\u0E1B\u0E35\u0E22\u0E42\u0E19\u0E43\u0E2B\u0E21\u0E48"],
   "Nueva zona de bater\xEDa": ["New drum zone", "Nova zona de bateria", "Nouvelle zone de batterie", "Bateria-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u0443\u0434\u0430\u0440\u043D\u044B\u0445", "\u65B0\u3057\u3044\u30C9\u30E9\u30E0\u30BE\u30FC\u30F3", "\uC0C8 \uB4DC\uB7FC \uC874", "\u65B0\u5EFA\u9F13\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E01\u0E25\u0E2D\u0E07\u0E43\u0E2B\u0E21\u0E48"],
+  Tajadas: ["Slices", "Fatias", "Tranches", "Xerrak", "\u041D\u0430\u0440\u0435\u0437\u043A\u0430", "\u30B9\u30E9\u30A4\u30B9", "\uC2AC\uB77C\uC774\uC2A4", "\u5207\u7247", "\u0E2A\u0E44\u0E25\u0E0B\u0E4C"],
+  "Nueva zona de tajadas": ["New slice zone", "Nova zona de fatias", "Nouvelle zone de tranches", "Xerra-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u043D\u0430\u0440\u0435\u0437\u043A\u0438", "\u65B0\u3057\u3044\u30B9\u30E9\u30A4\u30B9\u30BE\u30FC\u30F3", "\uC0C8 \uC2AC\uB77C\uC774\uC2A4 \uC874", "\u65B0\u5EFA\u5207\u7247\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E2A\u0E44\u0E25\u0E0B\u0E4C\u0E43\u0E2B\u0E21\u0E48"],
+  Detectar: ["Detect", "Detectar", "D\xE9tecter", "Detektatu", "\u041D\u0430\u0439\u0442\u0438", "\u691C\u51FA", "\uAC10\uC9C0", "\u68C0\u6D4B", "\u0E15\u0E23\u0E27\u0E08\u0E2B\u0E32"],
+  "Detectar los golpes": ["Detect the hits", "Detectar os golpes", "D\xE9tecter les attaques", "Detektatu kolpeak", "\u041D\u0430\u0439\u0442\u0438 \u0443\u0434\u0430\u0440\u044B", "\u30A2\u30BF\u30C3\u30AF\u3092\u691C\u51FA", "\uD0C0\uACA9 \uAC10\uC9C0", "\u68C0\u6D4B\u6572\u51FB", "\u0E15\u0E23\u0E27\u0E08\u0E2B\u0E32\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E30\u0E01\u0E23\u0E30\u0E17\u0E1A"],
+  Partes: ["Parts", "Partes", "Parties", "Zatiak", "\u0427\u0430\u0441\u0442\u0438", "\u5206\u5272\u6570", "\uBD84\uD560 \uC218", "\u4EFD\u6570", "\u0E08\u0E33\u0E19\u0E27\u0E19\u0E2A\u0E48\u0E27\u0E19"],
+  "Partes iguales": ["Equal parts", "Partes iguais", "Parts \xE9gales", "Zati berdinak", "\u0420\u0430\u0432\u043D\u044B\u0435 \u0447\u0430\u0441\u0442\u0438", "\u5747\u7B49\u306B\u5206\u5272", "\uADE0\uB4F1 \uBD84\uD560", "\u7B49\u5206", "\u0E41\u0E1A\u0E48\u0E07\u0E40\u0E17\u0E48\u0E32 \u0E46 \u0E01\u0E31\u0E19"],
+  "Clic: o\xEDr la tajada \xB7 doble clic: agregar o quitar un corte": ["Click: hear the slice \xB7 double-click: add or remove a cut", "Clique: ouvir a fatia \xB7 duplo clique: adicionar ou tirar um corte", "Clic : \xE9couter la tranche \xB7 double clic : ajouter ou retirer une coupe", "Klik: entzun xerra \xB7 klik bikoitza: gehitu edo kendu ebaki bat", "\u0429\u0435\u043B\u0447\u043E\u043A: \u043F\u0440\u043E\u0441\u043B\u0443\u0448\u0430\u0442\u044C \u0444\u0440\u0430\u0433\u043C\u0435\u043D\u0442 \xB7 \u0434\u0432\u043E\u0439\u043D\u043E\u0439 \u0449\u0435\u043B\u0447\u043E\u043A: \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0438\u043B\u0438 \u0443\u0431\u0440\u0430\u0442\u044C \u0440\u0430\u0437\u0440\u0435\u0437", "\u30AF\u30EA\u30C3\u30AF: \u30B9\u30E9\u30A4\u30B9\u3092\u8A66\u8074 \xB7 \u30C0\u30D6\u30EB\u30AF\u30EA\u30C3\u30AF: \u30AB\u30C3\u30C8\u3092\u8FFD\u52A0\u30FB\u524A\u9664", "\uD074\uB9AD: \uC2AC\uB77C\uC774\uC2A4 \uB4E3\uAE30 \xB7 \uB354\uBE14 \uD074\uB9AD: \uC790\uB974\uAE30 \uCD94\uAC00 \uB610\uB294 \uC81C\uAC70", "\u5355\u51FB\uFF1A\u8BD5\u542C\u5207\u7247 \xB7 \u53CC\u51FB\uFF1A\u6DFB\u52A0\u6216\u5220\u9664\u5207\u70B9", "\u0E04\u0E25\u0E34\u0E01: \u0E1F\u0E31\u0E07\u0E2A\u0E44\u0E25\u0E0B\u0E4C \xB7 \u0E14\u0E31\u0E1A\u0E40\u0E1A\u0E34\u0E25\u0E04\u0E25\u0E34\u0E01: \u0E40\u0E1E\u0E34\u0E48\u0E21\u0E2B\u0E23\u0E37\u0E2D\u0E25\u0E1A\u0E08\u0E38\u0E14\u0E15\u0E31\u0E14"],
   "Borrar zona": ["Delete zone", "Apagar zona", "Supprimer la zone", "Ezabatu eremua", "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0437\u043E\u043D\u0443", "\u30BE\u30FC\u30F3\u3092\u524A\u9664", "\uC874 \uC0AD\uC81C", "\u5220\u9664\u533A\u57DF", "\u0E25\u0E1A\u0E42\u0E0B\u0E19"],
   Zona: ["Zone", "Zona", "Zone", "Eremua", "\u0417\u043E\u043D\u0430", "\u30BE\u30FC\u30F3", "\uC874", "\u533A\u57DF", "\u0E42\u0E0B\u0E19"],
   Zonas: ["Zones", "Zonas", "Zones", "Eremuak", "\u0417\u043E\u043D\u044B", "\u30BE\u30FC\u30F3", "\uC874", "\u533A\u57DF", "\u0E42\u0E0B\u0E19"],
@@ -2340,6 +2380,57 @@ function traducirInfo(info, cual = idioma()) {
   return sal;
 }
 
+// sampler/tajadas.js
+var HOP = 256;
+var SEPARACION_S = 0.05;
+var PISO_DB = 45;
+function energias(canales, fm) {
+  const n = canales.length ? canales[0].length : 0;
+  const tramos = Math.ceil(n / HOP);
+  const db = new Float32Array(tramos);
+  let antes = 0;
+  for (let k = 0; k < tramos; k++) {
+    let suma = 0;
+    const z = Math.min(n, (k + 1) * HOP);
+    for (let i = k * HOP; i < z; i++) {
+      let x = 0;
+      for (const c of canales) x += c[i];
+      x /= canales.length;
+      const d = x - antes;
+      antes = x;
+      suma += d * d;
+    }
+    db[k] = 10 * Math.log10(suma / HOP + 1e-12);
+  }
+  return { db, seg: HOP / fm };
+}
+function golpes(en, sens = 50) {
+  const { db, seg } = en;
+  const n = db.length;
+  if (!n) return [];
+  const s = Math.max(0, Math.min(100, Number(sens)));
+  const umbral = 4 + (1 - s / 100) * 14;
+  let tope = -Infinity;
+  for (const x of db) if (x > tope) tope = x;
+  const piso = tope - PISO_DB;
+  const L = (k) => k < 0 ? -120 : db[Math.min(n - 1, k)];
+  const sube = new Float32Array(n);
+  for (let k = 0; k < n; k++) sube[k] = Math.max(0, L(k) - Math.max(L(k - 1), L(k - 2)));
+  const sep = Math.max(1, Math.round(SEPARACION_S / seg));
+  const out = [];
+  let ultimo = -Infinity;
+  for (let k = 0; k < n; k++) {
+    if (sube[k] < umbral || db[k] < piso) continue;
+    if (sube[k] < (k > 0 ? sube[k - 1] : 0) || sube[k] < (k + 1 < n ? sube[k + 1] : 0)) continue;
+    if (k - ultimo < sep) continue;
+    ultimo = k;
+    const k0 = k > 0 && L(k - 1) > L(k - 2) + 3 ? k - 1 : k;
+    out.push(Math.max(0, k0 * seg));
+  }
+  return out;
+}
+var parejos = (dur, n) => Array.from({ length: Math.max(1, n) }, (_, i) => i * dur / Math.max(1, n));
+
 // sampler/caratula.js
 var N = nucleoSampler();
 var NOTA_BAJA = 24;
@@ -2404,10 +2495,14 @@ function crearCaratula(nodo) {
     s.append(el("span", `color:${v("tinta2")};`, texto), control);
     return s;
   };
-  const zonaNueva = (golpe) => {
+  const zonaNueva = (golpe, tajadas = false) => {
     const ocupada = (n) => inst.zonas.some((z2) => n >= z2.baja && n <= z2.alta);
     let z;
-    if (golpe) {
+    if (tajadas) {
+      let n = 48;
+      while (n < 127 && ocupada(n)) n++;
+      z = { baja: n, alta: n, raiz: n, golpe: true, tajadas: true, sens: 50, capas: [{}] };
+    } else if (golpe) {
       let n = 36;
       while (n < 127 && ocupada(n)) n++;
       z = { baja: n, alta: n, raiz: n, golpe: true, capas: [{}] };
@@ -2440,6 +2535,7 @@ function crearCaratula(nodo) {
     iGolpe.el,
     boton(`+ ${t("Piano")}`, () => zonaNueva(false), t("Nueva zona de piano")),
     boton(`+ ${t("Bater\xEDa")}`, () => zonaNueva(true), t("Nueva zona de bater\xEDa")),
+    boton(`+ ${t("Tajadas")}`, () => zonaNueva(true, true), t("Nueva zona de tajadas")),
     boton("\xD7", borrarZona, t("Borrar zona"))
   );
   const ponerZona = (campos) => {
@@ -2447,8 +2543,31 @@ function crearCaratula(nodo) {
     if (!z) return;
     Object.assign(z, campos);
     if (z.alta < z.baja) [z.baja, z.alta] = [z.alta, z.baja];
+    ajustarTajadas(z);
     guardar();
     pintarTodo();
+  };
+  const ajustarTajadas = (z) => {
+    if (!z || !z.tajadas) return;
+    let n = 1;
+    for (const c of z.capas) if (Array.isArray(c.cortes)) n = Math.max(n, c.cortes.length);
+    z.alta = Math.min(127, z.baja + n - 1);
+    z.raiz = z.baja;
+    z.golpe = true;
+  };
+  const ponerCortes = (cortes) => {
+    const z = zona();
+    const c = capa();
+    if (!z || !c) return;
+    c.cortes = cortes.length ? cortes.map((x) => Math.round(x * 1e4) / 1e4) : [0];
+    ajustarTajadas(z);
+    guardar();
+    pintarTodo();
+  };
+  const detectar = () => {
+    const z = zona();
+    const c = capa();
+    if (z && c && durDe()) ponerCortes(nodo.detectarGolpes(c.m, z.sens === void 0 ? 50 : z.sens));
   };
   const filaCapas = el("div", "display:flex;align-items:center;gap:6px;padding:6px 10px 2px;");
   const botonesCapa = [0, 1, 2].map((k) => {
@@ -2504,7 +2623,7 @@ function crearCaratula(nodo) {
     const c = capa();
     if (!c) return;
     const viejo = c.m;
-    Object.assign(c, { m, ini: 0, lIni: void 0, lFin: void 0, fin: void 0 });
+    Object.assign(c, { m, ini: 0, lIni: void 0, lFin: void 0, fin: void 0, cortes: void 0 });
     if (viejo && !inst.zonas.some((z) => z.capas.some((x) => x.m === viejo))) nodo.quitarMuestra(viejo);
     guardar();
     pintarTodo();
@@ -2526,22 +2645,45 @@ function crearCaratula(nodo) {
     return c.lFin === void 0 || c.lFin === null ? marcaDe(c, "fin", dur) : c.lFin;
   };
   const xDe = (s, dur) => dur > 0 ? s / dur * 536 : 0;
+  const enTajadas = () => !!(zona() && zona().tajadas);
+  const cortesDe = (c) => Array.isArray(c.cortes) ? c.cortes : [];
+  const marcasDe = (c, dur) => enTajadas() ? [...cortesDe(c).map((s, i) => ({ k: `c${i}`, s })), { k: "fin", s: marcaDe(c, "fin", dur) }] : MARCAS.filter((k) => c.loop || k !== "lIni" && k !== "lFin").map((k) => ({ k, s: marcaDe(c, k, dur) }));
+  const segDe = (ev, dur) => {
+    const r = onda.c.getBoundingClientRect();
+    return entre((ev.clientX - r.left) * 536 / r.width / 536 * dur, 0, dur);
+  };
+  const marcaCerca = (c, dur, x) => {
+    let mejor = null;
+    let dist = 7;
+    for (const mk of marcasDe(c, dur)) {
+      const d = Math.abs(xDe(mk.s, dur) - x);
+      if (d < dist) {
+        dist = d;
+        mejor = mk.k;
+      }
+    }
+    return mejor;
+  };
+  const tajadaEn = (c, s, dur) => {
+    const cs = cortesDe(c);
+    if (s >= marcaDe(c, "fin", dur)) return -1;
+    let i = -1;
+    for (let k = 0; k < cs.length; k++) if (cs[k] <= s) i = k;
+    return i;
+  };
   onda.c.addEventListener("pointerdown", (ev) => {
     const c = capa();
     const dur = durDe();
     if (!c || !dur) return;
-    const r = onda.c.getBoundingClientRect();
-    const x = (ev.clientX - r.left) * 536 / r.width;
-    let mejor = null;
-    let dist = 9;
-    for (const k of MARCAS) {
-      const d = Math.abs(xDe(marcaDe(c, k, dur), dur) - x);
-      if (d < dist) {
-        dist = d;
-        mejor = k;
+    const s = segDe(ev, dur);
+    const mejor = marcaCerca(c, dur, xDe(s, dur));
+    if (!mejor) {
+      if (enTajadas()) {
+        const i = tajadaEn(c, s, dur);
+        if (i >= 0) nodo.tocar(zona().baja + i);
       }
+      return;
     }
-    if (!mejor) return;
     tomada = mejor;
     try {
       onda.c.setPointerCapture(ev.pointerId);
@@ -2552,13 +2694,41 @@ function crearCaratula(nodo) {
     const c = capa();
     const dur = durDe();
     if (!tomada || !c || !dur) return;
-    const r = onda.c.getBoundingClientRect();
-    const s = entre((ev.clientX - r.left) * 536 / r.width / 536 * dur, 0, dur);
+    const s = segDe(ev, dur);
+    if (enTajadas()) {
+      const cs = cortesDe(c);
+      if (tomada === "fin") {
+        c.fin = Math.round(entre(s, cs.length ? cs[cs.length - 1] + 5e-3 : 0, dur) * 1e4) / 1e4;
+      } else {
+        const i = Number(tomada.slice(1));
+        const lo2 = i > 0 ? cs[i - 1] + 5e-3 : 0;
+        const hi2 = i + 1 < cs.length ? cs[i + 1] - 5e-3 : marcaDe(c, "fin", dur) - 5e-3;
+        cs[i] = Math.round(entre(s, lo2, Math.max(lo2, hi2)) * 1e4) / 1e4;
+      }
+      pintarOnda();
+      return;
+    }
     const orden = MARCAS.indexOf(tomada);
     const lo = orden > 0 ? marcaDe(c, MARCAS[orden - 1], dur) : 0;
     const hi = orden < 3 ? marcaDe(c, MARCAS[orden + 1], dur) : dur;
     c[tomada] = Math.round(entre(s, lo, hi) * 1e4) / 1e4;
     pintarOnda();
+  });
+  onda.c.addEventListener("dblclick", (ev) => {
+    const c = capa();
+    const dur = durDe();
+    if (!c || !dur || !enTajadas()) return;
+    const s = segDe(ev, dur);
+    const k = marcaCerca(c, dur, xDe(s, dur));
+    const cs = cortesDe(c).slice();
+    if (k && k !== "fin") {
+      if (cs.length <= 1) return;
+      cs.splice(Number(k.slice(1)), 1);
+    } else if (!k && s < marcaDe(c, "fin", dur)) {
+      cs.push(s);
+      cs.sort((x, y) => x - y);
+    } else return;
+    ponerCortes(cs);
   });
   const soltarMarca = () => {
     if (!tomada) return;
@@ -2596,6 +2766,33 @@ function crearCaratula(nodo) {
   const perillasCapa = el("span", "display:inline-flex;gap:10px;margin-left:auto;");
   perillasCapa.append(pGan.el, pPan.el, pAfin.el);
   filaCapa.append(iLoop.el, altCaja, perillasCapa);
+  const filaTajadas = el("div", "display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:2px 10px 6px;");
+  const pSens = perilla({
+    nombre: t("Sensibilidad"),
+    min: 0,
+    max: 100,
+    paso: 1,
+    porDefecto: 50,
+    formato: (x) => `${Math.round(x)} %`,
+    alCambiar: (x) => {
+      const z = zona();
+      if (z) z.sens = Math.round(x);
+    }
+  });
+  let partes = 16;
+  const cPartes = casilla({ nombre: t("Partes"), min: 1, max: 64, paso: 1, porDefecto: 16, formato: (x) => String(Math.round(x)), alCambiar: (x) => partes = Math.round(x) });
+  filaTajadas.append(
+    boton(t("Detectar"), detectar, t("Detectar los golpes")),
+    pSens.el,
+    el("span", `color:${v("tinta2")};margin-left:8px;`, t("Partes")),
+    cPartes.el,
+    boton(t("Partes iguales"), () => {
+      const c = capa();
+      const dur = durDe();
+      if (c && dur) ponerCortes(parejos(marcaDe(c, "fin", dur), partes));
+    }),
+    el("span", `margin-left:auto;color:${v("tinta2")};font-size:11px;`, t("Clic: o\xEDr la tajada \xB7 doble clic: agregar o quitar un corte"))
+  );
   const filaGeneral = el("div", "display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;padding:6px 10px 10px;");
   const textoDe = (p, x) => `${numero(x, p.dec !== void 0 ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ""}`;
   const generales = {};
@@ -2613,7 +2810,7 @@ function crearCaratula(nodo) {
     generales[p.id] = c;
     filaGeneral.append(c.el);
   }
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaCapa, filaGeneral);
+  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaGeneral);
   let C = coloresDe(caja);
   const pintarTeclado = () => {
     const g = tec.g;
@@ -2665,6 +2862,60 @@ function crearCaratula(nodo) {
       return;
     }
     const dur = mu.dur;
+    const P = mu.picos.length / 2;
+    const pintarForma = () => {
+      g.fillStyle = C.tinta;
+      for (let x = 0; x < 536; x++) {
+        const k = Math.min(P - 1, Math.floor(x / 536 * P));
+        const lo = mu.picos[2 * k];
+        const hi = mu.picos[2 * k + 1];
+        g.fillRect(x, 55 - hi * 50, 1, Math.max(1, (hi - lo) * 50));
+      }
+    };
+    if (enTajadas()) {
+      const cs = cortesDe(c);
+      const xf2 = xDe(marcaDe(c, "fin", dur), dur);
+      const baja = zona().baja;
+      cs.forEach((s, i) => {
+        const a = xDe(s, dur);
+        const b = i + 1 < cs.length ? xDe(cs[i + 1], dur) : xf2;
+        if (i % 2 === 0) {
+          g.fillStyle = C.acento;
+          g.globalAlpha = 0.13;
+          g.fillRect(a, 1, Math.max(0, b - a), 108);
+          g.globalAlpha = 1;
+        }
+      });
+      pintarForma();
+      g.fillStyle = C.pantalla;
+      g.globalAlpha = 0.6;
+      g.fillRect(0, 1, cs.length ? xDe(cs[0], dur) : 0, 108);
+      g.fillRect(xf2, 1, 536 - xf2, 108);
+      g.globalAlpha = 1;
+      g.font = "9px system-ui, sans-serif";
+      cs.forEach((s, i) => {
+        const x2 = Math.round(xDe(s, dur)) + 0.5;
+        g.strokeStyle = C.acento;
+        g.lineWidth = tomada === `c${i}` ? 2 : 1;
+        g.beginPath();
+        g.moveTo(x2, 1);
+        g.lineTo(x2, 109);
+        g.stroke();
+        g.lineWidth = 1;
+        g.fillStyle = C.acento;
+        g.textAlign = "left";
+        if (cs.length <= 32 || i % 2 === 0) g.fillText(nombreNota(baja + i), Math.min(x2 + 2, 520), 10);
+      });
+      const x = Math.round(xf2) + 0.5;
+      g.strokeStyle = C.tinta;
+      g.lineWidth = tomada === "fin" ? 2 : 1;
+      g.beginPath();
+      g.moveTo(x, 1);
+      g.lineTo(x, 109);
+      g.stroke();
+      g.lineWidth = 1;
+      return;
+    }
     if (c.loop) {
       const a = xDe(marcaDe(c, "lIni", dur), dur);
       const b = xDe(marcaDe(c, "lFin", dur), dur);
@@ -2673,14 +2924,7 @@ function crearCaratula(nodo) {
       g.fillRect(a, 1, b - a, 108);
       g.globalAlpha = 1;
     }
-    const P = mu.picos.length / 2;
-    g.fillStyle = C.tinta;
-    for (let x = 0; x < 536; x++) {
-      const k = Math.min(P - 1, Math.floor(x / 536 * P));
-      const lo = mu.picos[2 * k];
-      const hi = mu.picos[2 * k + 1];
-      g.fillRect(x, 55 - hi * 50, 1, Math.max(1, (hi - lo) * 50));
-    }
+    pintarForma();
     g.fillStyle = C.pantalla;
     g.globalAlpha = 0.6;
     g.fillRect(0, 1, xDe(marcaDe(c, "ini", dur), dur), 108);
@@ -2703,10 +2947,30 @@ function crearCaratula(nodo) {
       g.fillText(rotulos[k], entre(x, 6, 530), 12);
     }
   };
-  const pintarTodo = () => {
+  const asegurarCortes = () => {
     const z = zona();
-    titZona.textContent = z ? `${t("Zona")} ${zSel + 1}/${inst.zonas.length}` : t("Zonas");
+    const c = capa();
+    if (!z || !z.tajadas || !c || !c.m || Array.isArray(c.cortes) || !durDe()) return false;
+    c.cortes = nodo.detectarGolpes(c.m, z.sens === void 0 ? 50 : z.sens).map((x) => Math.round(x * 1e4) / 1e4);
+    if (!c.cortes.length) c.cortes = [0];
+    ajustarTajadas(z);
+    return true;
+  };
+  const pintarTodo = () => {
+    if (asegurarCortes()) {
+      guardar();
+      return pintarTodo();
+    }
+    const z = zona();
+    const taj = !!(z && z.tajadas);
+    titZona.textContent = z ? `${t("Zona")} ${zSel + 1}/${inst.zonas.length}${taj ? ` \xB7 ${t("Tajadas")}` : ""}` : t("Zonas");
     for (const x of [cBaja, cAlta, cRaiz, iGolpe]) x.el.style.opacity = z ? "" : "0.4";
+    for (const x of [cAlta, cRaiz, iGolpe, iLoop, { el: altCaja }]) {
+      x.el.style.opacity = taj || !z ? "0.4" : "";
+      x.el.style.pointerEvents = taj ? "none" : "";
+    }
+    filaTajadas.style.display = taj ? "flex" : "none";
+    if (taj) pSens.poner(z.sens === void 0 ? 50 : z.sens);
     if (z) {
       cBaja.poner(z.baja);
       cAlta.poner(z.alta);
@@ -2862,9 +3126,20 @@ var NodoSampler = class extends WamNode {
       picos[2 * k] = lo;
       picos[2 * k + 1] = hi;
     }
-    Object.assign(this.muestras[m], { estado: "lista", dur: b.duration, picos });
+    const en = energias(canales, b.sampleRate);
+    Object.assign(this.muestras[m], { estado: "lista", dur: b.duration, picos, en });
     if (!this._destroyed) this.port.postMessage({ pz: "muestra", m, canales, fm: b.sampleRate }, canales.map((c) => c.buffer));
     this._avisar();
+  }
+  // Dónde empiezan los golpes de una muestra (segundos); `sens` 0…100.
+  detectarGolpes(m, sens) {
+    const mu = this.muestras[m];
+    return mu && mu.en ? golpes(mu.en, sens) : [];
+  }
+  // Tocar una nota desde la carátula (para oír una tajada).
+  tocar(nota) {
+    const t0 = this.context.currentTime;
+    this.scheduleEvents({ type: "wam-midi", time: t0, data: { bytes: [144, nota, 100] } }, { type: "wam-midi", time: t0 + 0.05, data: { bytes: [128, nota, 0] } });
   }
   quitarMuestra(m) {
     delete this.muestras[m];

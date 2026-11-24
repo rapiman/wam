@@ -1,6 +1,7 @@
 // PRUEBA DEL CORAZÓN DEL SAMPLER (Node): las zonas, la altura, el loop y sus tres partes, el golpe
 // de batería, las capas y la envolvente.   node sampler/prueba.mjs
 import { nucleoSampler } from './nucleo.js';
+import { energias, golpes, parejos } from './tajadas.js';
 import { FM, tono, porDefecto, anotador, pico } from '../comun/probar.mjs';
 
 const N = nucleoSampler();
@@ -134,6 +135,48 @@ const la = [tono(0.5, 440, 2)];
   let salto = 0;
   for (let i = Math.round(0.2 * FM); i < Math.round(1.4 * FM); i++) salto = Math.max(salto, Math.abs(L[i] - L[i - 1]));
   a.menorQue('el mayor salto entre muestras en el loop (una sinusoide de 440 Hz da 0,029)', salto, 0.045);
+}
+
+// --- tajadas: cada tecla desde `baja` toca su pedazo, a la altura de la muestra
+{
+  // tres pedazos de 0,5 s con niveles distintos (0,1, 0,2 y 0,3)
+  const m = new Float32Array(FM * 1.5);
+  for (let i = 0; i < m.length; i++) m[i] = 0.1 * (1 + Math.floor(i / (FM * 0.5)));
+  const zona = { baja: 48, alta: 50, raiz: 48, tajadas: true, capas: [{ m: 'p', cortes: [0, 0.5, 1] }] };
+  const s = nuevo([zona], [['p', [m], FM]]);
+  const { L } = correr(s, 0.8, [[0, 'on', 49], [0.05, 'off', 49]]);
+  a.ver('la segunda tecla toca la segunda tajada (nivel)', L[Math.round(0.25 * FM)], 0.2 * Math.SQRT1_2, 0.001);
+  a.menorQue('la tajada se termina en el corte siguiente (pico)', pico(L.subarray(...tramo(0.52, 0.8))), 1e-6);
+  a.ver('sin altura: la tajada dura lo mismo en otra tecla (muestras con sonido)', [...correr(nuevo([zona], [['p', [m], FM]]), 0.8, [[0, 'on', 50]]).L].filter((x) => x !== 0).length, 0.5 * FM, 260);
+  a.ver('una tecla sin tajada no suena', pico(correr(nuevo([zona], [['p', [m], FM]]), 0.3, [[0, 'on', 52]]).L), 0, 0);
+  // los bordes fundidos: el comienzo no salta de golpe al nivel
+  a.menorQue('el borde de la tajada parte fundido', Math.abs(L[1]), 0.02);
+}
+
+// --- detectar los golpes
+{
+  let semilla = 7;
+  const azar = () => ((semilla = (semilla * 1103515245 + 12345) % 2147483648) / 2147483648) * 2 - 1;
+  // cinco golpes de ruido que se apagan; el cuarto cae encima de la cola del tercero
+  const tiempos = [0.1, 0.45, 0.8, 0.95, 1.4];
+  const x = new Float32Array(FM * 2);
+  for (const t0 of tiempos) {
+    const i0 = Math.round(t0 * FM);
+    for (let i = 0; i < 0.4 * FM && i0 + i < x.length; i++) x[i0 + i] += 0.7 * azar() * Math.exp(-i / (0.05 * FM));
+  }
+  const en = energias([x], FM);
+  const g = golpes(en, 50);
+  a.ver('encuentra los cinco golpes', g.length, 5, 0);
+  let peor = 0;
+  tiempos.forEach((t0, k) => (peor = Math.max(peor, Math.abs((g[k] === undefined ? 99 : g[k]) - t0))));
+  a.menorQue('cada uno a menos de 12 ms de donde está (s)', peor, 0.012);
+  const suaves = new Float32Array(FM);
+  for (let i = 0; i < suaves.length; i++) suaves[i] = 0.5 * Math.sin((2 * Math.PI * 220 * i) / FM) * Math.min(1, i / (0.3 * FM));
+  const gs = golpes(energias([suaves], FM), 50);
+  a.ver('un sonido que entra despacio: un solo corte, donde empieza (cortes)', gs.length, 1, 0);
+  a.menorQue('… y está al comienzo (s)', gs[0], 0.02);
+  a.ver('el silencio no tiene golpes', golpes(energias([new Float32Array(FM)], FM), 100).length, 0, 0);
+  a.ver('partes iguales: el cuarto de cuatro en 2 s (s)', parejos(2, 4)[3], 1.5, 1e-9);
 }
 
 a.cerrar();
