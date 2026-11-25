@@ -44,32 +44,128 @@
 // puede traer `var: { [nota]: { m, ini, lIni, lFin, fin } }`, una muestra estirada por el nodo para
 // cada nota, de modo que al tocarla a la altura de esa nota dure lo pedido. Una nota sin su versión
 // (todavía calculándose) suena como siempre.
+//
+// CADA CAPA MOLDEA SU SONIDO, COMO LOS OSCILADORES DEL KORG M1 (2026-11-25, JP: «copiarle los VDA,
+// VDF, envelope… y revisar su manera de moldear el sonido», «todo, que quede bien complejo»).
+// La capa 1, 2 o 3 de cada zona es como el oscilador 1, 2 o 3: lo que es del audio (la muestra,
+// las marcas, su volumen y paneo) va en la zona; lo que moldea el sonido va en parámetros de la
+// capa (`c1…`, `c2…`, `c3…`), iguales para todas las zonas, y todos se automatizan:
+//   - VOLUMEN (el VDA): envolvente de seis tramos — ataque hasta el nivel de ataque, decaimiento
+//     hasta el punto de quiebre, pendiente hasta el sostenido, soltado hasta cero —, sensibilidad a
+//     la intensidad, y cuánto la intensidad y la tecla alargan o acortan cada tiempo (+, x, −).
+//   - FILTRO (el VDF): tipo, corte, resonancia, y su envolvente de ocho tramos (nivel inicial,
+//     ataque, nivel de ataque, decaimiento, quiebre, pendiente, sostenido, soltado y nivel final;
+//     los niveles van de −100 a 100 % de la «intensidad», en octavas). La intensidad de la nota
+//     cambia la intensidad y los tiempos; la tecla mueve el corte y los tiempos.
+//   - ALTURA (la Pitch EG): nivel inicial, ataque, nivel de ataque, decaimiento hasta la altura
+//     justa, soltado hasta el nivel final; por la intensidad, más o menos honda y más o menos lenta.
+//   - Nivel, afinación y retardo de entrada de la capa.
+// Lo general: volumen y afinación, y un ataque, decaimiento y soltado que se suman a los de todas
+// las envolventes (como los del M1), el color y los dos vaivenes.
 
 export function nucleoSampler() {
   const TIPOS_FILTRO = ['Apagado', 'Pasa bajos', 'Pasa altos', 'Pasa banda'];
   const FORMAS = ['Seno', 'Triángulo', 'Cuadrada', 'Sierra', 'Azar'];
   const DESTINOS = ['Altura', 'Volumen', 'Filtro', 'Distorsión', 'Paneo'];
-  // `grupo` y `corto`: cómo los ordena y los nombra la carátula.
+  const POLARIDAD = ['+', 'x', '−'];
+  const TRAMOS = [
+    ['A', 'Ataque'],
+    ['D', 'Decaimiento'],
+    ['S', 'Pendiente'],
+    ['R', 'Soltado'],
+  ];
+  // `grupo` y `sub`: dónde los pone la carátula; `corto`: su nombre ahí; `angosto`: una lista que
+  // cabe en un lugar.
   const vaiven = (k) => [
     { id: `l${k}f`, nombre: `Forma del vaivén ${k}`, corto: 'Forma', grupo: `v${k}`, tipo: 'choice', opciones: FORMAS, defecto: 0, min: 0, max: FORMAS.length - 1 },
     { id: `l${k}v`, nombre: `Velocidad del vaivén ${k}`, corto: 'Velocidad', grupo: `v${k}`, min: 0.05, max: 30, defecto: 2, unidad: 'Hz', paso: 0.01, dec: 2, log: true },
     { id: `l${k}p`, nombre: `Profundidad del vaivén ${k}`, corto: 'Profundidad', grupo: `v${k}`, min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
     { id: `l${k}d`, nombre: `Destino del vaivén ${k}`, corto: 'Destino', grupo: `v${k}`, tipo: 'choice', opciones: DESTINOS, defecto: k === 1 ? 0 : 2, min: 0, max: DESTINOS.length - 1 },
   ];
+  const tiempo = (defecto) => ({ min: 0.5, max: 10000, defecto, unidad: 'ms', paso: 0.1, dec: 1, log: true });
+  const nivel = (defecto, bipolar) => ({ min: bipolar ? -100 : 0, max: 100, defecto, unidad: '%', paso: 1 });
+  const polaridades = (k, pre, sub, que) =>
+    TRAMOS.map(([L, nom]) => ({
+      id: `c${k}${pre}${L}`,
+      nombre: `${que}: ${nom}`,
+      corto: L,
+      sub,
+      tipo: 'choice',
+      opciones: POLARIDAD,
+      defecto: 0,
+      min: 0,
+      max: 2,
+      angosto: true,
+    }));
+  const capa = (k) => {
+    const P = (lista, grupo) => lista.map((p) => ({ ...p, id: p.id.startsWith(`c${k}`) ? p.id : `c${k}${p.id}`, nombre: `Capa ${k}: ${p.nombre}`, grupo: `c${k}${grupo}` }));
+    return [
+      ...P(
+        [
+          { id: 'niv', nombre: 'Nivel', sub: 'capa', min: -40, max: 12, defecto: 0, unidad: 'dB', paso: 0.1, dec: 1 },
+          { id: 'afi', nombre: 'Afinación', sub: 'capa', min: -24, max: 24, defecto: 0, unidad: 'st', paso: 0.01, dec: 2 },
+          { id: 'ret', nombre: 'Retardo de entrada', corto: 'Retardo', sub: 'capa', min: 0, max: 2000, defecto: 0, unidad: 'ms', paso: 1 },
+          { id: 'vat', nombre: 'Ataque del volumen', corto: 'Ataque', sub: 'env', ...tiempo(2) },
+          { id: 'val', nombre: 'Nivel de ataque del volumen', corto: 'Nivel de ataque', sub: 'env', ...nivel(100) },
+          { id: 'vdt', nombre: 'Decaimiento del volumen', corto: 'Decaimiento', sub: 'env', ...tiempo(300) },
+          { id: 'vbp', nombre: 'Quiebre del volumen', corto: 'Quiebre', sub: 'env', ...nivel(100) },
+          { id: 'vst', nombre: 'Pendiente del volumen', corto: 'Pendiente', sub: 'env', ...tiempo(300) },
+          { id: 'vsl', nombre: 'Sostenido del volumen', corto: 'Sostenido', sub: 'env', ...nivel(100) },
+          { id: 'vrt', nombre: 'Soltado del volumen', corto: 'Soltado', sub: 'env', ...tiempo(200) },
+          { id: 'vvs', nombre: 'Sensibilidad del volumen', corto: 'Sensibilidad', sub: 'vel', min: 0, max: 100, defecto: 70, unidad: '%', paso: 1 },
+          { id: 'vvt', nombre: 'Tiempos del volumen por intensidad', corto: 'Tiempo', sub: 'vel', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          ...polaridades(k, 'vvp', 'vel', 'Intensidad en los tiempos del volumen'),
+          { id: 'vkt', nombre: 'Tiempos del volumen por tecla', corto: 'Tiempo', sub: 'tec', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          ...polaridades(k, 'vkp', 'tec', 'Tecla en los tiempos del volumen'),
+        ],
+        'vol',
+      ),
+      ...P(
+        [
+          { id: 'ft', nombre: 'Tipo de filtro', corto: 'Tipo', sub: 'capa', tipo: 'choice', opciones: TIPOS_FILTRO, defecto: 0, min: 0, max: 3 },
+          { id: 'fc', nombre: 'Corte', sub: 'capa', min: 20, max: 20000, defecto: 2000, unidad: 'Hz', paso: 1, log: true },
+          { id: 'fr', nombre: 'Resonancia', sub: 'capa', min: 0, max: 100, defecto: 10, unidad: '%', paso: 1 },
+          { id: 'fi', nombre: 'Intensidad del filtro', corto: 'Intensidad', sub: 'capa', min: -8, max: 8, defecto: 0, unidad: 'oct', paso: 0.05, dec: 2 },
+          { id: 'fl0', nombre: 'Nivel inicial del filtro', corto: 'Nivel inicial', sub: 'env', ...nivel(0, true) },
+          { id: 'fat', nombre: 'Ataque del filtro', corto: 'Ataque', sub: 'env', ...tiempo(2) },
+          { id: 'fal', nombre: 'Nivel de ataque del filtro', corto: 'Nivel de ataque', sub: 'env', ...nivel(100, true) },
+          { id: 'fdt', nombre: 'Decaimiento del filtro', corto: 'Decaimiento', sub: 'env', ...tiempo(300) },
+          { id: 'fbp', nombre: 'Quiebre del filtro', corto: 'Quiebre', sub: 'env', ...nivel(50, true) },
+          { id: 'fst', nombre: 'Pendiente del filtro', corto: 'Pendiente', sub: 'env', ...tiempo(600) },
+          { id: 'fsl', nombre: 'Sostenido del filtro', corto: 'Sostenido', sub: 'env', ...nivel(0, true) },
+          { id: 'frt', nombre: 'Soltado del filtro', corto: 'Soltado', sub: 'env', ...tiempo(200) },
+          { id: 'frl', nombre: 'Nivel final del filtro', corto: 'Nivel final', sub: 'env', ...nivel(0, true) },
+          { id: 'fvi', nombre: 'Intensidad del filtro por intensidad', corto: 'Intensidad', sub: 'vel', min: -100, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'fvt', nombre: 'Tiempos del filtro por intensidad', corto: 'Tiempo', sub: 'vel', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          ...polaridades(k, 'fvp', 'vel', 'Intensidad en los tiempos del filtro'),
+          { id: 'fkc', nombre: 'Corte por tecla', corto: 'Corte', sub: 'tec', min: -200, max: 200, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'fkt', nombre: 'Tiempos del filtro por tecla', corto: 'Tiempo', sub: 'tec', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          ...polaridades(k, 'fkp', 'tec', 'Tecla en los tiempos del filtro'),
+        ],
+        'fil',
+      ),
+      ...P(
+        [
+          { id: 'pi', nombre: 'Intensidad de la altura', corto: 'Intensidad', sub: 'capa', min: 0, max: 24, defecto: 12, unidad: 'st', paso: 0.01, dec: 2 },
+          { id: 'pl0', nombre: 'Nivel inicial de la altura', corto: 'Nivel inicial', sub: 'env', ...nivel(0, true) },
+          { id: 'pat', nombre: 'Ataque de la altura', corto: 'Ataque', sub: 'env', ...tiempo(2) },
+          { id: 'pal', nombre: 'Nivel de ataque de la altura', corto: 'Nivel de ataque', sub: 'env', ...nivel(0, true) },
+          { id: 'pdt', nombre: 'Decaimiento de la altura', corto: 'Decaimiento', sub: 'env', ...tiempo(100) },
+          { id: 'prt', nombre: 'Soltado de la altura', corto: 'Soltado', sub: 'env', ...tiempo(200) },
+          { id: 'prl', nombre: 'Nivel final de la altura', corto: 'Nivel final', sub: 'env', ...nivel(0, true) },
+          { id: 'pvi', nombre: 'Intensidad de la altura por intensidad', corto: 'Intensidad', sub: 'vel', min: -100, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'pvt', nombre: 'Tiempos de la altura por intensidad', corto: 'Tiempo', sub: 'vel', min: -100, max: 100, defecto: 0, unidad: '%', paso: 1 },
+        ],
+        'alt',
+      ),
+    ];
+  };
   const PARAMS = [
     { id: 'vol', nombre: 'Volumen', grupo: 'general', min: -60, max: 6, defecto: 0, unidad: 'dB', paso: 0.1, dec: 1 },
-    { id: 'atq', nombre: 'Ataque', grupo: 'general', min: 0.5, max: 5000, defecto: 2, unidad: 'ms', paso: 0.1, dec: 1, log: true },
-    { id: 'dec', nombre: 'Decaimiento', grupo: 'general', min: 1, max: 5000, defecto: 300, unidad: 'ms', paso: 1, log: true },
-    { id: 'sos', nombre: 'Sostenido', grupo: 'general', min: 0, max: 100, defecto: 100, unidad: '%', paso: 1 },
-    { id: 'sol', nombre: 'Soltado', grupo: 'general', min: 1, max: 8000, defecto: 200, unidad: 'ms', paso: 1, log: true },
     { id: 'afinar', nombre: 'Afinación', grupo: 'general', min: -24, max: 24, defecto: 0, unidad: 'st', paso: 0.01, dec: 2 },
-    { id: 'vel', nombre: 'Sensibilidad', grupo: 'general', min: 0, max: 100, defecto: 70, unidad: '%', paso: 1 },
-    { id: 'ftipo', nombre: 'Filtro', corto: 'Tipo', grupo: 'filtro', tipo: 'choice', opciones: TIPOS_FILTRO, defecto: 0, min: 0, max: 3 },
-    { id: 'corte', nombre: 'Corte', grupo: 'filtro', min: 20, max: 20000, defecto: 2000, unidad: 'Hz', paso: 1, log: true },
-    { id: 'reso', nombre: 'Resonancia', grupo: 'filtro', min: 0, max: 100, defecto: 10, unidad: '%', paso: 1 },
-    { id: 'fenv', nombre: 'Envolvente del filtro', corto: 'Envolvente', grupo: 'filtro', min: -8, max: 8, defecto: 0, unidad: 'oct', paso: 0.05, dec: 2 },
-    { id: 'fatq', nombre: 'Ataque del filtro', corto: 'Ataque', grupo: 'filtro', min: 0.5, max: 5000, defecto: 2, unidad: 'ms', paso: 0.1, dec: 1, log: true },
-    { id: 'fdec', nombre: 'Caída del filtro', corto: 'Caída', grupo: 'filtro', min: 1, max: 5000, defecto: 400, unidad: 'ms', paso: 1, log: true },
+    { id: 'gat', nombre: 'Ataque general', corto: 'Ataque', grupo: 'general', min: -50, max: 50, defecto: 0, paso: 1 },
+    { id: 'gdt', nombre: 'Decaimiento general', corto: 'Decaimiento', grupo: 'general', min: -50, max: 50, defecto: 0, paso: 1 },
+    { id: 'grt', nombre: 'Soltado general', corto: 'Soltado', grupo: 'general', min: -50, max: 50, defecto: 0, paso: 1 },
     { id: 'dist', nombre: 'Distorsión', grupo: 'color', min: 0, max: 36, defecto: 0, unidad: 'dB', paso: 0.5, dec: 1 },
     { id: 'dmez', nombre: 'Mezcla de la distorsión', corto: 'Mezcla', grupo: 'color', min: 0, max: 100, defecto: 100, unidad: '%', paso: 1 },
     { id: 'ruido', nombre: 'Ruido', grupo: 'color', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
@@ -79,14 +175,20 @@ export function nucleoSampler() {
     { id: 'subForma', nombre: 'Forma del sub', corto: 'Forma', grupo: 'color', tipo: 'choice', opciones: ['Seno', 'Cuadrada'], defecto: 0, min: 0, max: 1 },
     ...vaiven(1),
     ...vaiven(2),
+    ...capa(1),
+    ...capa(2),
+    ...capa(3),
   ];
   const VOCES = 32;
   const CRUCE_S = 0.004; // el loop se junta con un fundido de 4 ms, para que no haga clic
   const AHOGO_S = 0.006; // una voz robada o ahogada se apaga en 6 ms
   const BORDE_S = 0.002; // los bordes de una tajada se funden en 2 ms
-  const CADA_FILTRO = 16; // cada cuántas muestras se recalcula el filtro de una voz
+  const CADA = 16; // cada cuántas muestras se recalculan el filtro y la altura de una capa
   const dB = (x) => Math.pow(10, x / 20);
   const val = (p, id, def) => (p[id] === undefined ? def : p[id]);
+  // Cuánto multiplica un tiempo: «+» alarga con más intensidad (o más aguda), «−» acorta, «x» nada.
+  const POL = [1, 0, -1];
+  const porTiempo = (pol, cant, x) => Math.pow(2, POL[Math.round(pol)] * cant * x * 3);
 
   function crear(fm) {
     const muestras = new Map(); // m → { c: Float32Array[], fm }
@@ -211,6 +313,40 @@ export function nucleoSampler() {
       return null;
     };
 
+    // UNA ENVOLVENTE DE TRAMOS: niveles L = [inicio, ataque, quiebre, sostenido, final] y tiempos
+    // T = [ataque, decaimiento, pendiente, soltado] en muestras. Fases: 0 ataque, 1 decaimiento,
+    // 2 pendiente, 3 sostenido, 4 soltado (desde donde esté hasta el nivel final), 5 terminada.
+    const envolvente = () => ({ fase: 0, t: 0, nivel: null, desde: 0 });
+    // Avanzar `m` muestras de una vez (las envolventes van cada CADA muestras; el volumen se
+    // reparte en línea recta entre medio).
+    const paso = (e, D, m) => {
+      if (e.nivel === null) e.nivel = D.L[0];
+      while (m > 0) {
+        if (e.fase === 5) return e.nivel;
+        if (e.fase === 3) return (e.nivel = D.L[3]);
+        const T = Math.max(1, D.T[e.fase === 4 ? 3 : e.fase]);
+        const a = e.fase === 4 ? e.desde : D.L[e.fase];
+        const b = e.fase === 4 ? D.L[4] : D.L[e.fase + 1];
+        const resta = T - e.t;
+        if (m < resta) {
+          e.t += m;
+          e.nivel = a + ((b - a) * e.t) / T;
+          return e.nivel;
+        }
+        m -= resta;
+        e.nivel = b;
+        e.t = 0;
+        e.fase = e.fase === 4 ? 5 : e.fase + 1;
+      }
+      return e.nivel;
+    };
+    const soltar = (e) => {
+      if (e.fase >= 4) return;
+      e.desde = e.nivel === null ? 0 : e.nivel;
+      e.fase = 4;
+      e.t = 0;
+    };
+
     function notaOn(nota, vel, p) {
       const z = zonaDe(nota);
       if (!z) return;
@@ -219,10 +355,31 @@ export function nucleoSampler() {
       // En batería, la misma nota ahoga a la que sonaba (como un tambor que se vuelve a golpear).
       if (golpe) for (const v of voces) if (v.nota === nota && !v.ahogo) v.ahogo = AHOGO_S * fm;
       const capas = [];
-      for (const c of (z.capas || []).slice(0, 3)) {
+      (z.capas || []).slice(0, 3).forEach((c, k) => {
         const pc = prepararCapa(c, tajadas ? nota - z.baja : -1, nota);
-        if (pc) capas.push({ c: pc, pos: pc.osc ? 0 : pc.ini, pos2: pc.osc ? 0 : pc.ini, viva: true, viva2: true });
-      }
+        if (!pc) return;
+        capas.push({
+          c: pc,
+          k: k + 1,
+          pos: pc.osc ? 0 : pc.ini,
+          pos2: pc.osc ? 0 : pc.ini,
+          viva: true,
+          viva2: true,
+          muerta: false,
+          espera: Math.round((Math.max(0, val(p, `c${k + 1}ret`, 0)) / 1000) * fm),
+          eV: envolvente(),
+          eF: envolvente(),
+          eP: envolvente(),
+          f: [0, 0, 0, 0],
+          fG: 0,
+          fK: 1,
+          cuenta: 0,
+          r: [0, 0, 0],
+          lv: 0,
+          dlv: 0,
+          fin: false,
+        });
+      });
       if (!capas.length) return;
       // Sin lugar: se roba la más vieja.
       if (voces.length >= VOCES) {
@@ -231,28 +388,20 @@ export function nucleoSampler() {
         vieja.ahogo = vieja.ahogo || AHOGO_S * fm;
         if (voces.length >= VOCES + 8) voces.splice(voces.indexOf(vieja), 1);
       }
-      const sens = Math.max(0, Math.min(1, val(p, 'vel', 70) / 100));
+      const ve = Math.max(0, Math.min(127, vel));
       voces.push({
         nota,
         raiz: tajadas ? nota : Number(z.raiz) || 60,
         golpe,
         capas,
-        // con un oscilador, un golpe cae a cero (si no, sonaría para siempre)
-        conOsc: capas.some((x) => x.c.osc),
-        gan: 1 - sens + (sens * Math.max(0, Math.min(127, vel))) / 127,
-        // la envolvente: fase 0 ataque, 1 decaimiento, 2 sostenido, 3 soltado
-        fase: 0,
-        env: 0,
+        vel: ve,
+        velX: (ve - 64) / 63,
+        tecX: Math.max(-2.5, Math.min(2.5, (nota - 60) / 24)),
         soltada: false,
+        soltadaHecha: false,
         ahogo: 0,
+        ahogoN: 1,
         orden: orden++,
-        // la envolvente del filtro (sube y cae a cero) y su estado, una pareja por oreja
-        fEnv: 0,
-        fSube: true,
-        f: [0, 0, 0, 0],
-        fG: 0,
-        fK: 1,
-        fCuenta: 0,
         subFase: 0,
       });
     }
@@ -297,6 +446,98 @@ export function nucleoSampler() {
       return l.azar;
     };
 
+    // Lo de cada capa (1, 2, 3) que dicen los parámetros, leído una vez por bloque. Los nombres
+    // (`c1vat`…) se arman una sola vez: armarlos en cada bloque costaba más que el sonido.
+    const CLAVES = ['niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
+    for (const pre of ['vvp', 'vkp', 'fvp', 'fkp']) for (const L of 'ADSR') CLAVES.push(pre + L);
+    const DEFECTO = {};
+    for (const q of PARAMS) if (q.id.startsWith('c1')) DEFECTO[q.id.slice(2)] = q.defecto;
+    const IDS = [1, 2, 3].map((k) => CLAVES.map((c) => [c, `c${k}${c}`]));
+    const leerCapa = (p, k) => {
+      const o = {};
+      for (const [c, id] of IDS[k - 1]) o[c] = p[id] === undefined ? DEFECTO[c] : p[id];
+      o.firma = firmaDe(o);
+      o.ganBase = dB(o.niv);
+      o.ftipo = Math.round(o.ft);
+      o.fK = 1 / (0.5 * Math.pow(40, Math.max(0, Math.min(100, o.fr)) / 100));
+      return o;
+    };
+
+    // Las tres envolventes de una capa de una voz, con lo que les hacen la intensidad y la tecla y
+    // los tiempos generales. Se arman una vez por bloque, sobre el mismo objeto (`cap.d`). Lo que la
+    // intensidad y la tecla les hacen a los tiempos (16 potencias) solo se recalcula si cambian sus
+    // ajustes (`firma`).
+    const ms = (x) => Math.max(1, (x / 1000) * fm);
+    const firmaDe = (g) => {
+      let f = g.vvt + g.vkt * 101 + g.fvt * 10201 + g.fkt * 1030301 + g.pvt * 104060401;
+      let b = 1;
+      for (const pre of ['vvp', 'vkp', 'fvp', 'fkp']) for (const L of 'ADSR') {
+        f += Math.round(g[pre + L]) * b * 1e-6;
+        b *= 3;
+      }
+      return f;
+    };
+    const describir = (v, cap, g, g3) => {
+      let d = cap.d;
+      if (!d) {
+        d = cap.d = {
+          vol: { T: [1, 1, 1, 1], L: [0, 0, 0, 0, 0] },
+          fil: { T: [1, 1, 1, 1], L: [0, 0, 0, 0, 0], int: 0 },
+          alt: { T: [1, 1, 1, 1], L: [0, 0, 0, 0, 0], int: 0 },
+          tv: [1, 1, 1, 1],
+          tf: [1, 1, 1, 1],
+          pt: 1,
+          firma: NaN,
+        };
+      }
+      if (d.firma !== g.firma) {
+        d.firma = g.firma;
+        for (let w = 0; w < 4; w++) {
+          const L = 'ADSR'[w];
+          d.tv[w] = porTiempo(g['vvp' + L], g.vvt / 100, v.velX) * porTiempo(g['vkp' + L], g.vkt / 100, v.tecX);
+          d.tf[w] = porTiempo(g['fvp' + L], g.fvt / 100, v.velX) * porTiempo(g['fkp' + L], g.fkt / 100, v.tecX);
+        }
+        d.pt = Math.pow(2, (g.pvt / 100) * v.velX * 3);
+      }
+      const [fa, fd, fr] = g3;
+      const V = d.vol;
+      V.T[0] = ms(g.vat) * fa * d.tv[0];
+      V.T[1] = ms(g.vdt) * fd * d.tv[1];
+      V.T[2] = ms(g.vst) * fd * d.tv[2];
+      V.T[3] = ms(g.vrt) * fr * d.tv[3];
+      V.L[1] = g.val / 100;
+      V.L[2] = g.vbp / 100;
+      // un golpe con oscilador cae a cero (si no, sonaría para siempre)
+      V.L[3] = v.golpe && cap.c.osc ? 0 : g.vsl / 100;
+      const F = d.fil;
+      F.T[0] = ms(g.fat) * fa * d.tf[0];
+      F.T[1] = ms(g.fdt) * fd * d.tf[1];
+      F.T[2] = ms(g.fst) * fd * d.tf[2];
+      F.T[3] = ms(g.frt) * fr * d.tf[3];
+      F.L[0] = g.fl0 / 100;
+      F.L[1] = g.fal / 100;
+      F.L[2] = g.fbp / 100;
+      F.L[3] = g.fsl / 100;
+      F.L[4] = g.frl / 100;
+      F.int = g.fi * (1 + (g.fvi / 100) * v.velX);
+      const A = d.alt;
+      A.T[0] = ms(g.pat) * fa * d.pt;
+      A.T[1] = ms(g.pdt) * fd * d.pt;
+      A.T[2] = 1;
+      A.T[3] = ms(g.prt) * fr * d.pt;
+      A.L[0] = g.pl0 / 100;
+      A.L[1] = g.pal / 100;
+      A.L[4] = g.prl / 100;
+      A.int = g.pi * (1 + (g.pvi / 100) * v.velX);
+      const sens = Math.max(0, Math.min(1, g.vvs / 100));
+      d.gan = g.ganBase * (1 - sens + (sens * v.vel) / 127);
+      d.afi = g.afi;
+      d.ftipo = g.ftipo;
+      d.corte = g.fkc ? g.fc * Math.pow(2, ((g.fkc / 100) * (v.nota - 60)) / 12) : g.fc;
+      d.fK = g.fK;
+      return d;
+    };
+
     // Llenar `sL`, `sR` entre `desde` y `hasta`. Quien llama los deja en cero: el sampler suma sus
     // voces y después les pasa la distorsión ahí mismo.
     function procesar(sL, sR, desde, hasta, p) {
@@ -308,18 +549,9 @@ export function nucleoSampler() {
         mDis = new Float32Array(n);
         mPan = new Float32Array(n);
       }
-      const atq = Math.max(1, (val(p, 'atq', 2) / 1000) * fm);
-      const dec = Math.max(1, (val(p, 'dec', 300) / 1000) * fm);
-      const sos = Math.max(0, Math.min(1, val(p, 'sos', 100) / 100));
-      const sol = Math.max(1, (val(p, 'sol', 200) / 1000) * fm);
       const vol = dB(val(p, 'vol', 0));
       const afinar = val(p, 'afinar', 0);
-      const ftipo = Math.round(val(p, 'ftipo', 0));
-      const corte = val(p, 'corte', 2000);
-      const fK = 1 / (0.5 * Math.pow(40, Math.max(0, Math.min(100, val(p, 'reso', 10))) / 100));
-      const fenv = val(p, 'fenv', 0);
-      const fatq = Math.max(1, (val(p, 'fatq', 2) / 1000) * fm);
-      const fdec = Math.max(1, (val(p, 'fdec', 400) / 1000) * fm);
+      const g3 = [Math.pow(2, val(p, 'gat', 0) / 12.5), Math.pow(2, val(p, 'gdt', 0) / 12.5), Math.pow(2, val(p, 'grt', 0) / 12.5)];
       const ruido = Math.pow(Math.max(0, val(p, 'ruido', 0)) / 100, 2) * 0.5;
       const desaf = Math.max(0, val(p, 'desaf', 0));
       const sub = (Math.max(0, val(p, 'sub', 0)) / 100) * 0.6;
@@ -337,9 +569,9 @@ export function nucleoSampler() {
         const pre = `l${k + 1}`;
         const prof = Math.max(0, Math.min(100, val(p, `${pre}p`, 0))) / 100;
         const l = lfo[k];
-        const paso = Math.max(0, val(p, `${pre}v`, 2)) / fm;
+        const ritmo = Math.max(0, val(p, `${pre}v`, 2)) / fm;
         if (prof <= 0) {
-          l.fase = (l.fase + paso * n) % 1;
+          l.fase = (l.fase + ritmo * n) % 1;
           continue;
         }
         const fo = Math.round(val(p, `${pre}f`, 0));
@@ -352,7 +584,7 @@ export function nucleoSampler() {
           else if (de === 2) mFil[i] += x * prof * 4;
           else if (de === 3) mDis[i] += x * prof * 24;
           else if (de === 4) mPan[i] += x * prof;
-          l.fase += paso;
+          l.fase += ritmo;
           if (l.fase >= 1) {
             l.fase -= 1;
             l.azar = azar();
@@ -360,160 +592,160 @@ export function nucleoSampler() {
         }
       }
 
-      for (let k = voces.length - 1; k >= 0; k--) {
-        const v = voces[k];
-        // Cuánto avanza cada capa por muestra de salida, en cada parte (entrada, loop, release);
-        // con el desafinado, la cabeza izquierda va un poco abajo y la derecha un poco arriba.
-        const dA = Math.pow(2, -desaf / 2400);
-        const dB2 = Math.pow(2, desaf / 2400);
-        const rates = v.capas.map(({ c }) => {
-          if (c.osc) {
-            // un oscilador: cuántas vueltas por muestra
-            const f = (440 * Math.pow(2, (v.nota - 69 + c.afinar + afinar + altSt) / 12)) / fm;
-            return [f, f, f];
+      const S = [null, leerCapa(p, 1), leerCapa(p, 2), leerCapa(p, 3)];
+      const dA = Math.pow(2, -desaf / 2400);
+      const dB2 = Math.pow(2, desaf / 2400);
+      for (let kv = voces.length - 1; kv >= 0; kv--) {
+        const v = voces[kv];
+        if (v.soltada && !v.golpe && !v.soltadaHecha) {
+          v.soltadaHecha = true;
+          for (const cap of v.capas) {
+            soltar(cap.eV);
+            soltar(cap.eF);
+            soltar(cap.eP);
           }
-          const base = c.mu.fm / fm;
-          const conNota = Math.pow(2, (v.nota - v.raiz + c.afinar + afinar + altSt) / 12);
-          const sinNota = Math.pow(2, (c.afinar + afinar + altSt) / 12);
-          return [base * (c.alt[0] ? conNota : sinNota), base * (c.alt[1] ? conNota : sinNota), base * (c.alt[2] ? conNota : sinNota)];
-        });
+        }
+        const ds = v.capas.map((cap) => describir(v, cap, S[cap.k], g3));
         const subPaso = (440 * Math.pow(2, (v.nota - 69 - 12 * subOct + afinar + altSt) / 12)) / fm;
+        // (el ruido y el sub entran por la primera capa viva: pasan por su filtro y su envolvente)
+        const primera = v.capas.findIndex((x) => !x.muerta);
         let terminada = false;
         for (let j = 0; j < n; j++) {
           const i = desde + j;
-          // la envolvente
+          let ah = 1;
           if (v.ahogo) {
-            v.env -= 1 / Math.max(1, v.ahogo);
-            if (v.env <= 0) {
+            v.ahogoN -= 1 / Math.max(1, v.ahogo);
+            if (v.ahogoN <= 0) {
               terminada = true;
               break;
             }
-          } else if (v.soltada && !v.golpe) {
-            if (v.fase !== 3) {
-              v.fase = 3;
-              v.desdeEnv = v.env;
-            }
-            v.env -= v.desdeEnv / sol;
-            if (v.env <= 0) {
-              terminada = true;
-              break;
-            }
-          } else if (v.fase === 0) {
-            v.env += 1 / atq;
-            if (v.env >= 1) {
-              v.env = 1;
-              v.fase = v.golpe && !v.conOsc ? 2 : 1;
-            }
-          } else if (v.fase === 1) {
-            const piso = v.golpe ? 0 : sos;
-            v.env -= (1 - piso) / dec;
-            if (v.env <= piso) {
-              v.env = piso;
-              v.fase = 2;
-              if (v.golpe) {
-                terminada = true;
-                break;
-              }
-            }
+            ah = v.ahogoN;
           }
-          // las capas, con dos cabezas: la izquierda lee la oreja izquierda y la derecha, la derecha
-          let xL = 0;
-          let xR = 0;
+          let oL = 0;
+          let oR = 0;
           let vivas = 0;
           for (let q = 0; q < v.capas.length; q++) {
             const cap = v.capas[q];
+            if (cap.muerta) continue;
+            vivas++;
+            if (cap.espera > 0) {
+              cap.espera--;
+              continue;
+            }
+            const d = ds[q];
             const c = cap.c;
+            if (cap.cuenta-- <= 0) {
+              cap.cuenta = CADA - 1;
+              // las envolventes, de a CADA muestras; el volumen llega a lo nuevo en línea recta
+              const meta = paso(cap.eV, d.vol, CADA);
+              cap.dlv = (meta - cap.lv) / CADA;
+              const lf = paso(cap.eF, d.fil, CADA);
+              const lp = paso(cap.eP, d.alt, CADA);
+              // la envolvente de volumen llegó al final (o a un sostenido en cero): la capa calla
+              // cuando el volumen termina de llegar
+              if (cap.eV.fase === 5 || (cap.eV.fase === 3 && d.vol.L[3] <= 0)) cap.fin = true;
+              else if (cap.fin) cap.fin = false;
+              // la altura: la de la nota, la afinación, el vaivén y la envolvente de altura
+              const st = afinar + altSt + d.afi + d.alt.int * lp;
+              if (c.osc) {
+                const f = (440 * Math.pow(2, (v.nota - 69 + c.afinar + st) / 12)) / fm;
+                cap.r[0] = cap.r[1] = cap.r[2] = f;
+              } else {
+                const base = c.mu.fm / fm;
+                const conNota = Math.pow(2, (v.nota - v.raiz + c.afinar + st) / 12);
+                const sinNota = Math.pow(2, (c.afinar + st) / 12);
+                for (let w = 0; w < 3; w++) cap.r[w] = base * (c.alt[w] ? conNota : sinNota);
+              }
+              if (d.ftipo > 0) {
+                const f = Math.min(0.45 * fm, Math.max(20, d.corte * Math.pow(2, d.fil.int * lf + mFil[j])));
+                cap.fG = Math.tan((Math.PI * f) / fm);
+                cap.fK = d.fK;
+              }
+            }
+            let xL = 0;
+            let xR = 0;
             if (c.osc) {
-              const pa = rates[q][0] * dA;
-              const pb = rates[q][0] * dB2;
-              xL += onda(c, cap.pos, pa) * c.gL;
-              xR += onda(c, cap.pos2, pb) * c.gR;
+              const pa = cap.r[0] * dA;
+              const pb = cap.r[0] * dB2;
+              xL = onda(c, cap.pos, pa) * c.gL;
+              xR = onda(c, cap.pos2, pb) * c.gR;
               cap.pos += pa;
               if (cap.pos >= 1) cap.pos -= 1;
               cap.pos2 += pb;
               if (cap.pos2 >= 1) cap.pos2 -= 1;
-              vivas++;
-              continue;
+            } else {
+              const enLoop = c.loop && !v.golpe && !v.soltada;
+              const L = c.mu.c[0];
+              const R = c.mu.c[1] || L;
+              if (cap.viva) {
+                xL = cabeza(c, L, cap.pos, enLoop) * c.gL;
+                cap.pos += cap.r[parteDe(c, cap.pos)] * dA;
+                if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
+                if (cap.pos >= c.fin) cap.viva = false;
+              }
+              if (cap.viva2) {
+                xR = cabeza(c, R, cap.pos2, enLoop) * c.gR;
+                cap.pos2 += cap.r[parteDe(c, cap.pos2)] * dB2;
+                if (enLoop && cap.pos2 >= c.lFin) cap.pos2 -= c.lFin - c.lIni;
+                if (cap.pos2 >= c.fin) cap.viva2 = false;
+              }
+              if (!cap.viva && !cap.viva2) cap.muerta = true;
             }
-            const enLoop = c.loop && !v.golpe && !v.soltada;
-            const L = c.mu.c[0];
-            const R = c.mu.c[1] || L;
-            if (cap.viva) {
-              xL += cabeza(c, L, cap.pos, enLoop) * c.gL;
-              cap.pos += rates[q][parteDe(c, cap.pos)] * dA;
-              if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
-              if (cap.pos >= c.fin) cap.viva = false;
+            if (q === primera) {
+              if (ruido > 0) {
+                const r = azar() * ruido;
+                xL += r;
+                xR += r;
+              }
+              if (sub > 0) {
+                const s = (subCuadrada ? (v.subFase < 0.5 ? 0.7 : -0.7) : Math.sin(2 * Math.PI * v.subFase)) * sub;
+                xL += s;
+                xR += s;
+                v.subFase += subPaso;
+                if (v.subFase >= 1) v.subFase -= 1;
+              }
             }
-            if (cap.viva2) {
-              xR += cabeza(c, R, cap.pos2, enLoop) * c.gR;
-              cap.pos2 += rates[q][parteDe(c, cap.pos2)] * dB2;
-              if (enLoop && cap.pos2 >= c.lFin) cap.pos2 -= c.lFin - c.lIni;
-              if (cap.pos2 >= c.fin) cap.viva2 = false;
+            // el filtro de la capa
+            if (d.ftipo > 0) {
+              const gg = cap.fG;
+              const kk = cap.fK;
+              const a1 = 1 / (1 + gg * (gg + kk));
+              const a2 = gg * a1;
+              const a3 = gg * a2;
+              const s = cap.f;
+              for (let o = 0; o < 2; o++) {
+                const x = o === 0 ? xL : xR;
+                const v3 = x - s[2 * o + 1];
+                const v1 = a1 * s[2 * o] + a2 * v3;
+                const v2 = s[2 * o + 1] + a2 * s[2 * o] + a3 * v3;
+                s[2 * o] = 2 * v1 - s[2 * o];
+                s[2 * o + 1] = 2 * v2 - s[2 * o + 1];
+                const y = d.ftipo === 1 ? v2 : d.ftipo === 2 ? x - kk * v1 - v2 : v1;
+                if (o === 0) xL = y;
+                else xR = y;
+              }
             }
-            if (cap.viva || cap.viva2) vivas++;
+            cap.lv += cap.dlv;
+            const gc = cap.lv * d.gan;
+            oL += xL * gc;
+            oR += xR * gc;
+            if (cap.fin && cap.cuenta === 0) cap.muerta = true;
           }
           if (!vivas) {
             terminada = true;
             break;
           }
-          // el ruido y el sub
-          if (ruido > 0) {
-            const r = azar() * ruido;
-            xL += r;
-            xR += r;
-          }
-          if (sub > 0) {
-            const s = (subCuadrada ? (v.subFase < 0.5 ? 0.7 : -0.7) : Math.sin(2 * Math.PI * v.subFase)) * sub;
-            xL += s;
-            xR += s;
-            v.subFase += subPaso;
-            if (v.subFase >= 1) v.subFase -= 1;
-          }
-          // el filtro, con su envolvente
-          if (v.fSube) {
-            v.fEnv += 1 / fatq;
-            if (v.fEnv >= 1) {
-              v.fEnv = 1;
-              v.fSube = false;
-            }
-          } else if (v.fEnv > 0) v.fEnv = Math.max(0, v.fEnv - 1 / fdec);
-          if (ftipo > 0) {
-            if (v.fCuenta-- <= 0) {
-              v.fCuenta = CADA_FILTRO - 1;
-              const f = Math.min(0.45 * fm, Math.max(20, corte * Math.pow(2, fenv * v.fEnv + mFil[j])));
-              v.fG = Math.tan((Math.PI * f) / fm);
-              v.fK = fK;
-            }
-            const g = v.fG;
-            const kk = v.fK;
-            const a1 = 1 / (1 + g * (g + kk));
-            const a2 = g * a1;
-            const a3 = g * a2;
-            const st = v.f;
-            for (let o = 0; o < 2; o++) {
-              const x = o === 0 ? xL : xR;
-              const v3 = x - st[2 * o + 1];
-              const v1 = a1 * st[2 * o] + a2 * v3;
-              const v2 = st[2 * o + 1] + a2 * st[2 * o] + a3 * v3;
-              st[2 * o] = 2 * v1 - st[2 * o];
-              st[2 * o + 1] = 2 * v2 - st[2 * o + 1];
-              const y = ftipo === 1 ? v2 : ftipo === 2 ? x - kk * v1 - v2 : v1;
-              if (o === 0) xL = y;
-              else xR = y;
-            }
-          }
-          let g = v.env * v.gan * vol * mVol[j];
-          let gL = g;
-          let gR = g;
+          let gL = vol * mVol[j] * ah;
+          let gR = gL;
           if (hayPan) {
             const a = ((Math.max(-1, Math.min(1, mPan[j])) + 1) * Math.PI) / 4;
             gL *= Math.cos(a) * Math.SQRT2;
             gR *= Math.sin(a) * Math.SQRT2;
           }
-          sL[i] += xL * gL;
-          sR[i] += xR * gR;
+          sL[i] += oL * gL;
+          sR[i] += oR * gR;
         }
-        if (terminada) voces.splice(k, 1);
+        if (terminada || v.capas.every((x) => x.muerta)) voces.splice(kv, 1);
       }
 
       // --- la distorsión, sobre todo lo que suena
@@ -521,9 +753,9 @@ export function nucleoSampler() {
       const mez = Math.max(0, Math.min(100, val(p, 'dmez', 100))) / 100;
       if (mez > 0 && (dist > 0 || mDis.some((x, j) => j < n && x !== 0))) {
         for (let j = 0; j < n; j++) {
-          const d = dist + mDis[j];
-          if (d <= 0) continue;
-          const g = dB(d);
+          const dd = dist + mDis[j];
+          if (dd <= 0) continue;
+          const g = dB(dd);
           const comp = 1 / Math.sqrt(g);
           const i = desde + j;
           sL[i] = sL[i] * (1 - mez) + Math.tanh(g * sL[i]) * comp * mez;
@@ -550,5 +782,5 @@ export function nucleoSampler() {
     };
   }
 
-  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, crear };
+  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, POLARIDAD, crear };
 }

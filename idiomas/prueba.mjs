@@ -55,6 +55,17 @@ for (const a of archivos) {
   for (const m of s.matchAll(/label: `Banda \$\{b\}: ([^`]+)`/g)) mirar(m[1]);
   for (const m of s.matchAll(/titulo: '([^']+)'/g)) mirar(m[1]);
 }
+// el sampler arma muchos nombres por capa: cada parte de cada nombre, y cada opción, en la tabla
+{
+  const { nucleoSampler } = await import('../sampler/nucleo.js');
+  for (const p of nucleoSampler().PARAMS) {
+    const partes = p.nombre.replace(/^(Banda|Capa) \d+: /, '').split(': ');
+    if (/^(Banda|Capa) \d+: /.test(p.nombre)) mirar(p.nombre.split(' ')[0]);
+    for (const x of partes) if (!/ \d$/.test(x) || !(x in _TEXTOS)) mirar(x);
+    if (p.corto) mirar(p.corto);
+    for (const o of p.opciones || []) mirar(o);
+  }
+}
 ok(faltan.size === 0, `textos sin traducir: ${[...faltan].join(' | ')}`);
 
 console.log(fallas ? `${fallas} falla(s)` : 'todo bien');

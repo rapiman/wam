@@ -126,6 +126,62 @@ const TEXTOS = {
   Oscilador: ['Oscillator', 'Oscilador', 'Oscillateur', 'Osziladorea', 'Осциллятор', 'オシレーター', '오실레이터', '振荡器', 'ออสซิลเลเตอร์'],
   Milisegundos: ['Milliseconds', 'Milissegundos', 'Millisecondes', 'Milisegundoak', 'Миллисекунды', 'ミリ秒', '밀리초', '毫秒', 'มิลลิวินาที'],
   'Desde Pizarrita': ['From Pizarrita', 'Do Pizarrita', 'Depuis Pizarrita', 'Pizarritatik', 'Из Pizarrita', 'Pizarritaから', 'Pizarrita에서', '从 Pizarrita', 'จาก Pizarrita'],
+  Moldear: ['Shape', 'Moldar', 'Façonner', 'Moldatu', 'Формирование', '音作り', '음색 다듬기', '塑造', 'ปรับแต่งเสียง'],
+  'Intensidad de la nota': ['Velocity', 'Intensidade da nota', 'Vélocité', 'Notaren indarra', 'Сила нажатия', 'ベロシティ', '벨로시티', '力度', 'ความแรงของโน้ต'],
+  Tecla: ['Key', 'Tecla', 'Touche', 'Tekla', 'Клавиша', 'キー', '건반', '琴键', 'คีย์'],
+  Tiempo: ['Time', 'Tempo', 'Temps', 'Denbora', 'Время', 'タイム', '타임', '时间', 'เวลา'],
+  Nivel: ['Level', 'Nível', 'Niveau', 'Maila', 'Уровень', 'レベル', '레벨', '电平', 'ระดับ'],
+  'Retardo de entrada': ['Start delay', 'Atraso de entrada', 'Retard de départ', 'Hasierako atzerapena', 'Задержка начала', 'スタート・ディレイ', '시작 지연', '起始延迟', 'หน่วงเวลาเริ่มต้น'],
+  'Nivel de ataque': ['Attack level', 'Nível de ataque', 'Niveau d’attaque', 'Eraso-maila', 'Уровень атаки', 'アタック・レベル', '어택 레벨', '起音电平', 'ระดับแอทแทค'],
+  Quiebre: ['Break point', 'Ponto de quebra', 'Point de rupture', 'Haustura-puntua', 'Точка перегиба', 'ブレイク・ポイント', '브레이크 포인트', '断点', 'จุดหักเห'],
+  Intensidad: ['Intensity', 'Intensidade', 'Intensité', 'Intentsitatea', 'Интенсивность', 'インテンシティ', '강도', '强度', 'ความเข้ม'],
+  'Nivel inicial': ['Start level', 'Nível inicial', 'Niveau initial', 'Hasierako maila', 'Начальный уровень', 'スタート・レベル', '시작 레벨', '起始电平', 'ระดับเริ่มต้น'],
+  'Nivel final': ['Release level', 'Nível final', 'Niveau final', 'Amaierako maila', 'Конечный уровень', 'リリース・レベル', '릴리스 레벨', '释放电平', 'ระดับสุดท้าย'],
+  'Ataque del volumen': ['Amp attack', 'Ataque do volume', 'Attaque du volume', 'Bolumenaren erasoa', 'Атака громкости', 'アンプのアタック', '앰프 어택', '音量起音', 'แอทแทคของระดับเสียง'],
+  'Nivel de ataque del volumen': ['Amp attack level', 'Nível de ataque do volume', 'Niveau d’attaque du volume', 'Bolumenaren eraso-maila', 'Уровень атаки громкости', 'アンプのアタック・レベル', '앰프 어택 레벨', '音量起音电平', 'ระดับแอทแทคของระดับเสียง'],
+  'Decaimiento del volumen': ['Amp decay', 'Decaimento do volume', 'Déclin du volume', 'Bolumenaren beherakada', 'Спад громкости', 'アンプのディケイ', '앰프 디케이', '音量衰减', 'ดีเคย์ของระดับเสียง'],
+  'Quiebre del volumen': ['Amp break point', 'Ponto de quebra do volume', 'Point de rupture du volume', 'Bolumenaren haustura-puntua', 'Точка перегиба громкости', 'アンプのブレイク・ポイント', '앰프 브레이크 포인트', '音量断点', 'จุดหักเหของระดับเสียง'],
+  'Pendiente del volumen': ['Amp slope', 'Inclinação do volume', 'Pente du volume', 'Bolumenaren malda', 'Наклон громкости', 'アンプのスロープ', '앰프 슬로프', '音量斜率', 'สโลปของระดับเสียง'],
+  'Sostenido del volumen': ['Amp sustain', 'Sustentação do volume', 'Maintien du volume', 'Bolumenaren iraupena', 'Сустейн громкости', 'アンプのサステイン', '앰프 서스테인', '音量延音', 'ซัสเทนของระดับเสียง'],
+  'Soltado del volumen': ['Amp release', 'Liberação do volume', 'Relâchement du volume', 'Bolumenaren askatzea', 'Затухание громкости', 'アンプのリリース', '앰프 릴리스', '音量释放', 'รีลีสของระดับเสียง'],
+  'Sensibilidad del volumen': ['Amp velocity', 'Sensibilidade do volume', 'Vélocité du volume', 'Bolumenaren sentikortasuna', 'Чувствительность громкости', 'アンプのベロシティ', '앰프 벨로시티', '音量力度', 'ความไวของระดับเสียง'],
+  'Tiempos del volumen por intensidad': ['Amp EG time by velocity', 'Tempos do volume pela intensidade', 'Temps du volume selon la vélocité', 'Bolumenaren denborak indarraren arabera', 'Время громкости от силы нажатия', 'アンプEGタイム(ベロシティ)', '벨로시티에 따른 앰프 EG 타임', '力度控制音量包络时间', 'เวลาเอนเวโลปเสียงตามความแรง'],
+  'Tiempos del volumen por tecla': ['Amp EG time by key', 'Tempos do volume pela tecla', 'Temps du volume selon la touche', 'Bolumenaren denborak teklaren arabera', 'Время громкости от клавиши', 'アンプEGタイム(キー)', '건반에 따른 앰프 EG 타임', '琴键控制音量包络时间', 'เวลาเอนเวโลปเสียงตามคีย์'],
+  'Tipo de filtro': ['Filter type', 'Tipo de filtro', 'Type de filtre', 'Iragazki mota', 'Тип фильтра', 'フィルター・タイプ', '필터 타입', '滤波器类型', 'ชนิดฟิลเตอร์'],
+  'Intensidad del filtro': ['Filter EG intensity', 'Intensidade do filtro', 'Intensité du filtre', 'Iragazkiaren intentsitatea', 'Глубина огибающей фильтра', 'フィルターEGインテンシティ', '필터 EG 강도', '滤波器包络强度', 'ความเข้มเอนเวโลปฟิลเตอร์'],
+  'Nivel inicial del filtro': ['Filter start level', 'Nível inicial do filtro', 'Niveau initial du filtre', 'Iragazkiaren hasierako maila', 'Начальный уровень фильтра', 'フィルターのスタート・レベル', '필터 시작 레벨', '滤波器起始电平', 'ระดับเริ่มต้นของฟิลเตอร์'],
+  'Nivel de ataque del filtro': ['Filter attack level', 'Nível de ataque do filtro', 'Niveau d’attaque du filtre', 'Iragazkiaren eraso-maila', 'Уровень атаки фильтра', 'フィルターのアタック・レベル', '필터 어택 레벨', '滤波器起音电平', 'ระดับแอทแทคของฟิลเตอร์'],
+  'Decaimiento del filtro': ['Filter decay', 'Decaimento do filtro', 'Déclin du filtre', 'Iragazkiaren beherakada', 'Спад фильтра', 'フィルターのディケイ', '필터 디케이', '滤波器衰减', 'ดีเคย์ของฟิลเตอร์'],
+  'Quiebre del filtro': ['Filter break point', 'Ponto de quebra do filtro', 'Point de rupture du filtre', 'Iragazkiaren haustura-puntua', 'Точка перегиба фильтра', 'フィルターのブレイク・ポイント', '필터 브레이크 포인트', '滤波器断点', 'จุดหักเหของฟิลเตอร์'],
+  'Pendiente del filtro': ['Filter slope', 'Inclinação do filtro', 'Pente du filtre', 'Iragazkiaren malda', 'Наклон фильтра', 'フィルターのスロープ', '필터 슬로프', '滤波器斜率', 'สโลปของฟิลเตอร์'],
+  'Sostenido del filtro': ['Filter sustain', 'Sustentação do filtro', 'Maintien du filtre', 'Iragazkiaren iraupena', 'Сустейн фильтра', 'フィルターのサステイン', '필터 서스테인', '滤波器延音', 'ซัสเทนของฟิลเตอร์'],
+  'Soltado del filtro': ['Filter release', 'Liberação do filtro', 'Relâchement du filtre', 'Iragazkiaren askatzea', 'Затухание фильтра', 'フィルターのリリース', '필터 릴리스', '滤波器释放', 'รีลีสของฟิลเตอร์'],
+  'Nivel final del filtro': ['Filter release level', 'Nível final do filtro', 'Niveau final du filtre', 'Iragazkiaren amaierako maila', 'Конечный уровень фильтра', 'フィルターのリリース・レベル', '필터 릴리스 레벨', '滤波器释放电平', 'ระดับสุดท้ายของฟิลเตอร์'],
+  'Intensidad del filtro por intensidad': ['Filter EG intensity by velocity', 'Intensidade do filtro pela intensidade', 'Intensité du filtre selon la vélocité', 'Iragazkiaren intentsitatea indarraren arabera', 'Глубина фильтра от силы нажатия', 'フィルターEGインテンシティ(ベロシティ)', '벨로시티에 따른 필터 EG 강도', '力度控制滤波器包络强度', 'ความเข้มฟิลเตอร์ตามความแรง'],
+  'Tiempos del filtro por intensidad': ['Filter EG time by velocity', 'Tempos do filtro pela intensidade', 'Temps du filtre selon la vélocité', 'Iragazkiaren denborak indarraren arabera', 'Время фильтра от силы нажатия', 'フィルターEGタイム(ベロシティ)', '벨로시티에 따른 필터 EG 타임', '力度控制滤波器包络时间', 'เวลาเอนเวโลปฟิลเตอร์ตามความแรง'],
+  'Corte por tecla': ['Cutoff key tracking', 'Corte pela tecla', 'Coupure selon la touche', 'Ebaketa teklaren arabera', 'Срез от клавиши', 'カットオフ・キートラック', '컷오프 키 트래킹', '截止频率键盘跟随', 'คัตออฟตามคีย์'],
+  'Tiempos del filtro por tecla': ['Filter EG time by key', 'Tempos do filtro pela tecla', 'Temps du filtre selon la touche', 'Iragazkiaren denborak teklaren arabera', 'Время фильтра от клавиши', 'フィルターEGタイム(キー)', '건반에 따른 필터 EG 타임', '琴键控制滤波器包络时间', 'เวลาเอนเวโลปฟิลเตอร์ตามคีย์'],
+  'Intensidad de la altura': ['Pitch EG intensity', 'Intensidade da altura', 'Intensité de la hauteur', 'Altueraren intentsitatea', 'Глубина огибающей высоты', 'ピッチEGインテンシティ', '피치 EG 강도', '音高包络强度', 'ความเข้มเอนเวโลประดับเสียง'],
+  'Nivel inicial de la altura': ['Pitch start level', 'Nível inicial da altura', 'Niveau initial de la hauteur', 'Altueraren hasierako maila', 'Начальный уровень высоты', 'ピッチのスタート・レベル', '피치 시작 레벨', '音高起始电平', 'ระดับเริ่มต้นของระดับเสียง'],
+  'Ataque de la altura': ['Pitch attack', 'Ataque da altura', 'Attaque de la hauteur', 'Altueraren erasoa', 'Атака высоты', 'ピッチのアタック', '피치 어택', '音高起音', 'แอทแทคของระดับเสียง (พิทช์)'],
+  'Nivel de ataque de la altura': ['Pitch attack level', 'Nível de ataque da altura', 'Niveau d’attaque de la hauteur', 'Altueraren eraso-maila', 'Уровень атаки высоты', 'ピッチのアタック・レベル', '피치 어택 레벨', '音高起音电平', 'ระดับแอทแทคของพิทช์'],
+  'Decaimiento de la altura': ['Pitch decay', 'Decaimento da altura', 'Déclin de la hauteur', 'Altueraren beherakada', 'Спад высоты', 'ピッチのディケイ', '피치 디케이', '音高衰减', 'ดีเคย์ของพิทช์'],
+  'Soltado de la altura': ['Pitch release', 'Liberação da altura', 'Relâchement de la hauteur', 'Altueraren askatzea', 'Затухание высоты', 'ピッチのリリース', '피치 릴리스', '音高释放', 'รีลีสของพิทช์'],
+  'Nivel final de la altura': ['Pitch release level', 'Nível final da altura', 'Niveau final de la hauteur', 'Altueraren amaierako maila', 'Конечный уровень высоты', 'ピッチのリリース・レベル', '피치 릴리스 레벨', '音高释放电平', 'ระดับสุดท้ายของพิทช์'],
+  'Intensidad de la altura por intensidad': ['Pitch EG intensity by velocity', 'Intensidade da altura pela intensidade', 'Intensité de la hauteur selon la vélocité', 'Altueraren intentsitatea indarraren arabera', 'Глубина высоты от силы нажатия', 'ピッチEGインテンシティ(ベロシティ)', '벨로시티에 따른 피치 EG 강도', '力度控制音高包络强度', 'ความเข้มพิทช์ตามความแรง'],
+  'Tiempos de la altura por intensidad': ['Pitch EG time by velocity', 'Tempos da altura pela intensidade', 'Temps de la hauteur selon la vélocité', 'Altueraren denborak indarraren arabera', 'Время высоты от силы нажатия', 'ピッチEGタイム(ベロシティ)', '벨로시티에 따른 피치 EG 타임', '力度控制音高包络时间', 'เวลาเอนเวโลปพิทช์ตามความแรง'],
+  'Ataque general': ['Global attack', 'Ataque geral', 'Attaque générale', 'Eraso orokorra', 'Общая атака', '全体アタック', '전체 어택', '总起音', 'แอทแทครวม'],
+  'Decaimiento general': ['Global decay', 'Decaimento geral', 'Déclin général', 'Beherakada orokorra', 'Общий спад', '全体ディケイ', '전체 디케이', '总衰减', 'ดีเคย์รวม'],
+  'Soltado general': ['Global release', 'Liberação geral', 'Relâchement général', 'Askatze orokorra', 'Общее затухание', '全体リリース', '전체 릴리스', '总释放', 'รีลีสรวม'],
+  'Intensidad en los tiempos del volumen': ['Velocity on amp EG times', 'Intensidade nos tempos do volume', 'Vélocité sur les temps du volume', 'Indarra bolumenaren denboretan', 'Сила нажатия на время громкости', 'アンプEGタイムへのベロシティ', '앰프 EG 타임에 대한 벨로시티', '力度对音量包络时间', 'ความแรงต่อเวลาเอนเวโลปเสียง'],
+  'Tecla en los tiempos del volumen': ['Key on amp EG times', 'Tecla nos tempos do volume', 'Touche sur les temps du volume', 'Tekla bolumenaren denboretan', 'Клавиша на время громкости', 'アンプEGタイムへのキー', '앰프 EG 타임에 대한 건반', '琴键对音量包络时间', 'คีย์ต่อเวลาเอนเวโลปเสียง'],
+  'Intensidad en los tiempos del filtro': ['Velocity on filter EG times', 'Intensidade nos tempos do filtro', 'Vélocité sur les temps du filtre', 'Indarra iragazkiaren denboretan', 'Сила нажатия на время фильтра', 'フィルターEGタイムへのベロシティ', '필터 EG 타임에 대한 벨로시티', '力度对滤波器包络时间', 'ความแรงต่อเวลาเอนเวโลปฟิลเตอร์'],
+  'Tecla en los tiempos del filtro': ['Key on filter EG times', 'Tecla nos tempos do filtro', 'Touche sur les temps du filtre', 'Tekla iragazkiaren denboretan', 'Клавиша на время фильтра', 'フィルターEGタイムへのキー', '필터 EG 타임에 대한 건반', '琴键对滤波器包络时间', 'คีย์ต่อเวลาเอนเวโลปฟิลเตอร์'],
+  A: ['A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A'],
+  D: ['D', 'D', 'D', 'D', 'D', 'D', 'D', 'D', 'D'],
+  S: ['S', 'S', 'S', 'S', 'S', 'S', 'S', 'S', 'S'],
+  R: ['R', 'R', 'R', 'R', 'R', 'R', 'R', 'R', 'R'],
+  x: ['x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x'],
   Tajadas: ['Slices', 'Fatias', 'Tranches', 'Xerrak', 'Нарезка', 'スライス', '슬라이스', '切片', 'สไลซ์'],
   'Nueva zona de tajadas': ['New slice zone', 'Nova zona de fatias', 'Nouvelle zone de tranches', 'Xerra-eremu berria', 'Новая зона нарезки', '新しいスライスゾーン', '새 슬라이스 존', '新建切片区域', 'โซนสไลซ์ใหม่'],
   Detectar: ['Detect', 'Detectar', 'Détecter', 'Detektatu', 'Найти', '検出', '감지', '检测', 'ตรวจหา'],
@@ -229,9 +285,11 @@ export function t(texto, cual = idioma()) {
 // simples por la tabla; los del ecualizador, «Banda 3: frecuencia», por partes.
 export function tEtiqueta(texto, cual = idioma()) {
   if (TEXTOS[texto]) return t(texto, cual);
-  const m = /^Banda (\d+)(?:: (.+))?$/.exec(String(texto));
+  // «Banda 3: Q», «Capa 2: Corte», «Capa 1: Tecla en los tiempos del volumen: Ataque»: cada parte
+  const m = /^(Banda|Capa) (\d+)(?:: (.+))?$/.exec(String(texto));
   if (!m) return texto;
-  return `${t('Banda', cual)} ${m[1]}${m[2] ? `: ${t(m[2], cual)}` : ''}`;
+  const resto = m[3] ? m[3].split(': ').map((x) => t(x, cual)).join(': ') : '';
+  return `${t(m[1], cual)} ${m[2]}${resto ? `: ${resto}` : ''}`;
 }
 
 // Lo que devuelve `getParameterInfo`, con nombres y opciones en el idioma de la página.

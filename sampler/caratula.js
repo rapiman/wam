@@ -10,6 +10,7 @@ import { v, coloresDe, numero, el, lienzo, perilla, casilla, interruptor, elegid
 import { t } from '../comun/idiomas.js';
 import { nucleoSampler } from './nucleo.js';
 import { parejos } from './tajadas.js';
+import { crearMoldeado } from './moldear.js';
 
 const N = nucleoSampler();
 const NOTA_BAJA = 24; // C1
@@ -511,11 +512,15 @@ export function crearCaratula(nodo) {
   );
 
   // --- lo general: los parámetros del plugin
-  // En pestañas: lo general (volumen, envolvente…), el filtro, el color (distorsión, ruido,
-  // desafinado, sub) y los dos vaivenes. Una lista ocupa dos lugares.
+  // Moldear la capa elegida (volumen, filtro y altura con sus envolventes dibujadas): moldear.js.
+  const moldeado = crearMoldeado(nodo, N, () => coloresDe(caja));
+  moldeado.iniciar();
+
+  // En pestañas: lo general (volumen, afinación y los tiempos que se suman a todas las
+  // envolventes), el color (distorsión, ruido, desafinado, sub) y los dos vaivenes. Una lista
+  // ocupa dos lugares.
   const GRUPOS = [
     ['general', 'General'],
-    ['filtro', 'Filtro'],
     ['color', 'Color'],
     ['v1', 'Vaivén 1'],
     ['v2', 'Vaivén 2'],
@@ -574,7 +579,7 @@ export function crearCaratula(nodo) {
   };
   pintarPestanas();
 
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaPestanas, filaGeneral);
+  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, moldeado.el, filaPestanas, filaGeneral);
 
   // --- dibujar
   let C = coloresDe(caja);
@@ -807,6 +812,7 @@ export function crearCaratula(nodo) {
     pintarTeclado();
     pintarOnda();
     pintarEstirar();
+    moldeado.ponerCapa(cSel + 1);
   };
   pintarTodo();
 
@@ -829,8 +835,9 @@ export function crearCaratula(nodo) {
       if (!vals || !vigente) return;
       for (const p of N.PARAMS) {
         const c = generales[p.id];
-        if (vals[p.id] && !c.agarrada()) c.poner(Number(vals[p.id].value));
+        if (c && vals[p.id] && !c.agarrada()) c.poner(Number(vals[p.id].value));
       }
+      moldeado.ponerValores(vals);
     });
     if (!caja.isConnected && visto) soltar();
     if (caja.isConnected) visto = true;
