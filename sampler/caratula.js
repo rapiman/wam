@@ -789,7 +789,8 @@ export function crearCaratula(nodo) {
     if (elegirDeAnfitrion) botonPz.style.display = esOsc ? 'none' : '';
     filaDir.style.display = esOsc ? 'none' : 'flex';
     oscCaja.style.display = esOsc ? 'inline-flex' : 'none';
-    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? 'none' : '';
+    // (vuelven a 'inline-flex', no a '': así conservan su separación)
+    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? 'none' : 'inline-flex';
     if (esOsc) {
       selForma.poner(Math.round(Number(c.osc.forma) || 0));
       pAncho.poner(Number(c.osc.ancho) || 50);
