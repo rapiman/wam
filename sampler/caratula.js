@@ -42,14 +42,14 @@ export function crearCaratula(nodo) {
 
   const caja = el(
     'div',
-    `display:inline-flex;flex-direction:column;box-sizing:border-box;width:558px;user-select:none;` +
+    `display:inline-flex;flex-direction:column;box-sizing:border-box;width:568px;user-select:none;` +
       `background:${v('fondo')};color:${v('tinta')};border:1px solid ${v('borde')};font:12px/1.3 var(--pzw-letra,system-ui,sans-serif);`,
   );
-  const cabecera = el('div', `display:flex;align-items:baseline;gap:8px;padding:6px 10px;border-bottom:1px solid ${v('borde')};`);
-  cabecera.append(
-    el('span', 'font-weight:bold;font-size:13px;', t('Sampler')),
-    el('span', `margin-left:auto;color:${v('tinta2')};font-size:11px;`, t('Clic en el teclado: elegir la zona · arrastrar las marcas: dónde parte, el loop y el fin')),
-  );
+  // LAS CARPETAS, COMO EN EL KORG M1 VST (2026-11-25, JP: «ordenar mejor, carpetas parecido a
+  // korg m1 vst»): arriba los botones de las carpetas y, siempre a la vista, la capa elegida (1–3);
+  // abajo, una carpeta a la vez, de alto fijo y con su propia barra si no cabe.
+  const cabecera = el('div', `display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid ${v('borde')};`);
+  cabecera.append(el('span', 'font-weight:bold;font-size:13px;margin-right:6px;', t('Sampler')));
 
   // --- el teclado con las zonas
   const tec = lienzo(536, 52);
@@ -223,7 +223,7 @@ export function crearCaratula(nodo) {
     ponerAudio(m);
   });
   if (!elegirDeAnfitrion) botonPz.style.display = 'none';
-  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonPz, botonAbrir, archivo, boton('×', quitarCapa, t('Quitar capa')));
+  filaCapas.append(selFuente.el, nombreAudio, botonPz, botonAbrir, archivo, boton('×', quitarCapa, t('Quitar capa')));
   const filaDir = el('div', 'display:flex;align-items:center;gap:6px;padding:2px 10px 4px;');
   const dir = el('input', `flex:1;min-width:0;font:inherit;font-size:11px;color:${v('tinta')};background:${v('pantalla')};border:1px solid ${v('borde')};padding:1px 4px;`);
   dir.placeholder = t('Dirección web del audio');
@@ -529,10 +529,6 @@ export function crearCaratula(nodo) {
   const mandar = (id, x) => void nodo.setParameterValues({ [id]: { id, value: x, normalized: false } });
   const generales = {};
   const hojas = {};
-  const filaPestanas = el('div', `display:flex;gap:4px;padding:6px 10px 0;`);
-  const filaGeneral = el('div', 'padding:4px 10px 10px;');
-  let grupoSel = 'general';
-  const botonesGrupo = {};
   for (const [g, titulo] of GRUPOS) {
     const ps = N.PARAMS.filter((p) => p.grupo === g);
     const lugares = Math.max(6, ps.reduce((n, p) => n + (p.tipo === 'choice' ? 2 : 1), 0));
@@ -562,24 +558,53 @@ export function crearCaratula(nodo) {
       }
     }
     hojas[g] = hoja;
-    const b = boton(t(titulo), () => {
-      grupoSel = g;
-      pintarPestanas();
-    });
-    botonesGrupo[g] = b;
-    filaPestanas.append(b);
-    filaGeneral.append(hoja);
   }
-  const pintarPestanas = () => {
-    for (const [g] of GRUPOS) {
-      hojas[g].style.display = g === grupoSel ? 'grid' : 'none';
-      botonesGrupo[g].style.fontWeight = g === grupoSel ? 'bold' : '';
-      botonesGrupo[g].style.background = g === grupoSel ? v('acento') : v('pantalla');
+
+
+  // --- las carpetas
+  const titulo = (texto) => el('div', `color:${v('tinta2')};font-size:11px;margin:8px 0 2px;`, texto);
+  const marco = (...hijos) => {
+    const m = el('div', 'padding:4px 10px 10px;');
+    m.append(...hijos);
+    return m;
+  };
+  const filaCapaFuente = el('div', 'padding:4px 10px 10px;');
+  filaCapaFuente.append(titulo(t('Capa')), moldeado.crearGrupo(['niv', 'afi', 'ret']));
+  const ayuda = el('div', `padding:6px 10px 0;color:${v('tinta2')};font-size:11px;`, t('Clic en el teclado: elegir la zona · arrastrar las marcas: dónde parte, el loop y el fin'));
+  const CARPETAS = [
+    ['facil', 'Fácil', () => [marco(hojas.general, titulo(t('Filtro')), moldeado.crearGrupo(['ft', 'fc', 'fr', 'fi']))]],
+    ['fuente', 'Fuente', () => [ayuda, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaCapaFuente]],
+    ['filtro', 'Filtro', () => (moldeado.ponerHoja('fil'), [moldeado.el])],
+    ['volumen', 'Volumen', () => (moldeado.ponerHoja('vol'), [moldeado.el])],
+    ['altura', 'Altura', () => (moldeado.ponerHoja('alt'), [moldeado.el])],
+    ['control', 'Control', () => [marco(titulo(t('Vaivén 1')), hojas.v1, titulo(t('Vaivén 2')), hojas.v2)]],
+    ['efectos', 'Efectos', () => [marco(hojas.color)]],
+  ];
+  // (las de Fácil se arman una sola vez: crearGrupo anota sus controles)
+  const contenidos = {};
+  const paginas = el('div', 'height:480px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;');
+  let carpeta = 'fuente';
+  const botonesCarpeta = {};
+  for (const [k, nombre, armar] of CARPETAS) {
+    const b = boton(t(nombre), () => ponerCarpeta(k));
+    botonesCarpeta[k] = { b, armar };
+    cabecera.append(b);
+  }
+  cabecera.append(el('span', 'flex:1;'), el('span', `color:${v('tinta2')};margin-right:2px;`, t('Capa')), ...botonesCapa);
+  for (const b of botonesCapa) b.textContent = b.textContent.replace(/^.* (\d)$/, '$1');
+  const ponerCarpeta = (k) => {
+    carpeta = k;
+    const c = botonesCarpeta[k];
+    if (!contenidos[k] || ['filtro', 'volumen', 'altura'].includes(k)) contenidos[k] = c.armar();
+    paginas.replaceChildren(...contenidos[k]);
+    paginas.scrollTop = 0;
+    for (const [kk, x] of Object.entries(botonesCarpeta)) {
+      x.b.style.fontWeight = kk === carpeta ? 'bold' : '';
+      x.b.style.background = kk === carpeta ? v('acento') : v('pantalla');
     }
   };
-  pintarPestanas();
-
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, moldeado.el, filaPestanas, filaGeneral);
+  ponerCarpeta('fuente');
+  caja.append(cabecera, paginas);
 
   // --- dibujar
   let C = coloresDe(caja);

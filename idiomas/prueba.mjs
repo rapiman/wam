@@ -52,6 +52,8 @@ for (const a of archivos) {
   for (const m of s.matchAll(/opciones: \[([^\]]+)\]/g)) for (const q of m[1].matchAll(/'([^']+)'/g)) mirar(q[1]);
   for (const m of s.matchAll(/nombre: `([^`]+)\$\{k\}`/g)) for (const k of [1, 2]) mirar(`${m[1]}${k}`);
   for (const m of s.matchAll(/^\s*\['\w+', '([^']+)'\],$/gm)) mirar(m[1]);
+  // las carpetas del sampler: ['clave', 'Nombre', () => …]
+  for (const m of s.matchAll(/^\s*\['\w+', '([^']+)', \(\) =>/gm)) mirar(m[1]);
   for (const m of s.matchAll(/label: `Banda \$\{b\}: ([^`]+)`/g)) mirar(m[1]);
   for (const m of s.matchAll(/titulo: '([^']+)'/g)) mirar(m[1]);
 }
