@@ -65,15 +65,20 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
    cada parte de una capa (entrada, loop y release; sin loop, la nota entera; en tajadas, todo lo
    cortado) puede durar unos milisegundos o unos tiempos (negras) al tempo. `estirar.js`: vocoder
    de fase con las fases amarradas a los picos, por tramos en una sola pasada (sin costuras), de
-   0,25 a 4 veces. Lo estira el nodo (hilo principal), que guarda una copia de cada audio, y le
-   manda al hilo de audio una muestra estirada con sus marcas; se recalcula al cambiar el tempo o
-   el ajuste (espera 150 ms mientras se arrastra). El tempo llega del anfitrión por `wam-transport`
+   0,125 a 8 veces. Lo estira el nodo, que guarda una copia de cada audio, en un Worker (si la
+   página no lo deja, en el hilo principal, de a uno), y le manda al hilo de audio una muestra
+   estirada con sus marcas; se recalcula al cambiar el tempo o el ajuste, y mientras tanto suena
+   lo que ya está. El tempo llega del anfitrión por `wam-transport`
    (la caja lo manda a sus instrumentos: `avisarTempo` en `audio/wam.ts` de Pizarrita); sin
-   anfitrión que lo diga, 120. La altura de la nota se aplica encima: el largo pedido vale en la
-   raíz; otra nota lo alarga o acorta, como en un sampler clásico. CAPA: `est: [e0, e1, e2]`,
+   anfitrión que lo diga, 120. Con la altura de la nota (JP, 2026-11-25: «mantener el pitch y el largo»): una parte estirada
+   que sigue la altura dura lo pedido en TODAS las notas; el nodo hace una versión por nota
+   (`var[nota]`, hasta ±24 semitonos de la raíz dentro de la zona; primero las más cercanas), estirada
+   por la proporción × la razón de la nota, y el corazón la lee a la altura de esa nota. La
+   afinación general y el vaivén a la altura no entran en ese cálculo (mueven un poco el largo).
+   CAPA: `est: [e0, e1, e2]`,
    cada uno null o `{ u: 'ms' | 't', v }`.
 5. **Osciladores** — HECHO (2026-11-25; JP: «formas clásicas y samplers»): una capa puede ser un
    audio o un oscilador (seno, triángulo, sierra o cuadrada con ancho de pulso; sierra y cuadrada
    con polyBLEP). Pasa por todo lo demás: envolvente, filtro, color, vaivenes; el desafinado le
    da dos fases, una por oreja. En un golpe cae a cero en el decaimiento. CAPA: `osc: { forma, ancho }`.
-6. **La pieza de Pizarrita** — HECHO ELEGIR (2026-11-25): si el anfitrión le pone al nodo `pz.elegirAudio()` (Pizarrita: `canvas/caja/audioSampler.tsx`, al abrir el panel del instrumento en la caja), la carátula muestra «Desde Pizarrita», que abre la ventana del anfitrión con los audios de las cajas que se pueden ver (primero los de esa caja) y deja la dirección en la capa. FALTA subir y grabar: hay que decidir dónde quedan esos audios (subidos adentro de la caja serían filas).
+6. **La pieza de Pizarrita** — HECHO (2026-11-25): si el anfitrión le pone al nodo `pz.elegirAudio()` (Pizarrita: `canvas/caja/audioSampler.tsx`, al abrir el panel del instrumento en la caja), la carátula muestra «Desde Pizarrita», que abre la ventana del anfitrión con los audios de las cajas que se pueden ver (primero los de esa caja) y deja la dirección en la capa. Además, pestaña con los audios sueltos de todas las pizarritas, y **subir y grabar**: el audio queda en la pizarra donde está la caja, como un audio suelto (JP: «en la pizarra como un audio»), y se usa en la capa.

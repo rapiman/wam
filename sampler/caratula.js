@@ -398,7 +398,7 @@ export function crearCaratula(nodo) {
   const pGan = perilla({ nombre: t('Volumen'), min: -40, max: 12, paso: 0.5, porDefecto: 0, formato: (x) => `${numero(x, 1)} dB`, alCambiar: (x) => ponerCapa({ gan: x }) });
   const pPan = perilla({ nombre: t('Paneo'), min: -1, max: 1, paso: 0.01, porDefecto: 0, formato: (x) => (Math.abs(x) < 0.005 ? 'C' : `${x < 0 ? 'I' : 'D'} ${Math.round(Math.abs(x) * 100)}`), alCambiar: (x) => ponerCapa({ pan: x }) });
   const pAfin = perilla({ nombre: t('Afinación'), min: -24, max: 24, paso: 0.01, porDefecto: 0, formato: (x) => `${numero(x, 2)} st`, alCambiar: (x) => ponerCapa({ afinar: x }) });
-  const altCaja = el('span', 'display:inline-flex;align-items:center;gap:8px;');
+  const altCaja = el('span', 'display:inline-flex;align-items:center;gap:16px;');
   altCaja.append(el('span', `color:${v('tinta2')};`, t('Con la altura de la nota:')), ...iAlt.map((x) => x.el));
   const perillasCapa = el('span', 'display:inline-flex;gap:10px;margin-left:auto;');
   perillasCapa.append(pGan.el, pPan.el, pAfin.el);
@@ -604,7 +604,12 @@ export function crearCaratula(nodo) {
     g.fillStyle = C.tinta2;
     g.font = '9px system-ui, sans-serif';
     g.textAlign = 'left';
-    for (let n = 36; n <= NOTA_ALTA; n += 12) g.fillText(nombreNota(n), xNota(n) + 1, 50);
+    for (let n = 36; n <= NOTA_ALTA; n += 12) {
+      // el último (C8) cae en la última tecla: alineado a la derecha, para que no se corte
+      const ultimo = xNota(n) + 24 > 536;
+      g.textAlign = ultimo ? 'right' : 'left';
+      g.fillText(nombreNota(n), ultimo ? 535 : xNota(n) + 1, 50);
+    }
   };
   const pintarOnda = () => {
     const g = onda.g;

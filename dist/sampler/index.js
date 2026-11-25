@@ -821,14 +821,14 @@ var getWamParameterInterpolator = (moduleId) => {
         let e = Math.abs(skew);
         e = Math.pow(3 - e, e * (e + 2));
         const linear = e === 1;
-        const N3 = this._N;
-        const table = new Float32Array(N3 + 1);
+        const N2 = this._N;
+        const table = new Float32Array(N2 + 1);
         if (linear)
-          for (let n = 0; n <= N3; ++n)
-            table[n] = n / N3;
+          for (let n = 0; n <= N2; ++n)
+            table[n] = n / N2;
         else
-          for (let n = 0; n <= N3; ++n)
-            table[n] = (n / N3) ** e;
+          for (let n = 0; n <= N2; ++n)
+            table[n] = (n / N2) ** e;
         WamParameterInterpolator._tables[newKey] = table;
         WamParameterInterpolator._tableReferences[newKey] = [id];
       }
@@ -1649,7 +1649,8 @@ function nucleoSampler() {
     let mFil = new Float32Array(128);
     let mDis = new Float32Array(128);
     let mPan = new Float32Array(128);
-    const prepararCapa = (c, tajada = -1) => {
+    const prepararCapa = (c0, tajada = -1, nota = -1) => {
+      const c = tajada < 0 && c0.var && c0.var[nota] ? { ...c0, ...c0.var[nota] } : c0;
       if (c.osc && typeof c.osc === "object") {
         const pan2 = Math.max(-1, Math.min(1, Number(c.pan) || 0));
         const ang2 = (pan2 + 1) * Math.PI / 4;
@@ -1751,7 +1752,7 @@ function nucleoSampler() {
       }
       const capas = [];
       for (const c of (z.capas || []).slice(0, 3)) {
-        const pc = prepararCapa(c, tajadas ? nota - z.baja : -1);
+        const pc = prepararCapa(c, tajadas ? nota - z.baja : -1, nota);
         if (pc) capas.push({ c: pc, pos: pc.osc ? 0 : pc.ini, pos2: pc.osc ? 0 : pc.ini, viva: true, viva2: true });
       }
       if (!capas.length) return;
@@ -2063,19 +2064,19 @@ function nucleoSampler() {
 function procesadorSampler(moduleId, nucleo) {
   const ambito = globalThis.webAudioModules.getModuleScope(moduleId);
   const { WamProcessor, WamParameterInfo } = ambito;
-  const N3 = nucleo();
-  const ids = N3.PARAMS.map((p) => p.id);
+  const N2 = nucleo();
+  const ids = N2.PARAMS.map((p) => p.id);
   class ProcesadorSampler extends WamProcessor {
     constructor(options) {
       super(options);
-      this._s = N3.crear(sampleRate);
+      this._s = N2.crear(sampleRate);
       this._p = {};
-      for (const p of N3.PARAMS) this._p[p.id] = p.defecto;
+      for (const p of N2.PARAMS) this._p[p.id] = p.defecto;
       this._tmpR = new Float32Array(128);
     }
     _generateWamParameterInfo() {
       const info = {};
-      for (const p of N3.PARAMS) {
+      for (const p of N2.PARAMS) {
         info[p.id] = new WamParameterInfo(p.id, {
           type: p.tipo || "float",
           label: p.nombre,
@@ -3089,7 +3090,7 @@ function crearCaratula(nodo) {
   const pGan = perilla({ nombre: t("Volumen"), min: -40, max: 12, paso: 0.5, porDefecto: 0, formato: (x) => `${numero(x, 1)} dB`, alCambiar: (x) => ponerCapa({ gan: x }) });
   const pPan = perilla({ nombre: t("Paneo"), min: -1, max: 1, paso: 0.01, porDefecto: 0, formato: (x) => Math.abs(x) < 5e-3 ? "C" : `${x < 0 ? "I" : "D"} ${Math.round(Math.abs(x) * 100)}`, alCambiar: (x) => ponerCapa({ pan: x }) });
   const pAfin = perilla({ nombre: t("Afinaci\xF3n"), min: -24, max: 24, paso: 0.01, porDefecto: 0, formato: (x) => `${numero(x, 2)} st`, alCambiar: (x) => ponerCapa({ afinar: x }) });
-  const altCaja = el("span", "display:inline-flex;align-items:center;gap:8px;");
+  const altCaja = el("span", "display:inline-flex;align-items:center;gap:16px;");
   altCaja.append(el("span", `color:${v("tinta2")};`, t("Con la altura de la nota:")), ...iAlt.map((x) => x.el));
   const perillasCapa = el("span", "display:inline-flex;gap:10px;margin-left:auto;");
   perillasCapa.append(pGan.el, pPan.el, pAfin.el);
@@ -3280,7 +3281,11 @@ function crearCaratula(nodo) {
     g.fillStyle = C.tinta2;
     g.font = "9px system-ui, sans-serif";
     g.textAlign = "left";
-    for (let n = 36; n <= NOTA_ALTA; n += 12) g.fillText(nombreNota(n), xNota(n) + 1, 50);
+    for (let n = 36; n <= NOTA_ALTA; n += 12) {
+      const ultimo = xNota(n) + 24 > 536;
+      g.textAlign = ultimo ? "right" : "left";
+      g.fillText(nombreNota(n), ultimo ? 535 : xNota(n) + 1, 50);
+    }
   };
   const pintarOnda = () => {
     const g = onda.g;
@@ -3507,144 +3512,148 @@ function crearCaratula(nodo) {
 }
 
 // sampler/estirar.js
-var N2 = 2048;
-var HS = 512;
-function fft(re, im, inv) {
-  const n = re.length;
-  for (let i = 1, j = 0; i < n; i++) {
-    let b = n >> 1;
-    for (; j & b; b >>= 1) j ^= b;
-    j ^= b;
-    if (i < j) {
-      let t2 = re[i];
-      re[i] = re[j];
-      re[j] = t2;
-      t2 = im[i];
-      im[i] = im[j];
-      im[j] = t2;
+function estirador() {
+  const N2 = 2048;
+  const HS = 512;
+  function fft(re, im, inv) {
+    const n = re.length;
+    for (let i = 1, j = 0; i < n; i++) {
+      let b = n >> 1;
+      for (; j & b; b >>= 1) j ^= b;
+      j ^= b;
+      if (i < j) {
+        let t2 = re[i];
+        re[i] = re[j];
+        re[j] = t2;
+        t2 = im[i];
+        im[i] = im[j];
+        im[j] = t2;
+      }
     }
-  }
-  for (let largo = 2; largo <= n; largo <<= 1) {
-    const ang = (inv ? 2 : -2) * Math.PI / largo;
-    const wr = Math.cos(ang);
-    const wi = Math.sin(ang);
-    const mitad = largo >> 1;
-    for (let i = 0; i < n; i += largo) {
-      let cr = 1;
-      let ci = 0;
-      for (let k = 0; k < mitad; k++) {
-        const a = i + k;
-        const b = a + mitad;
-        const tr = re[b] * cr - im[b] * ci;
-        const ti = re[b] * ci + im[b] * cr;
-        re[b] = re[a] - tr;
-        im[b] = im[a] - ti;
-        re[a] += tr;
-        im[a] += ti;
-        const nr = cr * wr - ci * wi;
-        ci = cr * wi + ci * wr;
-        cr = nr;
+    for (let largo = 2; largo <= n; largo <<= 1) {
+      const ang = (inv ? 2 : -2) * Math.PI / largo;
+      const wr = Math.cos(ang);
+      const wi = Math.sin(ang);
+      const mitad = largo >> 1;
+      for (let i = 0; i < n; i += largo) {
+        let cr = 1;
+        let ci = 0;
+        for (let k = 0; k < mitad; k++) {
+          const a = i + k;
+          const b = a + mitad;
+          const tr = re[b] * cr - im[b] * ci;
+          const ti = re[b] * ci + im[b] * cr;
+          re[b] = re[a] - tr;
+          im[b] = im[a] - ti;
+          re[a] += tr;
+          im[a] += ti;
+          const nr = cr * wr - ci * wi;
+          ci = cr * wi + ci * wr;
+          cr = nr;
+        }
       }
     }
   }
-}
-var envolver = (x) => x - 2 * Math.PI * Math.round(x / (2 * Math.PI));
-function estirarTramos(canales, tramos) {
-  const ts = tramos.map((t2) => ({ a: t2.a, b: Math.max(t2.a, t2.b), f: Math.max(0.25, Math.min(4, Number(t2.f) || 1)) }));
-  const bordes = [0];
-  for (const t2 of ts) bordes.push(bordes[bordes.length - 1] + (t2.b - t2.a) * t2.f);
-  const largo = Math.max(1, Math.round(bordes[bordes.length - 1]));
-  if (!ts.length) return { canales: canales.map(() => new Float32Array(1)), bordes: [0] };
-  const original = (s) => {
-    for (let i = 0; i < ts.length; i++) if (s < bordes[i + 1] || i === ts.length - 1) return ts[i].a + Math.min(ts[i].b - ts[i].a, (s - bordes[i]) / ts[i].f);
-    return ts[ts.length - 1].b;
-  };
-  const ventana = new Float64Array(N2);
-  for (let i = 0; i < N2; i++) ventana[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N2);
-  const B = N2 / 2 + 1;
-  const omega = new Float64Array(B);
-  for (let k = 0; k < B; k++) omega[k] = 2 * Math.PI * k / N2;
-  const cuadros = Math.ceil((largo + N2) / HS) + 1;
-  const sal = canales.map(() => new Float32Array(largo + N2));
-  const peso = new Float64Array(largo + N2);
-  for (let q = 0; q < cuadros; q++) {
-    const t2 = q * HS - N2 / 2;
-    for (let i = 0; i < N2; i++) {
-      const j = t2 + i;
-      if (j >= 0 && j < peso.length) peso[j] += ventana[i] * ventana[i];
-    }
-  }
-  const re = new Float64Array(N2);
-  const im = new Float64Array(N2);
-  const mag = new Float64Array(B);
-  const fase = new Float64Array(B);
-  const faseAntes = new Float64Array(B);
-  const faseSal = new Float64Array(B);
-  const pico = new Int32Array(B);
-  for (let c = 0; c < canales.length; c++) {
-    const x = canales[c];
-    const o = sal[c];
-    let posAntes = 0;
+  const envolver = (x) => x - 2 * Math.PI * Math.round(x / (2 * Math.PI));
+  function estirarTramos2(canales, tramos) {
+    const ts = tramos.map((t2) => ({ a: t2.a, b: Math.max(t2.a, t2.b), f: Math.max(0.125, Math.min(8, Number(t2.f) || 1)) }));
+    const bordes = [0];
+    for (const t2 of ts) bordes.push(bordes[bordes.length - 1] + (t2.b - t2.a) * t2.f);
+    const largo = Math.max(1, Math.round(bordes[bordes.length - 1]));
+    if (!ts.length) return { canales: canales.map(() => new Float32Array(1)), bordes: [0] };
+    const original = (s) => {
+      for (let i = 0; i < ts.length; i++) if (s < bordes[i + 1] || i === ts.length - 1) return ts[i].a + Math.min(ts[i].b - ts[i].a, (s - bordes[i]) / ts[i].f);
+      return ts[ts.length - 1].b;
+    };
+    const ventana = new Float64Array(N2);
+    for (let i = 0; i < N2; i++) ventana[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N2);
+    const B = N2 / 2 + 1;
+    const omega = new Float64Array(B);
+    for (let k = 0; k < B; k++) omega[k] = 2 * Math.PI * k / N2;
+    const cuadros = Math.ceil((largo + N2) / HS) + 1;
+    const sal = canales.map(() => new Float32Array(largo + N2));
+    const peso = new Float64Array(largo + N2);
     for (let q = 0; q < cuadros; q++) {
       const t2 = q * HS - N2 / 2;
-      const centro = original(Math.max(0, Math.min(largo, t2 + N2 / 2)));
-      const pos = Math.round(centro - N2 / 2);
-      for (let i = 0; i < N2; i++) {
-        const j = pos + i;
-        re[i] = (j >= 0 && j < x.length ? x[j] : 0) * ventana[i];
-        im[i] = 0;
-      }
-      fft(re, im, false);
-      for (let k = 0; k < B; k++) {
-        mag[k] = Math.hypot(re[k], im[k]);
-        fase[k] = Math.atan2(im[k], re[k]);
-      }
-      if (q === 0) {
-        for (let k = 0; k < B; k++) faseSal[k] = fase[k];
-      } else {
-        const ha = pos - posAntes;
-        const esPico = [];
-        for (let k = 0; k < B; k++) {
-          const m = mag[k];
-          if ((k < 1 || m > mag[k - 1]) && (k < 2 || m > mag[k - 2]) && (k + 1 >= B || m >= mag[k + 1]) && (k + 2 >= B || m >= mag[k + 2])) esPico.push(k);
-        }
-        if (!esPico.length) esPico.push(0);
-        let p = 0;
-        for (let k = 0; k < B; k++) {
-          while (p + 1 < esPico.length && Math.abs(esPico[p + 1] - k) < Math.abs(esPico[p] - k)) p++;
-          pico[k] = esPico[p];
-        }
-        const avance = new Float64Array(B);
-        for (const k of esPico) {
-          const d = ha > 0 ? envolver(fase[k] - faseAntes[k] - omega[k] * ha) : 0;
-          const frec = omega[k] + (ha > 0 ? d / ha : 0);
-          avance[k] = faseSal[k] + frec * HS;
-        }
-        for (let k = 0; k < B; k++) {
-          const pk = pico[k];
-          faseSal[k] = avance[pk] + (fase[k] - fase[pk]);
-        }
-      }
-      for (let k = 0; k < B; k++) faseAntes[k] = fase[k];
-      posAntes = pos;
-      for (let k = 0; k < B; k++) {
-        re[k] = mag[k] * Math.cos(faseSal[k]);
-        im[k] = mag[k] * Math.sin(faseSal[k]);
-      }
-      for (let k = B; k < N2; k++) {
-        re[k] = re[N2 - k];
-        im[k] = -im[N2 - k];
-      }
-      fft(re, im, true);
       for (let i = 0; i < N2; i++) {
         const j = t2 + i;
-        if (j >= 0 && j < o.length) o[j] += re[i] / N2 * ventana[i];
+        if (j >= 0 && j < peso.length) peso[j] += ventana[i] * ventana[i];
       }
     }
-    for (let j = 0; j < o.length; j++) o[j] = peso[j] > 1e-3 ? o[j] / peso[j] : 0;
+    const re = new Float64Array(N2);
+    const im = new Float64Array(N2);
+    const mag = new Float64Array(B);
+    const fase = new Float64Array(B);
+    const faseAntes = new Float64Array(B);
+    const faseSal = new Float64Array(B);
+    const pico = new Int32Array(B);
+    for (let c = 0; c < canales.length; c++) {
+      const x = canales[c];
+      const o = sal[c];
+      let posAntes = 0;
+      for (let q = 0; q < cuadros; q++) {
+        const t2 = q * HS - N2 / 2;
+        const centro = original(Math.max(0, Math.min(largo, t2 + N2 / 2)));
+        const pos = Math.round(centro - N2 / 2);
+        for (let i = 0; i < N2; i++) {
+          const j = pos + i;
+          re[i] = (j >= 0 && j < x.length ? x[j] : 0) * ventana[i];
+          im[i] = 0;
+        }
+        fft(re, im, false);
+        for (let k = 0; k < B; k++) {
+          mag[k] = Math.hypot(re[k], im[k]);
+          fase[k] = Math.atan2(im[k], re[k]);
+        }
+        if (q === 0) {
+          for (let k = 0; k < B; k++) faseSal[k] = fase[k];
+        } else {
+          const ha = pos - posAntes;
+          const esPico = [];
+          for (let k = 0; k < B; k++) {
+            const m = mag[k];
+            if ((k < 1 || m > mag[k - 1]) && (k < 2 || m > mag[k - 2]) && (k + 1 >= B || m >= mag[k + 1]) && (k + 2 >= B || m >= mag[k + 2])) esPico.push(k);
+          }
+          if (!esPico.length) esPico.push(0);
+          let p = 0;
+          for (let k = 0; k < B; k++) {
+            while (p + 1 < esPico.length && Math.abs(esPico[p + 1] - k) < Math.abs(esPico[p] - k)) p++;
+            pico[k] = esPico[p];
+          }
+          const avance = new Float64Array(B);
+          for (const k of esPico) {
+            const d = ha > 0 ? envolver(fase[k] - faseAntes[k] - omega[k] * ha) : 0;
+            const frec = omega[k] + (ha > 0 ? d / ha : 0);
+            avance[k] = faseSal[k] + frec * HS;
+          }
+          for (let k = 0; k < B; k++) {
+            const pk = pico[k];
+            faseSal[k] = avance[pk] + (fase[k] - fase[pk]);
+          }
+        }
+        for (let k = 0; k < B; k++) faseAntes[k] = fase[k];
+        posAntes = pos;
+        for (let k = 0; k < B; k++) {
+          re[k] = mag[k] * Math.cos(faseSal[k]);
+          im[k] = mag[k] * Math.sin(faseSal[k]);
+        }
+        for (let k = B; k < N2; k++) {
+          re[k] = re[N2 - k];
+          im[k] = -im[N2 - k];
+        }
+        fft(re, im, true);
+        for (let i = 0; i < N2; i++) {
+          const j = t2 + i;
+          if (j >= 0 && j < o.length) o[j] += re[i] / N2 * ventana[i];
+        }
+      }
+      for (let j = 0; j < o.length; j++) o[j] = peso[j] > 1e-3 ? o[j] / peso[j] : 0;
+    }
+    return { canales: sal.map((o) => o.slice(0, largo)), bordes: bordes.map((b) => Math.round(b)) };
   }
-  return { canales: sal.map((o) => o.slice(0, largo)), bordes: bordes.map((b) => Math.round(b)) };
+  return { estirarTramos: estirarTramos2 };
 }
+var estirarTramos = (canales, tramos) => estirador().estirarTramos(canales, tramos);
 function segundosDe(est, bpm) {
   if (!est || !(Number(est.v) > 0)) return 0;
   if (est.u === "t") return Number(est.v) * 60 / Math.max(1, Number(bpm) || 120);
@@ -3684,6 +3693,9 @@ var NodoSampler = class extends WamNode {
     this._audios = {};
     this.bpm = 120;
     this._estirados = /* @__PURE__ */ new Map();
+    this._necesarias = /* @__PURE__ */ new Set();
+    this._cola = [];
+    this._enCurso = null;
     this._reloj = 0;
   }
   // Lo que manda el hilo de audio: el tempo del anfitrión.
@@ -3691,7 +3703,7 @@ var NodoSampler = class extends WamNode {
     const d = message && message.data;
     if (d && d.pz === "tempo") {
       this.bpm = Number(d.bpm) || 120;
-      this._mandarInst(true);
+      this._mandarInst();
       this._avisar();
       return;
     }
@@ -3712,90 +3724,150 @@ var NodoSampler = class extends WamNode {
   }
   ponerInstrumento(inst) {
     this.inst = inst && Array.isArray(inst.zonas) ? inst : { zonas: [] };
-    this._mandarInst(true);
+    this._mandarInst();
     this._avisar();
   }
   // EL INSTRUMENTO QUE SUENA: el mismo, pero con cada capa que se estira al tempo cambiada por su
-  // muestra estirada (y sus marcas, a lo estirado). Estirar pesa: con algo nuevo que estirar se
-  // espera un poco (mientras se arrastra una perilla) y suena lo de antes.
-  _mandarInst(conEspera) {
-    clearTimeout(this._reloj);
-    const listo = this._resolver(false);
-    if (listo || !conEspera) {
-      this._enviarInst(this._resolver(true));
-      return;
-    }
-    this._reloj = setTimeout(() => this._enviarInst(this._resolver(true)), 150);
+  // muestra estirada (y sus marcas, a lo estirado), y, si además sigue la altura de la nota, con
+  // una versión estirada por cada nota (`var`), para que el largo no cambie con la altura (JP:
+  // «mantener el pitch y el largo»). Estirar pesa: se hace en un Worker (o, si la página no lo
+  // deja, aquí mismo, de a uno), y mientras tanto suena lo que ya está.
+  _mandarInst() {
+    this._enviarInst(this._resolver());
   }
   _enviarInst(inst) {
     if (this._destroyed) return;
     this.port.postMessage({ pz: "inst", inst });
     for (const [llave, x] of this._estirados) {
-      if (x.usada) continue;
+      if (this._necesarias.has(llave)) continue;
       this._estirados.delete(llave);
       this.port.postMessage({ pz: "quitar", m: x.id });
     }
   }
-  // `estirar`: false solo mira si está todo estirado ya (sin calcular nada).
-  _resolver(estirar) {
-    for (const x of this._estirados.values()) x.usada = false;
-    let completo = true;
-    const zonas = this.inst.zonas.map((z) => ({
-      ...z,
-      capas: (z.capas || []).map((c) => {
-        const r = this._estirarCapa(z, c, estirar);
-        if (r === false) {
-          completo = false;
-          return c;
-        }
-        return r || c;
-      })
-    }));
-    return estirar ? { zonas } : completo;
+  _resolver() {
+    const necesarias = /* @__PURE__ */ new Set();
+    const pedidos = [];
+    const zonas = this.inst.zonas.map((z) => ({ ...z, capas: (z.capas || []).map((c) => this._estirarCapa(z, c, necesarias, pedidos)) }));
+    this._necesarias = necesarias;
+    pedidos.sort((a, b) => a.orden - b.orden);
+    this._cola = pedidos.filter((x) => !this._estirados.has(x.llave));
+    this._seguir();
+    return { zonas };
   }
-  // La capa estirada; null si no se estira; false si falta calcularla y `estirar` es false.
-  _estirarCapa(z, c, estirar) {
-    const au = c && this._audios[c.m];
-    if (!au || !Array.isArray(c.est)) return null;
-    const fm = au.fm;
-    const dur = au.canales[0].length / fm;
-    const num = (x2, d) => x2 === void 0 || x2 === null ? d : Math.max(0, Math.min(dur, Number(x2) || 0));
+  // Las partes de una capa como tramos del audio: [desde, hasta, ajuste, sigue la nota].
+  _partes(z, c, dur) {
+    const num = (x, d) => x === void 0 || x === null ? d : Math.max(0, Math.min(dur, Number(x) || 0));
     const fin = num(c.fin, dur);
-    let partes;
+    const alt = Array.isArray(c.alt) ? c.alt : [];
     if (z.tajadas) {
       const cs = Array.isArray(c.cortes) && c.cortes.length ? c.cortes : [0];
-      partes = [[cs[0], fin, c.est[0]]];
-    } else {
-      const ini = num(c.ini, 0);
-      if (c.loop) {
-        const lIni = Math.max(ini, num(c.lIni, ini));
-        const lFin = Math.min(fin, Math.max(lIni, num(c.lFin, fin)));
-        partes = [[ini, lIni, c.est[0]], [lIni, lFin, c.est[1]], [lFin, fin, c.est[2]]];
-      } else partes = [[ini, fin, c.est[0]]];
+      return [[cs[0], fin, c.est[0], false]];
     }
-    const tramos = partes.map(([a, b, e]) => {
-      const s2 = segundosDe(e, this.bpm);
-      return { a: Math.round(a * fm), b: Math.round(b * fm), f: s2 > 0 && b > a ? Math.round(s2 / (b - a) * 1e4) / 1e4 : 1 };
-    });
-    if (tramos.every((t2) => t2.f === 1)) return null;
-    const llave = `${c.m}|${tramos.map((t2) => `${t2.a},${t2.b},${t2.f}`).join("|")}`;
-    let x = this._estirados.get(llave);
-    if (!x) {
-      if (!estirar) return false;
-      const r = estirarTramos(au.canales, tramos);
-      x = { id: `${c.m}~${(cuenta++).toString(36)}`, bordes: r.bordes, usada: false };
-      this._estirados.set(llave, x);
-      if (!this._destroyed) this.port.postMessage({ pz: "muestra", m: x.id, canales: r.canales, fm }, r.canales.map((k) => k.buffer));
-    }
-    x.usada = true;
+    const ini = num(c.ini, 0);
+    if (!c.loop) return [[ini, fin, c.est[0], alt[1] !== false]];
+    const lIni = Math.max(ini, num(c.lIni, ini));
+    const lFin = Math.min(fin, Math.max(lIni, num(c.lFin, fin)));
+    return [
+      [ini, lIni, c.est[0], alt[0] !== false],
+      [lIni, lFin, c.est[1], alt[1] !== false],
+      [lFin, fin, c.est[2], alt[2] !== false]
+    ];
+  }
+  // Las marcas de una capa sobre lo estirado.
+  _marcas(z, c, partes, x, fm, f0) {
     const s = (k) => x.bordes[k] / fm;
-    const a0 = partes[0][0];
-    if (z.tajadas) {
-      const f = tramos[0].f;
-      return { ...c, m: x.id, cortes: (c.cortes && c.cortes.length ? c.cortes : [0]).map((k) => Math.max(0, (k - a0) * f)), fin: s(1) };
+    if (z.tajadas) return { m: x.id, cortes: (c.cortes && c.cortes.length ? c.cortes : [0]).map((k) => Math.max(0, (k - partes[0][0]) * f0)), fin: s(1) };
+    if (c.loop) return { m: x.id, ini: 0, lIni: s(1), lFin: s(2), fin: s(3) };
+    return { m: x.id, ini: 0, lIni: void 0, lFin: void 0, fin: s(1) };
+  }
+  _estirarCapa(z, c, necesarias, pedidos) {
+    const au = c && !c.osc && this._audios[c.m];
+    if (!au || !Array.isArray(c.est)) return c;
+    const fm = au.fm;
+    const partes = this._partes(z, c, au.canales[0].length / fm);
+    const base = partes.map(([a, b, e]) => {
+      const s = segundosDe(e, this.bpm);
+      return { a: Math.round(a * fm), b: Math.round(b * fm), f: s > 0 && b > a ? Math.round(s / (b - a) * 1e4) / 1e4 : 1 };
+    });
+    if (base.every((t2) => t2.f === 1)) return c;
+    const pedir = (tramos, orden) => {
+      const llave = `${c.m}|${tramos.map((t2) => `${t2.a},${t2.b},${t2.f}`).join("|")}`;
+      necesarias.add(llave);
+      const x = this._estirados.get(llave);
+      if (!x) pedidos.push({ llave, m: c.m, au, tramos, orden });
+      return x || null;
+    };
+    const xb = pedir(base, 0);
+    const sale = xb ? { ...c, ...this._marcas(z, c, partes, xb, fm, base[0].f) } : { ...c };
+    const conNota = !z.tajadas && partes.some(([, , e, sigue], k) => sigue && base[k].f !== 1);
+    if (conNota) {
+      const raiz = Number(z.raiz) || 60;
+      const vars = {};
+      for (let n = Math.max(z.baja, raiz - 24); n <= Math.min(z.alta, raiz + 24); n++) {
+        const r = Math.pow(2, (n - raiz + (Number(c.afinar) || 0)) / 12);
+        if (Math.abs(r - 1) < 1e-3) continue;
+        const tramos = base.map((t2, k) => partes[k][3] && t2.f !== 1 ? { ...t2, f: Math.round(t2.f * r * 1e4) / 1e4 } : t2);
+        const x = pedir(tramos, 1 + Math.abs(n - raiz));
+        if (x) vars[n] = this._marcas(z, c, partes, x, fm, tramos[0].f);
+      }
+      sale.var = vars;
     }
-    if (c.loop) return { ...c, m: x.id, ini: 0, lIni: s(1), lFin: s(2), fin: s(3) };
-    return { ...c, m: x.id, ini: 0, lIni: void 0, lFin: void 0, fin: s(1) };
+    return sale;
+  }
+  // El Worker que estira (una vez por nodo); null si la página no deja crearlo.
+  _trabajador() {
+    if (this._worker !== void 0) return this._worker;
+    try {
+      const src = `const E = (${estirador.toString()})();
+onmessage = (ev) => { const r = E.estirarTramos(ev.data.canales, ev.data.tramos); postMessage({ canales: r.canales, bordes: r.bordes }, r.canales.map((k) => k.buffer)); };`;
+      this._worker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+    } catch (e) {
+      this._worker = null;
+    }
+    return this._worker;
+  }
+  // Estirar lo que sigue en la cola, de a uno.
+  _seguir() {
+    if (this._enCurso || this._destroyed) return;
+    let p = this._cola.shift();
+    while (p && (!this._necesarias.has(p.llave) || this._estirados.has(p.llave))) p = this._cola.shift();
+    if (!p) return;
+    this._enCurso = p.llave;
+    const a = p.tramos[0].a;
+    const b = p.tramos[p.tramos.length - 1].b;
+    const canales = p.au.canales.map((k) => k.slice(a, b));
+    const tramos = p.tramos.map((t2) => ({ a: t2.a - a, b: t2.b - a, f: t2.f }));
+    const listo = (r) => {
+      this._enCurso = null;
+      if (this._destroyed) return;
+      const x = { id: `${p.m}~${(cuenta++).toString(36)}`, bordes: r.bordes };
+      this._estirados.set(p.llave, x);
+      this.port.postMessage({ pz: "muestra", m: x.id, canales: r.canales, fm: p.au.fm }, r.canales.map((k) => k.buffer));
+      clearTimeout(this._reloj);
+      this._reloj = setTimeout(() => this._enviarInst(this._resolver()), 60);
+      this._seguir();
+    };
+    const aqui = () => setTimeout(() => listo(estirarTramos(canales, tramos)), 0);
+    const w = this._trabajador();
+    if (!w) {
+      aqui();
+      return;
+    }
+    w.onmessage = (ev) => listo(ev.data);
+    w.onerror = () => {
+      this._worker = null;
+      aqui();
+    };
+    try {
+      w.postMessage({ canales, tramos });
+    } catch (e) {
+      this._worker = null;
+      aqui();
+    }
+  }
+  destroy() {
+    if (this._worker) this._worker.terminate();
+    super.destroy();
   }
   // Una muestra desde una dirección web (queda en el estado) o desde un archivo (no queda).
   async cargarDireccion(url, nombre, m = nuevoId()) {
@@ -3848,7 +3920,7 @@ var NodoSampler = class extends WamNode {
     this._audios[m] = { canales, fm: b.sampleRate };
     const copia2 = canales.map((c) => c.slice());
     if (!this._destroyed) this.port.postMessage({ pz: "muestra", m, canales: copia2, fm: b.sampleRate }, copia2.map((c) => c.buffer));
-    this._mandarInst(true);
+    this._mandarInst();
     this._avisar();
   }
   // Dónde empiezan los golpes de una muestra (segundos); `sens` 0…100.
@@ -3908,5 +3980,6 @@ var Sampler = class extends WebAudioModule_default {
   }
 };
 export {
+  NodoSampler,
   Sampler as default
 };

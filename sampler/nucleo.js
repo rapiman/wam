@@ -39,6 +39,11 @@
 // del pulso de la cuadrada, 5…95 %). Siempre sigue la altura de la nota; sierra y cuadrada sin
 // el zumbido de lo que se dobla (polyBLEP). Suena mientras dure la envolvente; en una zona de golpe
 // cae a cero en el «decaimiento» (si no, no se apagaría nunca).
+//
+// EL LARGO QUE NO CAMBIA CON LA ALTURA (2026-11-25, JP: «mantener el pitch y el largo»): una capa
+// puede traer `var: { [nota]: { m, ini, lIni, lFin, fin } }`, una muestra estirada por el nodo para
+// cada nota, de modo que al tocarla a la altura de esa nota dure lo pedido. Una nota sin su versión
+// (todavía calculándose) suena como siempre.
 
 export function nucleoSampler() {
   const TIPOS_FILTRO = ['Apagado', 'Pasa bajos', 'Pasa altos', 'Pasa banda'];
@@ -104,8 +109,11 @@ export function nucleoSampler() {
     let mDis = new Float32Array(128);
     let mPan = new Float32Array(128);
 
-    // `tajada`: el número de tajada que toca (en una zona de tajadas), o −1.
-    const prepararCapa = (c, tajada = -1) => {
+    // `tajada`: el número de tajada que toca (en una zona de tajadas), o −1. `nota`: con una
+    // versión propia de esa nota (`var[nota]`, la que estira el nodo para que el largo no cambie
+    // con la altura), esa.
+    const prepararCapa = (c0, tajada = -1, nota = -1) => {
+      const c = tajada < 0 && c0.var && c0.var[nota] ? { ...c0, ...c0.var[nota] } : c0;
       if (c.osc && typeof c.osc === 'object') {
         const pan = Math.max(-1, Math.min(1, Number(c.pan) || 0));
         const ang = ((pan + 1) * Math.PI) / 4;
@@ -212,7 +220,7 @@ export function nucleoSampler() {
       if (golpe) for (const v of voces) if (v.nota === nota && !v.ahogo) v.ahogo = AHOGO_S * fm;
       const capas = [];
       for (const c of (z.capas || []).slice(0, 3)) {
-        const pc = prepararCapa(c, tajadas ? nota - z.baja : -1);
+        const pc = prepararCapa(c, tajadas ? nota - z.baja : -1, nota);
         if (pc) capas.push({ c: pc, pos: pc.osc ? 0 : pc.ini, pos2: pc.osc ? 0 : pc.ini, viva: true, viva2: true });
       }
       if (!capas.length) return;
