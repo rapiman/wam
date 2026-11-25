@@ -393,7 +393,7 @@ export function nucleoSampler() {
     };
     const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0 });
     // la afinación de cada modelo (medida: cada uno suena un poco alto por sus filtros)
-    const CAL = [1.0195, 1.055, 1.009, 1.0];
+    const CAL = [1.0195, 1.07, 1.009, 1.025];
     const CONTROL_DE = [null, 'rueda', 'aliento', 'expresion', 'presion'];
     const vivo = {};
     const suave = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));

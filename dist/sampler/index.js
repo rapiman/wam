@@ -1595,6 +1595,9 @@ function nucleoSampler() {
   const FORMAS = ["Seno", "Tri\xE1ngulo", "Cuadrada", "Sierra", "Azar"];
   const DESTINOS = ["Altura", "Volumen", "Filtro", "Distorsi\xF3n", "Paneo"];
   const POLARIDAD = ["+", "x", "\u2212"];
+  const MODELOS = ["Bisel", "Labios", "Ca\xF1a"];
+  const FUENTES_AIRE = ["Intensidad", "Rueda", "Aliento", "Expresi\xF3n", "Aftertouch"];
+  const CUERPOS = ["Madera", "Campana", "Caja"];
   const TRAMOS = [
     ["A", "Ataque"],
     ["D", "Decaimiento"],
@@ -1681,6 +1684,43 @@ function nucleoSampler() {
           { id: "pvt", nombre: "Tiempos de la altura por intensidad", corto: "Tiempo", sub: "vel", min: -100, max: 100, defecto: 0, unidad: "%", paso: 1 }
         ],
         "alt"
+      ),
+      ...P(
+        [
+          { id: "smt", nombre: "Modelo", sub: "sop1", tipo: "choice", opciones: MODELOS, defecto: 0, min: 0, max: 2 },
+          { id: "sex", nombre: "Extremo del tubo", corto: "Extremo", sub: "sop1", solo: [0], tipo: "choice", opciones: ["Abierto", "Cerrado"], defecto: 0, min: 0, max: 1 },
+          { id: "sfo", nombre: "Tubo de la ca\xF1a", corto: "Tubo de la ca\xF1a", sub: "sop1", solo: [2], tipo: "choice", opciones: ["Recto", "C\xF3nico"], defecto: 0, min: 0, max: 1 },
+          { id: "stb", nombre: "Largo del tubo", corto: "Largo", sub: "sop1", solo: [1], tipo: "choice", opciones: ["Sigue la nota", "Fijo"], defecto: 0, min: 0, max: 1 },
+          { id: "stn", nombre: "Nota del tubo", sub: "sop1", solo: [1], nota: true, min: 24, max: 96, defecto: 36, paso: 1 },
+          { id: "sai", nombre: "Aire", sub: "sop2", min: 0, max: 100, defecto: 60, unidad: "%", paso: 1 },
+          { id: "sem", nombre: "Embocadura", sub: "sop2", min: 0, max: 100, defecto: 50, unidad: "%", paso: 1 },
+          { id: "sru", nombre: "Ruido de aliento", corto: "Aliento", sub: "sop2", min: 0, max: 100, defecto: 15, unidad: "%", paso: 1 },
+          { id: "ssu", nombre: "Subida con el aire", corto: "Subida", sub: "sop2", min: 0, max: 100, defecto: 20, unidad: "ct", paso: 1 },
+          { id: "ssa", nombre: "Salto", sub: "sop2", min: 0, max: 100, defecto: 70, unidad: "%", paso: 1 },
+          { id: "sas", nombre: "Aspereza", sub: "sop2", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "sgr", nombre: "Gru\xF1ido", sub: "sop2", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "sgi", nombre: "Grito", sub: "sop3", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "sap", nombre: "Apagado", sub: "sop3", min: 0, max: 100, defecto: 30, unidad: "%", paso: 1 },
+          { id: "sca", nombre: "Campana", sub: "sop3", solo: [1], min: 0, max: 100, defecto: 30, unidad: "%", paso: 1 },
+          { id: "sdf", nombre: "Doble fondo", sub: "sop3", solo: [0], min: 0, max: 1200, defecto: 0, unidad: "ct", paso: 1 },
+          { id: "sde", nombre: "Entrada del fondo", corto: "Entrada", sub: "sop3", solo: [0], min: 0, max: 100, defecto: 50, unidad: "%", paso: 1 },
+          { id: "sfa", nombre: "Fuente del aire", corto: "Aire desde", sub: "sop3", tipo: "choice", opciones: FUENTES_AIRE, defecto: 0, min: 0, max: FUENTES_AIRE.length - 1 }
+        ],
+        "sop"
+      ),
+      ...P(
+        [
+          { id: "mhm", nombre: "Realce de arm\xF3nicos", corto: "Realce", sub: "mdf1", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "mhi", nombre: "\xCDndice del realce", corto: "\xCDndice", sub: "mdf1", min: 0, max: 100, defecto: 30, unidad: "%", paso: 1 },
+          { id: "mhz", nombre: "Raz\xF3n del realce", corto: "Raz\xF3n", sub: "mdf1", min: 0.5, max: 8, defecto: 2, paso: 0.01, dec: 2 },
+          { id: "mrm", nombre: "Resonador", sub: "mdf2", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "mrf", nombre: "Realimentaci\xF3n del resonador", corto: "Realimentaci\xF3n", sub: "mdf2", min: 0, max: 99, defecto: 70, unidad: "%", paso: 1 },
+          { id: "mrz", nombre: "Raz\xF3n del resonador", corto: "Raz\xF3n", sub: "mdf2", min: 0.25, max: 4, defecto: 1, paso: 0.01, dec: 2 },
+          { id: "mcm", nombre: "Cuerpo", sub: "mdf3", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "mct", nombre: "Tama\xF1o del cuerpo", corto: "Tama\xF1o", sub: "mdf3", min: 0.5, max: 2, defecto: 1, paso: 0.01, dec: 2 },
+          { id: "mcy", nombre: "Tipo de cuerpo", corto: "Tipo", sub: "mdf3", tipo: "choice", opciones: CUERPOS, defecto: 0, min: 0, max: CUERPOS.length - 1 }
+        ],
+        "mdf"
       )
     ];
   };
@@ -1732,6 +1772,16 @@ function nucleoSampler() {
     let mPan = new Float32Array(128);
     const prepararCapa = (c0, tajada = -1, nota = -1) => {
       const c = tajada < 0 && c0.var && c0.var[nota] ? { ...c0, ...c0.var[nota] } : c0;
+      if (c.mod && typeof c.mod === "object") {
+        const pan2 = Math.max(-1, Math.min(1, Number(c.pan) || 0));
+        const ang2 = (pan2 + 1) * Math.PI / 4;
+        return {
+          mod: true,
+          gL: dB(Number(c.gan) || 0) * Math.cos(ang2),
+          gR: dB(Number(c.gan) || 0) * Math.sin(ang2),
+          afinar: Number(c.afinar) || 0
+        };
+      }
       if (c.osc && typeof c.osc === "object") {
         const pan2 = Math.max(-1, Math.min(1, Number(c.pan) || 0));
         const ang2 = (pan2 + 1) * Math.PI / 4;
@@ -1819,6 +1869,199 @@ function nucleoSampler() {
       return x;
     };
     const parteDe = (c, pos) => pos < c.lIni ? 0 : pos < c.lFin ? 1 : 2;
+    const MAXL = 8192;
+    const lineaS = () => ({ b: new Float32Array(MAXL), i: 0 });
+    const leerS = (l, d) => {
+      let q = l.i - Math.max(1, Math.min(MAXL - 2, d));
+      if (q < 0) q += MAXL;
+      const i0 = q | 0;
+      const f = q - i0;
+      return l.b[i0] * (1 - f) + l.b[i0 + 1 & MAXL - 1] * f;
+    };
+    const ponerS = (l, x) => {
+      l.b[l.i] = x;
+      l.i = l.i + 1 & MAXL - 1;
+    };
+    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0 });
+    const CAL = [1.0195, 1.07, 1.009, 1.025];
+    const CONTROL_DE = [null, "rueda", "aliento", "expresion", "presion"];
+    const vivo = {};
+    const suave = (x) => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+    const soplar = (st, M, p) => {
+      if (M.gru > 0) {
+        st.gfase += 28 / fm;
+        if (st.gfase >= 1) st.gfase -= 1;
+        p *= 1 + M.gru * 0.5 * Math.sin(2 * Math.PI * st.gfase);
+      }
+      const rn = azar();
+      p += rn * (M.ruido * 0.12 + M.asp * 0.25) * p;
+      let y;
+      if (M.tipo === 0) {
+        st.lpA = (1 - M.ap) * leerS(st.a, M.N) + M.ap * st.lpA;
+        let t2 = -st.lpA;
+        if (M.w2 > 0) {
+          st.lpB = (1 - M.ap) * leerS(st.b, M.N2) + M.ap * st.lpB;
+          t2 = (t2 - st.lpB * M.w2) / (1 + M.w2);
+        }
+        const z = t2 - st.dx + 0.995 * st.dy;
+        st.dx = t2;
+        st.dy = z;
+        let pd = p - 0.5 * z;
+        ponerS(st.j, pd);
+        pd = leerS(st.j, M.J) * (1 + M.gri * 2);
+        let x = pd * (pd * pd - 1);
+        if (x > 1) x = 1;
+        else if (x < -1) x = -1;
+        x += 0.5 * z;
+        ponerS(st.a, x);
+        if (M.w2 > 0) ponerS(st.b, x);
+        y = 0.3 * x;
+        if (M.cerrado) {
+          ponerS(st.k, y);
+          y = 0.7 * (y - leerS(st.k, M.medio));
+        }
+      } else if (M.tipo === 1) {
+        const boca = 0.3 * p;
+        st.lpA = (1 - M.ap * 0.5) * leerS(st.a, M.N) + M.ap * 0.5 * st.lpA;
+        const tubo = 0.85 * st.lpA;
+        let dd = boca - tubo;
+        const yy = M.b0 * dd - M.a1 * st.y1 - M.a2 * st.y2;
+        st.y2 = st.y1;
+        st.y1 = yy;
+        dd = yy * yy * (1 + M.gri * 3);
+        dd = dd / (1 + dd);
+        const q = dd * boca + (1 - dd) * tubo;
+        const z = q - st.dx + 0.995 * st.dy;
+        st.dx = q;
+        st.dy = z;
+        ponerS(st.a, z);
+        st.cx = 0.9 * st.cx + 0.1 * z;
+        y = 1.5 * (z - M.camp * 0.8 * st.cx);
+      } else if (!M.conico) {
+        const x = leerS(st.a, M.N);
+        const lp = 0.5 * (x + st.z1);
+        st.z1 = x;
+        st.lpA = (1 - M.ap * 0.5) * lp + M.ap * 0.5 * st.lpA;
+        const pd = -0.95 * st.lpA - p;
+        let ca\u00F1a = 0.7 + M.pend * pd;
+        if (ca\u00F1a > 1) ca\u00F1a = 1;
+        else if (ca\u00F1a < -1) ca\u00F1a = -1;
+        const q = p + pd * ca\u00F1a;
+        ponerS(st.a, q);
+        const z = q - st.dx + 0.995 * st.dy;
+        st.dx = q;
+        st.dy = z;
+        y = 0.8 * z;
+      } else {
+        st.lpA = (1 - M.ap * 0.5) * leerS(st.a, M.N) + M.ap * 0.5 * st.lpA;
+        const temp = -0.95 * st.lpA;
+        const ultimo = temp - leerS(st.b, M.N2);
+        const pd = p - ultimo;
+        let ca\u00F1a = 0.7 + 0.3 * (1 + M.gri) * pd;
+        if (ca\u00F1a > 1) ca\u00F1a = 1;
+        else if (ca\u00F1a < -1) ca\u00F1a = -1;
+        ponerS(st.b, temp);
+        ponerS(st.a, p - pd * ca\u00F1a - temp);
+        const z = ultimo - st.dx + 0.995 * st.dy;
+        st.dx = ultimo;
+        st.dy = z;
+        y = 0.5 * z;
+      }
+      return y + rn * M.ruido * 0.04 * M.env;
+    };
+    const prepararSoplo = (cap, g, v2, st, nivel2) => {
+      const M = cap.M || (cap.M = {});
+      const nombre = CONTROL_DE[Math.round(g.sfa)];
+      const ctl = nombre && vivo[nombre] !== void 0 ? vivo[nombre] : 1;
+      const sens = Math.max(0, Math.min(1, g.vvs / 100));
+      const a = Math.max(0, Math.min(1.5, g.sai / 100 * (1 - sens + sens * v2.vel / 127) * ctl));
+      const emb = g.sem / 100;
+      const salto = g.ssa / 100;
+      const stN = v2.nota - 69 + cap.c.afinar + st + g.ssu * a / 100;
+      const fN = 440 * Math.pow(2, stN / 12);
+      cap.fN = fN;
+      M.tipo = Math.round(g.smt);
+      M.env = nivel2;
+      M.ap = 0.05 + 0.85 * (g.sap / 100);
+      M.ruido = g.sru / 100;
+      M.asp = g.sas / 100;
+      M.gru = g.sgr / 100;
+      M.gri = g.sgi / 100;
+      M.camp = g.sca / 100;
+      if (M.tipo === 0) {
+        M.cerrado = g.sex >= 0.5;
+        const f = fN / CAL[0];
+        let N2 = 1.5 * fm / f - 2;
+        const jr = (0.42 - 0.12 * emb) * (1 - (1 - salto) * 0.55 * Math.max(0, a - 0.3));
+        M.N = N2;
+        M.medio = 0.5 * fm / fN;
+        M.J = N2 * jr * (1 + M.asp * 0.08 * azar());
+        M.N2 = g.sdf > 0 ? N2 * Math.pow(2, g.sdf / 1200) : 0;
+        M.w2 = g.sdf > 0 ? suave((a - g.sde / 100) / 0.15 + 0.5) : 0;
+        M.pb = 0.6 + 0.8 * Math.min(1, a);
+      } else if (M.tipo === 1) {
+        let fL = fN / CAL[1] * Math.pow(2, ((emb - 0.5) * 6 + (1 - salto) * 4 * Math.max(0, a - 0.5)) / 12);
+        fL = Math.min(0.2 * fm, fL);
+        M.N = g.stb >= 0.5 ? fm / (440 * Math.pow(2, (g.stn - 69 + st) / 12) / CAL[1]) + 3 : 2 * fm / (fN / CAL[1]) + 3;
+        const w = 2 * Math.PI * fL / fm;
+        const r = 1 - Math.PI * (g.stb >= 0.5 ? 0.25 : 0.15) * fL / fm;
+        M.a1 = -2 * r * Math.cos(w);
+        M.a2 = r * r;
+        M.b0 = 25 * (1 - r) * 2 * Math.sin(w);
+        M.pb = 0.4 + 0.8 * Math.min(1, a);
+      } else {
+        M.conico = g.sfo >= 0.5;
+        if (!M.conico) {
+          M.N = 0.5 * fm / (fN / CAL[2]) - 1.5;
+          M.pend = -(0.26 + 0.18 * emb) * (1 + M.gri * 1.5);
+        } else {
+          const total = fm / (fN / CAL[3]) - 3;
+          const pos = 0.2 + 0.3 * emb;
+          M.N = (1 - pos) * total;
+          M.N2 = pos * total;
+        }
+        M.pb = 0.5 + 0.4 * Math.min(1, a);
+      }
+      M.pb *= suave(a / 0.15);
+      return M;
+    };
+    const CUERPO_F = [
+      [280, 1100, 2700],
+      [500, 1500, 3500],
+      [180, 650, 2200]
+    ];
+    const nuevoMod = () => ({ fase: 0, ef: 0, rL: lineaS(), rR: lineaS(), bq: new Float64Array(24), co: new Float64Array(15), clave: "" });
+    const coefCuerpo = (m, tipo, tam) => {
+      const clave = `${tipo}|${tam}`;
+      if (m.clave === clave) return;
+      m.clave = clave;
+      const F = CUERPO_F[Math.max(0, Math.min(2, tipo))];
+      for (let k = 0; k < 3; k++) {
+        const f = Math.min(0.45 * fm, F[k] / tam);
+        const w = 2 * Math.PI * f / fm;
+        const al = Math.sin(w) / (2 * 4);
+        const a0 = 1 + al;
+        m.co[5 * k] = al / a0;
+        m.co[5 * k + 1] = 0;
+        m.co[5 * k + 2] = -al / a0;
+        m.co[5 * k + 3] = -2 * Math.cos(w) / a0;
+        m.co[5 * k + 4] = (1 - al) / a0;
+      }
+    };
+    const cuerpo = (m, x, canal) => {
+      let s = 0;
+      for (let k = 0; k < 3; k++) {
+        const e = canal * 12 + k * 4;
+        const c = 5 * k;
+        const y = m.co[c] * x + m.co[c + 1] * m.bq[e] + m.co[c + 2] * m.bq[e + 1] - m.co[c + 3] * m.bq[e + 2] - m.co[c + 4] * m.bq[e + 3];
+        m.bq[e + 1] = m.bq[e];
+        m.bq[e] = x;
+        m.bq[e + 3] = m.bq[e + 2];
+        m.bq[e + 2] = y;
+        s += y;
+      }
+      return s * 2;
+    };
     const zonaDe = (nota) => {
       for (const z of zonas) if (nota >= z.baja && nota <= z.alta) return z;
       return null;
@@ -1880,6 +2123,9 @@ function nucleoSampler() {
           fK: 1,
           cuenta: 0,
           r: [0, 0, 0],
+          s: pc.mod ? nuevoSoplo() : null,
+          m: null,
+          cola: 0,
           lv: 0,
           dlv: 0,
           fin: false
@@ -1942,7 +2188,7 @@ function nucleoSampler() {
       if (k === 3) return 2 * ph - 1;
       return l.azar;
     };
-    const CLAVES = ["niv", "afi", "vat", "val", "vdt", "vbp", "vst", "vsl", "vrt", "vvs", "vvt", "vkt", "ft", "fc", "fr", "fi", "fl0", "fat", "fal", "fdt", "fbp", "fst", "fsl", "frt", "frl", "fvi", "fvt", "fkc", "fkt", "pi", "pl0", "pat", "pal", "pdt", "prt", "prl", "pvi", "pvt"];
+    const CLAVES = ["smt", "sex", "sfo", "stb", "stn", "sai", "sem", "sru", "ssu", "ssa", "sas", "sgr", "sgi", "sap", "sca", "sdf", "sde", "sfa", "mhm", "mhi", "mhz", "mrm", "mrf", "mrz", "mcm", "mct", "mcy", "niv", "afi", "vat", "val", "vdt", "vbp", "vst", "vsl", "vrt", "vvs", "vvt", "vkt", "ft", "fc", "fr", "fi", "fl0", "fat", "fal", "fdt", "fbp", "fst", "fsl", "frt", "frl", "fvi", "fvt", "fkc", "fkt", "pi", "pl0", "pat", "pal", "pdt", "prt", "prl", "pvi", "pvt"];
     for (const pre of ["vvp", "vkp", "fvp", "fkp"]) for (const L of "ADSR") CLAVES.push(pre + L);
     const DEFECTO = {};
     for (const q of PARAMS) if (q.id.startsWith("c1")) DEFECTO[q.id.slice(2)] = q.defecto;
@@ -1996,7 +2242,8 @@ function nucleoSampler() {
       V.T[3] = ms(g.vrt) * fr * d.tv[3];
       V.L[1] = g.val / 100;
       V.L[2] = g.vbp / 100;
-      V.L[3] = v2.golpe && cap.c.osc ? 0 : g.vsl / 100;
+      V.L[3] = v2.golpe && (cap.c.osc || cap.c.mod) ? 0 : g.vsl / 100;
+      d.g = g;
       const F = d.fil;
       F.T[0] = ms(g.fat) * fa * d.tf[0];
       F.T[1] = ms(g.fdt) * fd * d.tf[1];
@@ -2121,17 +2368,25 @@ function nucleoSampler() {
               cap.dlv = (meta - cap.lv) / CADA;
               const lf = paso(cap.eF, d.fil, CADA);
               const lp = paso(cap.eP, d.alt, CADA);
-              if (cap.eV.fase === 5 || cap.eV.fase === 3 && d.vol.L[3] <= 0) cap.fin = true;
+              if (c.mod) {
+                if (cap.eV.fase === 5 || cap.eV.fase === 3 && d.vol.L[3] <= 0) {
+                  cap.cola += CADA;
+                  if (cap.cola > 0.25 * fm) cap.muerta = true;
+                } else cap.cola = 0;
+              } else if (cap.eV.fase === 5 || cap.eV.fase === 3 && d.vol.L[3] <= 0) cap.fin = true;
               else if (cap.fin) cap.fin = false;
               const st = afinar + altSt + d.afi + d.alt.int * lp;
-              if (c.osc) {
+              if (c.mod) prepararSoplo(cap, d.g, v2, st, meta);
+              else if (c.osc) {
                 const f = 440 * Math.pow(2, (v2.nota - 69 + c.afinar + st) / 12) / fm;
                 cap.r[0] = cap.r[1] = cap.r[2] = f;
+                cap.fN = f * fm;
               } else {
                 const base = c.mu.fm / fm;
                 const conNota = Math.pow(2, (v2.nota - v2.raiz + c.afinar + st) / 12);
                 const sinNota = Math.pow(2, (c.afinar + st) / 12);
                 for (let w = 0; w < 3; w++) cap.r[w] = base * (c.alt[w] ? conNota : sinNota);
+                cap.fN = 440 * Math.pow(2, (v2.nota - 69 + c.afinar + st) / 12);
               }
               if (d.ftipo > 0) {
                 const f = Math.min(0.45 * fm, Math.max(20, d.corte * Math.pow(2, d.fil.int * lf + mFil[j])));
@@ -2141,7 +2396,11 @@ function nucleoSampler() {
             }
             let xL = 0;
             let xR = 0;
-            if (c.osc) {
+            if (c.mod) {
+              const y = soplar(cap.s, cap.M, (cap.lv + cap.dlv) * cap.M.pb);
+              xL = y * c.gL;
+              xR = y * c.gR;
+            } else if (c.osc) {
               const pa = cap.r[0] * dA;
               const pb = cap.r[0] * dB2;
               xL = onda(c, cap.pos, pa) * c.gL;
@@ -2182,6 +2441,38 @@ function nucleoSampler() {
                 if (v2.subFase >= 1) v2.subFase -= 1;
               }
             }
+            const g = d.g;
+            if (g.mhm > 0 || g.mrm > 0 || g.mcm > 0) {
+              const m = cap.m || (cap.m = nuevoMod());
+              const fN = cap.fN || 440;
+              if (g.mhm > 0) {
+                const x = 0.5 * (xL + xR);
+                m.ef = 0.995 * m.ef + 5e-3 * Math.abs(x);
+                m.fase += fN * g.mhz / fm;
+                if (m.fase >= 1) m.fase -= Math.floor(m.fase);
+                const y = Math.sin(2 * Math.PI * m.fase + g.mhi / 100 * 4 * x) * m.ef * 2;
+                const k = g.mhm / 100;
+                xL = xL * (1 - k) + y * k;
+                xR = xR * (1 - k) + y * k;
+              }
+              if (g.mrm > 0) {
+                const dl = fm / Math.max(20, fN * g.mrz);
+                const fb = g.mrf / 100;
+                const yL = xL + fb * leerS(m.rL, dl);
+                const yR = xR + fb * leerS(m.rR, dl);
+                ponerS(m.rL, yL);
+                ponerS(m.rR, yR);
+                const k = g.mrm / 100;
+                xL = xL * (1 - k) + yL * k * (1 - fb);
+                xR = xR * (1 - k) + yR * k * (1 - fb);
+              }
+              if (g.mcm > 0) {
+                coefCuerpo(m, Math.round(g.mcy), g.mct);
+                const k = g.mcm / 100;
+                xL = xL * (1 - k) + cuerpo(m, xL, 0) * k;
+                xR = xR * (1 - k) + cuerpo(m, xR, 1) * k;
+              }
+            }
             if (d.ftipo > 0) {
               const gg = cap.fG;
               const kk = cap.fK;
@@ -2202,7 +2493,7 @@ function nucleoSampler() {
               }
             }
             cap.lv += cap.dlv;
-            const gc = cap.lv * d.gan;
+            const gc = c.mod ? d.gan : cap.lv * d.gan;
             oL += xL * gc;
             oR += xR * gc;
             if (cap.fin && cap.cuenta === 0) cap.muerta = true;
@@ -2250,11 +2541,15 @@ function nucleoSampler() {
       notaOn,
       notaOff,
       callar,
+      // Un control en vivo para el aire: 'rueda', 'aliento', 'expresion' o 'presion', de 0 a 1.
+      controlar(nombre, valor) {
+        vivo[nombre] = Math.max(0, Math.min(1, Number(valor) || 0));
+      },
       procesar,
       cuantasVoces: () => voces.length
     };
   }
-  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, POLARIDAD, crear };
+  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, POLARIDAD, MODELOS, crear };
 }
 
 // sampler/procesador.js
@@ -2312,6 +2607,11 @@ function procesadorSampler(moduleId, nucleo) {
       if (tipo === 144 && b[2] > 0) this._s.notaOn(b[1], b[2], this._p);
       else if (tipo === 128 || tipo === 144 && b[2] === 0) this._s.notaOff(b[1]);
       else if (tipo === 176 && (b[1] === 120 || b[1] === 123)) this._s.callar();
+      else if (tipo === 176 && b[1] === 1) this._s.controlar("rueda", b[2] / 127);
+      else if (tipo === 176 && b[1] === 2) this._s.controlar("aliento", b[2] / 127);
+      else if (tipo === 176 && b[1] === 11) this._s.controlar("expresion", b[2] / 127);
+      else if (tipo === 208) this._s.controlar("presion", b[1] / 127);
+      else if (tipo === 160) this._s.controlar("presion", b[2] / 127);
     }
     _process(desde, hasta, inputs, outputs) {
       const sal = outputs[0];
@@ -2826,6 +3126,60 @@ var TEXTOS = {
   Inicio: ["Start", "In\xEDcio", "D\xE9but", "Hasiera", "\u041D\u0430\u0447\u0430\u043B\u043E", "\u30B9\u30BF\u30FC\u30C8", "\uC2DC\uC791", "\u8D77\u59CB", "\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19"],
   Cima: ["Peak", "Pico", "Sommet", "Gailurra", "\u041F\u0438\u043A", "\u30D4\u30FC\u30AF", "\uD53C\uD06C", "\u5CF0\u503C", "\u0E08\u0E38\u0E14\u0E2A\u0E39\u0E07\u0E2A\u0E38\u0E14"],
   Final: ["End", "Final", "Fin", "Amaiera", "\u041A\u043E\u043D\u0435\u0446", "\u30A8\u30F3\u30C9", "\uB05D", "\u7ED3\u675F", "\u0E2A\u0E38\u0E14\u0E17\u0E49\u0E32\u0E22"],
+  "F\xE1cil": ["Easy", "F\xE1cil", "Facile", "Erraza", "\u041F\u0440\u043E\u0441\u0442\u043E", "\u30A4\u30FC\u30B8\u30FC", "\uAC04\uD3B8", "\u7B80\u6613", "\u0E07\u0E48\u0E32\u0E22"],
+  Control: ["Control", "Controle", "Contr\xF4le", "Kontrola", "\u0423\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435", "\u30B3\u30F3\u30C8\u30ED\u30FC\u30EB", "\uCEE8\uD2B8\uB864", "\u63A7\u5236", "\u0E04\u0E27\u0E1A\u0E04\u0E38\u0E21"],
+  Efectos: ["Effects", "Efeitos", "Effets", "Efektuak", "\u042D\u0444\u0444\u0435\u043A\u0442\u044B", "\u30A8\u30D5\u30A7\u30AF\u30C8", "\uC774\uD399\uD2B8", "\u6548\u679C", "\u0E40\u0E2D\u0E1F\u0E40\u0E1F\u0E01\u0E15\u0E4C"],
+  Soplo: ["Breath", "Sopro", "Souffle", "Putza", "\u0414\u044B\u0445\u0430\u043D\u0438\u0435", "\u30D6\u30EC\u30B9", "\uBE0C\uB808\uC2A4", "\u5439\u594F", "\u0E25\u0E21\u0E40\u0E1B\u0E48\u0E32"],
+  "Para una capa con la fuente \xABSoplo\xBB: el modelo del tubo y c\xF3mo se toca. La envolvente de Volumen es el soplo.": ["For a layer whose source is \u201CBreath\u201D: the tube model and how it is played. The Amp envelope is the breath.", "Para uma camada com a fonte \xABSopro\xBB: o modelo do tubo e como se toca. O envelope de Volume \xE9 o sopro.", "Pour une couche dont la source est \xAB Souffle \xBB : le mod\xE8le du tube et la fa\xE7on de jouer. L\u2019enveloppe de Volume est le souffle.", "\xABPutza\xBB iturria duen geruza baterako: hodiaren eredua eta nola jotzen den. Bolumenaren inguratzailea putza da.", "\u0414\u043B\u044F \u0441\u043B\u043E\u044F \u0441 \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A\u043E\u043C \xAB\u0414\u044B\u0445\u0430\u043D\u0438\u0435\xBB: \u043C\u043E\u0434\u0435\u043B\u044C \u0442\u0440\u0443\u0431\u044B \u0438 \u0441\u043F\u043E\u0441\u043E\u0431 \u0438\u0433\u0440\u044B. \u041E\u0433\u0438\u0431\u0430\u044E\u0449\u0430\u044F \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 \u2014 \u044D\u0442\u043E \u0434\u044B\u0445\u0430\u043D\u0438\u0435.", "\u30BD\u30FC\u30B9\u304C\u300C\u30D6\u30EC\u30B9\u300D\u306E\u30EC\u30A4\u30E4\u30FC\u7528:\u7BA1\u306E\u30E2\u30C7\u30EB\u3068\u594F\u6CD5\u3002\u30A2\u30F3\u30D7\u306E\u30A8\u30F3\u30D9\u30ED\u30FC\u30D7\u304C\u606F\u306B\u306A\u308A\u307E\u3059\u3002", "\uC18C\uC2A4\uAC00 \xAB\uBE0C\uB808\uC2A4\xBB\uC778 \uB808\uC774\uC5B4\uC6A9: \uAD00 \uBAA8\uB378\uACFC \uC5F0\uC8FC \uBC29\uC2DD. \uC570\uD504 \uC5D4\uBC8C\uB85C\uD504\uAC00 \uC228\uC785\uB2C8\uB2E4.", "\u7528\u4E8E\u6765\u6E90\u4E3A\u201C\u5439\u594F\u201D\u7684\u5C42\uFF1A\u7BA1\u7684\u6A21\u578B\u4E0E\u6F14\u594F\u65B9\u5F0F\u3002\u97F3\u91CF\u5305\u7EDC\u5373\u4E3A\u6C14\u606F\u3002", "\u0E2A\u0E33\u0E2B\u0E23\u0E31\u0E1A\u0E40\u0E25\u0E40\u0E22\u0E2D\u0E23\u0E4C\u0E17\u0E35\u0E48\u0E21\u0E35\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E40\u0E2A\u0E35\u0E22\u0E07 \xAB\u0E25\u0E21\u0E40\u0E1B\u0E48\u0E32\xBB: \u0E41\u0E1A\u0E1A\u0E08\u0E33\u0E25\u0E2D\u0E07\u0E17\u0E48\u0E2D\u0E41\u0E25\u0E30\u0E27\u0E34\u0E18\u0E35\u0E40\u0E25\u0E48\u0E19 \u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E04\u0E37\u0E2D\u0E25\u0E21\u0E40\u0E1B\u0E48\u0E32"],
+  Tubo: ["Tube", "Tubo", "Tube", "Hodia", "\u0422\u0440\u0443\u0431\u0430", "\u7BA1", "\uAD00", "\u7BA1", "\u0E17\u0E48\u0E2D"],
+  "Interpretaci\xF3n": ["Playing", "Interpreta\xE7\xE3o", "Jeu", "Interpretazioa", "\u0418\u0441\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u0435", "\u594F\u6CD5", "\uC5F0\uC8FC", "\u6F14\u594F", "\u0E01\u0E32\u0E23\u0E40\u0E25\u0E48\u0E19"],
+  "Realce de arm\xF3nicos": ["Harmonic enhancer", "Realce de harm\xF4nicos", "Rehausseur d\u2019harmoniques", "Harmonikoen indartzailea", "\u0423\u0441\u0438\u043B\u0438\u0442\u0435\u043B\u044C \u0433\u0430\u0440\u043C\u043E\u043D\u0438\u043A", "\u30CF\u30FC\u30E2\u30CB\u30C3\u30AF\u30FB\u30A8\u30F3\u30CF\u30F3\u30B5\u30FC", "\uD558\uBAA8\uB2C9 \uC778\uD578\uC11C", "\u8C10\u6CE2\u589E\u5F3A", "\u0E15\u0E31\u0E27\u0E40\u0E2A\u0E23\u0E34\u0E21\u0E2E\u0E32\u0E23\u0E4C\u0E21\u0E2D\u0E19\u0E34\u0E01"],
+  Resonador: ["Resonator", "Ressonador", "R\xE9sonateur", "Erresonadorea", "\u0420\u0435\u0437\u043E\u043D\u0430\u0442\u043E\u0440", "\u30EC\u30BE\u30CD\u30FC\u30BF\u30FC", "\uB808\uC870\uB124\uC774\uD130", "\u5171\u9E23\u5668", "\u0E15\u0E31\u0E27\u0E2A\u0E31\u0E48\u0E19\u0E1E\u0E49\u0E2D\u0E07"],
+  Cuerpo: ["Body", "Corpo", "Corps", "Gorputza", "\u041A\u043E\u0440\u043F\u0443\u0441", "\u30DC\u30C7\u30A3", "\uBC14\uB514", "\u7434\u4F53", "\u0E1A\u0E2D\u0E14\u0E35\u0E49"],
+  Modelo: ["Model", "Modelo", "Mod\xE8le", "Eredua", "\u041C\u043E\u0434\u0435\u043B\u044C", "\u30E2\u30C7\u30EB", "\uBAA8\uB378", "\u6A21\u578B", "\u0E41\u0E1A\u0E1A\u0E08\u0E33\u0E25\u0E2D\u0E07"],
+  "Extremo del tubo": ["Tube end", "Extremidade do tubo", "Extr\xE9mit\xE9 du tube", "Hodiaren muturra", "\u041A\u043E\u043D\u0435\u0446 \u0442\u0440\u0443\u0431\u044B", "\u7BA1\u306E\u7D42\u7AEF", "\uAD00 \uB05D", "\u7BA1\u7AEF", "\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E48\u0E2D"],
+  "Tubo de la ca\xF1a": ["Reed bore", "Tubo da palheta", "Perce de l\u2019anche", "Lingetaren hodia", "\u041A\u0430\u043D\u0430\u043B \u0442\u0440\u043E\u0441\u0442\u0438", "\u30EA\u30FC\u30C9\u306E\u7BA1", "\uB9AC\uB4DC \uAD00", "\u7C27\u7247\u7BA1\u4F53", "\u0E17\u0E48\u0E2D\u0E02\u0E2D\u0E07\u0E25\u0E34\u0E49\u0E19"],
+  "Largo del tubo": ["Tube length", "Comprimento do tubo", "Longueur du tube", "Hodiaren luzera", "\u0414\u043B\u0438\u043D\u0430 \u0442\u0440\u0443\u0431\u044B", "\u7BA1\u306E\u9577\u3055", "\uAD00 \uAE38\uC774", "\u7BA1\u957F", "\u0E04\u0E27\u0E32\u0E21\u0E22\u0E32\u0E27\u0E17\u0E48\u0E2D"],
+  "Nota del tubo": ["Tube note", "Nota do tubo", "Note du tube", "Hodiaren nota", "\u041D\u043E\u0442\u0430 \u0442\u0440\u0443\u0431\u044B", "\u7BA1\u306E\u97F3", "\uAD00 \uC74C", "\u7BA1\u7684\u97F3", "\u0E42\u0E19\u0E49\u0E15\u0E02\u0E2D\u0E07\u0E17\u0E48\u0E2D"],
+  Aire: ["Air", "Ar", "Air", "Airea", "\u0412\u043E\u0437\u0434\u0443\u0445", "\u30A8\u30A2", "\uACF5\uAE30", "\u6C14", "\u0E25\u0E21"],
+  Embocadura: ["Embouchure", "Embocadura", "Embouchure", "Ahokoa", "\u0410\u043C\u0431\u0443\u0448\u044E\u0440", "\u30A2\u30F3\u30D6\u30B7\u30E5\u30A2", "\uC559\uBD80\uC288\uB974", "\u53E3\u578B", "\u0E01\u0E32\u0E23\u0E27\u0E32\u0E07\u0E1B\u0E32\u0E01"],
+  "Ruido de aliento": ["Breath noise", "Ru\xEDdo de sopro", "Bruit de souffle", "Arnasaren zarata", "\u0428\u0443\u043C \u0434\u044B\u0445\u0430\u043D\u0438\u044F", "\u30D6\u30EC\u30B9\u30FB\u30CE\u30A4\u30BA", "\uBE0C\uB808\uC2A4 \uB178\uC774\uC988", "\u6C14\u606F\u566A\u58F0", "\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E25\u0E21\u0E2B\u0E32\u0E22\u0E43\u0E08"],
+  "Subida con el aire": ["Pitch rise with air", "Subida com o ar", "Mont\xE9e avec l\u2019air", "Igoera airearekin", "\u041F\u043E\u0434\u044A\u0451\u043C \u0441 \u0432\u043E\u0437\u0434\u0443\u0445\u043E\u043C", "\u30A8\u30A2\u306B\u3088\u308B\u30D4\u30C3\u30C1\u4E0A\u6607", "\uACF5\uAE30\uC5D0 \uB530\uB978 \uC74C \uC62C\uB9BC", "\u968F\u6C14\u606F\u5347\u9AD8", "\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E2A\u0E39\u0E07\u0E02\u0E36\u0E49\u0E19\u0E15\u0E32\u0E21\u0E25\u0E21"],
+  Salto: ["Overblow", "Salto", "Saut", "Jauzia", "\u041F\u0435\u0440\u0435\u0434\u0443\u0432\u0430\u043D\u0438\u0435", "\u30AA\u30FC\u30D0\u30FC\u30D6\u30ED\u30FC", "\uC624\uBC84\uBE14\uB85C", "\u8D85\u5439", "\u0E01\u0E32\u0E23\u0E40\u0E1B\u0E48\u0E32\u0E02\u0E49\u0E32\u0E21"],
+  Aspereza: ["Roughness", "Aspereza", "Rugosit\xE9", "Zakartasuna", "\u0428\u0435\u0440\u043E\u0445\u043E\u0432\u0430\u0442\u043E\u0441\u0442\u044C", "\u30E9\u30D5\u30CD\u30B9", "\uAC70\uCE60\uAE30", "\u7C97\u7CD9\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E2B\u0E22\u0E32\u0E1A"],
+  "Gru\xF1ido": ["Growl", "Rosnado", "Grognement", "Marmarra", "\u0420\u044B\u0447\u0430\u043D\u0438\u0435", "\u30B0\u30ED\u30A6\u30EB", "\uADF8\uB85C\uC6B8", "\u5486\u54EE\u97F3", "\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E04\u0E33\u0E23\u0E32\u0E21"],
+  Grito: ["Scream", "Grito", "Cri", "Oihua", "\u041A\u0440\u0438\u043A", "\u30B9\u30AF\u30EA\u30FC\u30E0", "\uC2A4\uD06C\uB9BC", "\u5C16\u53EB", "\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E01\u0E23\u0E35\u0E14"],
+  "Doble fondo": ["Double bore", "Fundo duplo", "Double fond", "Hondo bikoitza", "\u0414\u0432\u043E\u0439\u043D\u043E\u0435 \u0434\u043D\u043E", "\u4E8C\u91CD\u306E\u5E95", "\uC774\uC911 \uBC14\uB2E5", "\u53CC\u5E95", "\u0E01\u0E49\u0E19\u0E04\u0E39\u0E48"],
+  "Entrada del fondo": ["Second bore entry", "Entrada do fundo", "Entr\xE9e du fond", "Hondoaren sarrera", "\u0412\u0441\u0442\u0443\u043F\u043B\u0435\u043D\u0438\u0435 \u0432\u0442\u043E\u0440\u043E\u0433\u043E \u0434\u043D\u0430", "\u4E8C\u3064\u76EE\u306E\u5E95\u306E\u5165\u308A", "\uB450 \uBC88\uC9F8 \uBC14\uB2E5 \uC9C4\uC785", "\u7B2C\u4E8C\u5E95\u7684\u8FDB\u5165", "\u0E08\u0E38\u0E14\u0E40\u0E02\u0E49\u0E32\u0E02\u0E2D\u0E07\u0E01\u0E49\u0E19\u0E17\u0E35\u0E48\u0E2A\u0E2D\u0E07"],
+  "Fuente del aire": ["Air source", "Fonte do ar", "Source de l\u2019air", "Airearen iturria", "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A \u0432\u043E\u0437\u0434\u0443\u0445\u0430", "\u30A8\u30A2\u306E\u30BD\u30FC\u30B9", "\uACF5\uAE30 \uC18C\uC2A4", "\u6C14\u606F\u6765\u6E90", "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E25\u0E21"],
+  "\xCDndice del realce": ["Enhancer index", "\xCDndice do realce", "Indice du rehausseur", "Indartzailearen indizea", "\u0418\u043D\u0434\u0435\u043A\u0441 \u0443\u0441\u0438\u043B\u0438\u0442\u0435\u043B\u044F", "\u30A8\u30F3\u30CF\u30F3\u30B5\u30FC\u306E\u30A4\u30F3\u30C7\u30C3\u30AF\u30B9", "\uC778\uD578\uC11C \uC778\uB371\uC2A4", "\u589E\u5F3A\u6307\u6570", "\u0E14\u0E31\u0E0A\u0E19\u0E35\u0E02\u0E2D\u0E07\u0E15\u0E31\u0E27\u0E40\u0E2A\u0E23\u0E34\u0E21"],
+  "Raz\xF3n del realce": ["Enhancer ratio", "Raz\xE3o do realce", "Rapport du rehausseur", "Indartzailearen arrazoia", "\u0421\u043E\u043E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u0435 \u0443\u0441\u0438\u043B\u0438\u0442\u0435\u043B\u044F", "\u30A8\u30F3\u30CF\u30F3\u30B5\u30FC\u306E\u30EC\u30B7\u30AA", "\uC778\uD578\uC11C \uBE44\uC728", "\u589E\u5F3A\u6BD4\u7387", "\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E2A\u0E48\u0E27\u0E19\u0E02\u0E2D\u0E07\u0E15\u0E31\u0E27\u0E40\u0E2A\u0E23\u0E34\u0E21"],
+  "Realimentaci\xF3n del resonador": ["Resonator feedback", "Realimenta\xE7\xE3o do ressonador", "R\xE9injection du r\xE9sonateur", "Erresonadorearen atzeraelikadura", "\u041E\u0431\u0440\u0430\u0442\u043D\u0430\u044F \u0441\u0432\u044F\u0437\u044C \u0440\u0435\u0437\u043E\u043D\u0430\u0442\u043E\u0440\u0430", "\u30EC\u30BE\u30CD\u30FC\u30BF\u30FC\u306E\u30D5\u30A3\u30FC\u30C9\u30D0\u30C3\u30AF", "\uB808\uC870\uB124\uC774\uD130 \uD53C\uB4DC\uBC31", "\u5171\u9E23\u5668\u53CD\u9988", "\u0E1F\u0E35\u0E14\u0E41\u0E1A\u0E47\u0E01\u0E02\u0E2D\u0E07\u0E15\u0E31\u0E27\u0E2A\u0E31\u0E48\u0E19\u0E1E\u0E49\u0E2D\u0E07"],
+  "Raz\xF3n del resonador": ["Resonator ratio", "Raz\xE3o do ressonador", "Rapport du r\xE9sonateur", "Erresonadorearen arrazoia", "\u0421\u043E\u043E\u0442\u043D\u043E\u0448\u0435\u043D\u0438\u0435 \u0440\u0435\u0437\u043E\u043D\u0430\u0442\u043E\u0440\u0430", "\u30EC\u30BE\u30CD\u30FC\u30BF\u30FC\u306E\u30EC\u30B7\u30AA", "\uB808\uC870\uB124\uC774\uD130 \uBE44\uC728", "\u5171\u9E23\u5668\u6BD4\u7387", "\u0E2D\u0E31\u0E15\u0E23\u0E32\u0E2A\u0E48\u0E27\u0E19\u0E02\u0E2D\u0E07\u0E15\u0E31\u0E27\u0E2A\u0E31\u0E48\u0E19\u0E1E\u0E49\u0E2D\u0E07"],
+  "Tama\xF1o del cuerpo": ["Body size", "Tamanho do corpo", "Taille du corps", "Gorputzaren tamaina", "\u0420\u0430\u0437\u043C\u0435\u0440 \u043A\u043E\u0440\u043F\u0443\u0441\u0430", "\u30DC\u30C7\u30A3\u306E\u30B5\u30A4\u30BA", "\uBC14\uB514 \uD06C\uAE30", "\u7434\u4F53\u5927\u5C0F", "\u0E02\u0E19\u0E32\u0E14\u0E1A\u0E2D\u0E14\u0E35\u0E49"],
+  "Tipo de cuerpo": ["Body type", "Tipo de corpo", "Type de corps", "Gorputz mota", "\u0422\u0438\u043F \u043A\u043E\u0440\u043F\u0443\u0441\u0430", "\u30DC\u30C7\u30A3\u306E\u30BF\u30A4\u30D7", "\uBC14\uB514 \uD0C0\uC785", "\u7434\u4F53\u7C7B\u578B", "\u0E0A\u0E19\u0E34\u0E14\u0E1A\u0E2D\u0E14\u0E35\u0E49"],
+  Extremo: ["End", "Extremidade", "Extr\xE9mit\xE9", "Muturra", "\u041A\u043E\u043D\u0435\u0446", "\u7D42\u7AEF", "\uB05D", "\u7AEF", "\u0E1B\u0E25\u0E32\u0E22"],
+  Largo: ["Length", "Comprimento", "Longueur", "Luzera", "\u0414\u043B\u0438\u043D\u0430", "\u9577\u3055", "\uAE38\uC774", "\u957F\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E22\u0E32\u0E27"],
+  Aliento: ["Breath", "F\xF4lego", "Souffle", "Arnasa", "\u0414\u044B\u0445\u0430\u043D\u0438\u0435", "\u30D6\u30EC\u30B9", "\uC228", "\u6C14\u606F", "\u0E25\u0E21\u0E2B\u0E32\u0E22\u0E43\u0E08"],
+  Subida: ["Rise", "Subida", "Mont\xE9e", "Igoera", "\u041F\u043E\u0434\u044A\u0451\u043C", "\u4E0A\u6607", "\uC0C1\uC2B9", "\u5347\u9AD8", "\u0E01\u0E32\u0E23\u0E02\u0E36\u0E49\u0E19"],
+  "Aire desde": ["Air from", "Ar desde", "Air depuis", "Airea nondik", "\u0412\u043E\u0437\u0434\u0443\u0445 \u043E\u0442", "\u30A8\u30A2\u306E\u5165\u529B", "\uACF5\uAE30 \uC785\uB825", "\u6C14\u606F\u6765\u81EA", "\u0E25\u0E21\u0E08\u0E32\u0E01"],
+  Realce: ["Enhance", "Realce", "Rehausse", "Indartzea", "\u0423\u0441\u0438\u043B\u0435\u043D\u0438\u0435", "\u30A8\u30F3\u30CF\u30F3\u30B9", "\uAC15\uC870", "\u589E\u5F3A", "\u0E01\u0E32\u0E23\u0E40\u0E2A\u0E23\u0E34\u0E21"],
+  "\xCDndice": ["Index", "\xCDndice", "Indice", "Indizea", "\u0418\u043D\u0434\u0435\u043A\u0441", "\u30A4\u30F3\u30C7\u30C3\u30AF\u30B9", "\uC778\uB371\uC2A4", "\u6307\u6570", "\u0E14\u0E31\u0E0A\u0E19\u0E35"],
+  "Tama\xF1o": ["Size", "Tamanho", "Taille", "Tamaina", "\u0420\u0430\u0437\u043C\u0435\u0440", "\u30B5\u30A4\u30BA", "\uD06C\uAE30", "\u5927\u5C0F", "\u0E02\u0E19\u0E32\u0E14"],
+  Abierto: ["Open", "Aberto", "Ouvert", "Irekia", "\u041E\u0442\u043A\u0440\u044B\u0442\u044B\u0439", "\u958B\u7BA1", "\uC5F4\uB9BC", "\u5F00\u53E3", "\u0E40\u0E1B\u0E34\u0E14"],
+  Cerrado: ["Closed", "Fechado", "Ferm\xE9", "Itxia", "\u0417\u0430\u043A\u0440\u044B\u0442\u044B\u0439", "\u9589\u7BA1", "\uB2EB\uD798", "\u95ED\u53E3", "\u0E1B\u0E34\u0E14"],
+  Recto: ["Straight", "Reto", "Droit", "Zuzena", "\u041F\u0440\u044F\u043C\u043E\u0439", "\u30B9\u30C8\u30EC\u30FC\u30C8", "\uC9C1\uAD00", "\u76F4\u7BA1", "\u0E15\u0E23\u0E07"],
+  "C\xF3nico": ["Conical", "C\xF4nico", "Conique", "Konikoa", "\u041A\u043E\u043D\u0438\u0447\u0435\u0441\u043A\u0438\u0439", "\u5186\u9310", "\uC6D0\uBFD4\uD615", "\u9525\u5F62", "\u0E17\u0E23\u0E07\u0E01\u0E23\u0E27\u0E22"],
+  "Sigue la nota": ["Follows the note", "Segue a nota", "Suit la note", "Notari jarraitzen dio", "\u0421\u043B\u0435\u0434\u0443\u0435\u0442 \u0437\u0430 \u043D\u043E\u0442\u043E\u0439", "\u30CE\u30FC\u30C8\u306B\u8FFD\u5F93", "\uB178\uD2B8\uB97C \uB530\uB984", "\u8DDF\u968F\u97F3\u7B26", "\u0E15\u0E32\u0E21\u0E42\u0E19\u0E49\u0E15"],
+  Fijo: ["Fixed", "Fixo", "Fixe", "Finkoa", "\u0424\u0438\u043A\u0441\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439", "\u56FA\u5B9A", "\uACE0\uC815", "\u56FA\u5B9A", "\u0E04\u0E07\u0E17\u0E35\u0E48"],
+  Bisel: ["Edge (flute)", "Bisel", "Biseau", "Ertza", "\u041B\u0430\u0431\u0438\u0443\u043C", "\u30A8\u30C3\u30B8(\u30D5\u30EB\u30FC\u30C8)", "\uC5E3\uC9C0(\uD50C\uB8E8\uD2B8)", "\u8FB9\u68F1(\u7B1B)", "\u0E02\u0E2D\u0E1A\u0E40\u0E1B\u0E48\u0E32 (\u0E02\u0E25\u0E38\u0E48\u0E22)"],
+  Labios: ["Lips (brass)", "L\xE1bios", "L\xE8vres", "Ezpainak", "\u0413\u0443\u0431\u044B", "\u30EA\u30C3\u30D7(\u91D1\u7BA1)", "\uC785\uC220(\uAE08\uAD00)", "\u5507(\u94DC\u7BA1)", "\u0E23\u0E34\u0E21\u0E1D\u0E35\u0E1B\u0E32\u0E01 (\u0E17\u0E2D\u0E07\u0E40\u0E2B\u0E25\u0E37\u0E2D\u0E07)"],
+  "Ca\xF1a": ["Reed", "Palheta", "Anche", "Lingeta", "\u0422\u0440\u043E\u0441\u0442\u044C", "\u30EA\u30FC\u30C9", "\uB9AC\uB4DC", "\u7C27\u7247", "\u0E25\u0E34\u0E49\u0E19"],
+  Rueda: ["Mod wheel", "Roda", "Molette", "Gurpila", "\u041A\u043E\u043B\u0435\u0441\u043E", "\u30E2\u30B8\u30E5\u30EC\u30FC\u30B7\u30E7\u30F3\u30FB\u30DB\u30A4\u30FC\u30EB", "\uBAA8\uB4C8\uB808\uC774\uC158 \uD720", "\u8C03\u5236\u8F6E", "\u0E25\u0E49\u0E2D\u0E21\u0E2D\u0E14\u0E39\u0E40\u0E25\u0E0A\u0E31\u0E19"],
+  "Expresi\xF3n": ["Expression", "Express\xE3o", "Expression", "Adierazpena", "\u042D\u043A\u0441\u043F\u0440\u0435\u0441\u0441\u0438\u044F", "\u30A8\u30AF\u30B9\u30D7\u30EC\u30C3\u30B7\u30E7\u30F3", "\uC775\uC2A4\uD504\uB808\uC158", "\u8868\u60C5", "\u0E40\u0E2D\u0E47\u0E01\u0E0B\u0E4C\u0E40\u0E1E\u0E23\u0E2A\u0E0A\u0E31\u0E19"],
+  Aftertouch: ["Aftertouch", "Aftertouch", "Aftertouch", "Aftertouch", "\u041F\u043E\u0441\u043B\u0435\u043A\u0430\u0441\u0430\u043D\u0438\u0435", "\u30A2\u30D5\u30BF\u30FC\u30BF\u30C3\u30C1", "\uC560\uD504\uD130\uD130\uCE58", "\u89E6\u540E", "\u0E2D\u0E32\u0E1F\u0E40\u0E15\u0E2D\u0E23\u0E4C\u0E17\u0E31\u0E0A"],
+  Madera: ["Wood", "Madeira", "Bois", "Egurra", "\u0414\u0435\u0440\u0435\u0432\u043E", "\u6728", "\uB098\uBB34", "\u6728", "\u0E44\u0E21\u0E49"],
+  Caja: ["Box", "Caixa", "Caisse", "Kutxa", "\u042F\u0449\u0438\u043A", "\u30DC\u30C3\u30AF\u30B9", "\uC0C1\uC790", "\u7BB1", "\u0E01\u0E25\u0E48\u0E2D\u0E07"],
   Tajadas: ["Slices", "Fatias", "Tranches", "Xerrak", "\u041D\u0430\u0440\u0435\u0437\u043A\u0430", "\u30B9\u30E9\u30A4\u30B9", "\uC2AC\uB77C\uC774\uC2A4", "\u5207\u7247", "\u0E2A\u0E44\u0E25\u0E0B\u0E4C"],
   "Nueva zona de tajadas": ["New slice zone", "Nova zona de fatias", "Nouvelle zone de tranches", "Xerra-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u043D\u0430\u0440\u0435\u0437\u043A\u0438", "\u65B0\u3057\u3044\u30B9\u30E9\u30A4\u30B9\u30BE\u30FC\u30F3", "\uC0C8 \uC2AC\uB77C\uC774\uC2A4 \uC874", "\u65B0\u5EFA\u5207\u7247\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E2A\u0E44\u0E25\u0E0B\u0E4C\u0E43\u0E2B\u0E21\u0E48"],
   Detectar: ["Detect", "Detectar", "D\xE9tecter", "Detektatu", "\u041D\u0430\u0439\u0442\u0438", "\u691C\u51FA", "\uAC10\uC9C0", "\u68C0\u6D4B", "\u0E15\u0E23\u0E27\u0E08\u0E2B\u0E32"],
@@ -3020,25 +3374,12 @@ function crearMoldeado(nodo, N2, colores) {
   for (const p of N2.PARAMS) valores[p.id] = p.defecto;
   const controles = {};
   let tomado = -1;
-  const caja = el("div", `border-bottom:1px solid ${v("borde")};padding:4px 10px 8px;`);
-  const barra = el("div", "display:flex;align-items:center;gap:4px;margin-bottom:4px;");
-  const titulo = el("span", "font-weight:bold;margin-right:8px;");
-  const boton2 = (texto, alClic) => {
-    const b = el("button", `font:inherit;font-size:11px;color:${v("tinta")};background:${v("pantalla")};border:1px solid ${v("borde")};padding:1px 6px;cursor:pointer;`, texto);
-    b.type = "button";
-    b.addEventListener("click", alClic);
-    return b;
-  };
-  const botones = {
-    vol: boton2(t("Volumen"), () => ponerHoja("vol")),
-    fil: boton2(t("Filtro"), () => ponerHoja("fil")),
-    alt: boton2(t("Altura"), () => ponerHoja("alt"))
-  };
-  barra.append(titulo, botones.vol, botones.fil, botones.alt);
+  const caja = el("div", "padding:6px 10px 8px;");
   const dibujo = lienzo(W, H);
   dibujo.c.style.cursor = "grab";
   const cuerpo = el("div", "");
-  caja.append(barra, dibujo.c, cuerpo);
+  caja.append(dibujo.c, cuerpo);
+  const extras = [];
   const id = (corto) => `c${capa}${corto}`;
   const leer = (corto) => Number(valores[id(corto)]);
   const mandar = (corto, x) => {
@@ -3046,52 +3387,58 @@ function crearMoldeado(nodo, N2, colores) {
     void nodo.setParameterValues({ [id(corto)]: { id: id(corto), value: x, normalized: false } });
   };
   const paramDe = (corto) => N2.PARAMS.find((p) => p.id === `c1${corto}`);
-  const textoDe = (p, x) => `${numero(x, p.dec !== void 0 ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ""}`;
+  const NOMBRES2 = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const textoDe = (p, x) => p.nota ? `${NOMBRES2[Math.round(x) % 12]}${Math.floor(Math.round(x) / 12) - 1}` : `${numero(x, p.dec !== void 0 ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ""}`;
+  const control = (p, mapa) => {
+    const corto = p.id.slice(2);
+    const nombre = t(p.corto || p.nombre.replace(/^Capa \d+: /, ""));
+    if (p.tipo === "choice") {
+      const c2 = elegidor({ nombre, opciones: p.opciones.map((x) => t(x)), alCambiar: (i) => mandar(corto, i) });
+      const celda = el("div", `display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;${p.angosto ? "" : "grid-column:span 2;"}`);
+      celda.append(el("div", `color:${v("tinta2")};font-size:11px;white-space:nowrap;`, nombre), c2.el);
+      mapa[corto] = { ...c2, poner: (x) => c2.poner(Math.round(x)), p, caja: celda };
+      return celda;
+    }
+    const c = perilla({
+      nombre,
+      min: p.min,
+      max: p.max,
+      paso: p.paso || 1,
+      log: !!p.log,
+      porDefecto: p.defecto,
+      formato: (x) => textoDe(p, x),
+      alCambiar: (x) => {
+        mandar(corto, x);
+        pintar();
+      }
+    });
+    mapa[corto] = { ...c, p, caja: c.el };
+    return c.el;
+  };
   const armar = () => {
     cuerpo.textContent = "";
     for (const k of Object.keys(controles)) delete controles[k];
     const ps = N2.PARAMS.filter((p) => p.grupo === `c1${hoja}`);
     for (const [sub, rotulo] of FILAS) {
-      const deFila = ps.filter((p) => p.sub === sub);
+      const deFila = ps.filter((p) => p.sub === sub && !(hoja === "vol" && sub === "capa"));
       if (!deFila.length) continue;
       const fila = el("div", "display:flex;align-items:flex-start;gap:6px;margin-top:6px;");
       if (rotulo) fila.append(el("div", `width:70px;flex:none;color:${v("tinta2")};font-size:11px;padding-top:14px;`, t(rotulo)));
       const lugares = deFila.reduce((n, p) => n + (p.tipo === "choice" && !p.angosto ? 2 : 1), 0);
       const grilla = el("div", `flex:1;display:grid;grid-template-columns:repeat(${Math.max(lugares, rotulo ? 6 : 7)},minmax(0,1fr));gap:4px;align-items:start;`);
-      for (const p of deFila) {
-        const corto = p.id.slice(2);
-        const nombre = t(p.corto || p.nombre.replace(/^Capa \d+: /, ""));
-        if (p.tipo === "choice") {
-          const c = elegidor({ nombre, opciones: p.opciones.map((x) => t(x)), alCambiar: (i) => mandar(corto, i) });
-          const celda = el("div", `display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;${p.angosto ? "" : "grid-column:span 2;"}`);
-          celda.append(el("div", `color:${v("tinta2")};font-size:11px;white-space:nowrap;`, nombre), c.el);
-          controles[corto] = { ...c, poner: (x) => c.poner(Math.round(x)) };
-          grilla.append(celda);
-        } else {
-          const c = perilla({
-            nombre,
-            min: p.min,
-            max: p.max,
-            paso: p.paso || 1,
-            log: !!p.log,
-            porDefecto: p.defecto,
-            formato: (x) => textoDe(p, x),
-            alCambiar: (x) => {
-              mandar(corto, x);
-              pintar();
-            }
-          });
-          controles[corto] = c;
-          grilla.append(c.el);
-        }
-      }
+      for (const p of deFila) grilla.append(control(p, controles));
       fila.append(grilla);
       cuerpo.append(fila);
     }
     refrescar();
   };
   const refrescar = () => {
-    for (const [corto, c] of Object.entries(controles)) if (!c.agarrada()) c.poner(leer(corto));
+    const modelo = Math.round(leer("smt"));
+    for (const mapa of [controles, ...extras])
+      for (const [corto, c] of Object.entries(mapa)) {
+        if (!c.agarrada()) c.poner(leer(corto));
+        if (c.p && c.p.solo) c.caja.style.opacity = c.p.solo.includes(modelo) ? "" : "0.35";
+      }
     pintar();
   };
   const yDe = (nivel) => {
@@ -3223,10 +3570,6 @@ function crearMoldeado(nodo, N2, colores) {
   dibujo.c.addEventListener("pointercancel", soltarPunto);
   const ponerHoja = (h) => {
     hoja = h;
-    for (const [k, b] of Object.entries(botones)) {
-      b.style.fontWeight = k === hoja ? "bold" : "";
-      b.style.background = k === hoja ? v("acento") : v("pantalla");
-    }
     armar();
   };
   ponerHoja("vol");
@@ -3236,8 +3579,22 @@ function crearMoldeado(nodo, N2, colores) {
     ponerCapa(k) {
       if (k === capa) return;
       capa = k;
-      titulo.textContent = `${t("Moldear")} \xB7 ${t("Capa")} ${capa}`;
       refrescar();
+    },
+    // 'vol' | 'fil' | 'alt'
+    ponerHoja,
+    // Lo que vale ahora un parámetro (el id entero), según lo último que dijo el plugin.
+    valor: (id2) => valores[id2],
+    // Controles de la capa elegida para otra carpeta: una fila con estos parámetros (cortos).
+    crearGrupo(cortos) {
+      const mapa = {};
+      const ps = cortos.map(paramDe).filter(Boolean);
+      const lugares = ps.reduce((n, p) => n + (p.tipo === "choice" && !p.angosto ? 2 : 1), 0);
+      const grilla = el("div", `display:grid;grid-template-columns:repeat(${Math.max(lugares, 7)},minmax(0,1fr));gap:4px;align-items:start;`);
+      for (const p of ps) grilla.append(control(p, mapa));
+      extras.push(mapa);
+      for (const [corto, c] of Object.entries(mapa)) c.poner(leer(corto));
+      return grilla;
     },
     // Lo que el plugin dice ahora (cada medio segundo): no pisa lo que se está tocando.
     ponerValores(vals) {
@@ -3246,7 +3603,6 @@ function crearMoldeado(nodo, N2, colores) {
     },
     pintar,
     iniciar() {
-      titulo.textContent = `${t("Moldear")} \xB7 ${t("Capa")} ${capa}`;
       refrescar();
     }
   };
@@ -3280,13 +3636,10 @@ function crearCaratula(nodo) {
   };
   const caja = el(
     "div",
-    `display:inline-flex;flex-direction:column;box-sizing:border-box;width:558px;user-select:none;background:${v("fondo")};color:${v("tinta")};border:1px solid ${v("borde")};font:12px/1.3 var(--pzw-letra,system-ui,sans-serif);`
+    `display:inline-flex;flex-direction:column;box-sizing:border-box;width:568px;user-select:none;background:${v("fondo")};color:${v("tinta")};border:1px solid ${v("borde")};font:12px/1.3 var(--pzw-letra,system-ui,sans-serif);`
   );
-  const cabecera = el("div", `display:flex;align-items:baseline;gap:8px;padding:6px 10px;border-bottom:1px solid ${v("borde")};`);
-  cabecera.append(
-    el("span", "font-weight:bold;font-size:13px;", t("Sampler")),
-    el("span", `margin-left:auto;color:${v("tinta2")};font-size:11px;`, t("Clic en el teclado: elegir la zona \xB7 arrastrar las marcas: d\xF3nde parte, el loop y el fin"))
-  );
+  const cabecera = el("div", `display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:6px 8px;border-bottom:1px solid ${v("borde")};`);
+  cabecera.append(el("span", "font-weight:bold;font-size:13px;margin-right:4px;", t("Sampler")));
   const tec = lienzo(536, 52);
   tec.c.style.cursor = "pointer";
   const marcoTec = el("div", "padding:8px 10px 4px;");
@@ -3426,12 +3779,14 @@ function crearCaratula(nodo) {
   };
   const selFuente = elegidor({
     nombre: t("Fuente"),
-    opciones: [t("Audio"), t("Oscilador")],
+    opciones: [t("Audio"), t("Oscilador"), t("Soplo")],
     alCambiar: (i) => {
       const c = capa();
       if (!c) return;
       if (i === 1) c.osc = c.osc || { forma: 2, ancho: 50 };
       else delete c.osc;
+      if (i === 2) c.mod = c.mod || {};
+      else delete c.mod;
       guardar();
       pintarTodo();
     }
@@ -3446,7 +3801,7 @@ function crearCaratula(nodo) {
     ponerAudio(m);
   });
   if (!elegirDeAnfitrion) botonPz.style.display = "none";
-  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonPz, botonAbrir, archivo, boton("\xD7", quitarCapa, t("Quitar capa")));
+  filaCapas.append(selFuente.el, nombreAudio, botonPz, botonAbrir, archivo, boton("\xD7", quitarCapa, t("Quitar capa")));
   const filaDir = el("div", "display:flex;align-items:center;gap:6px;padding:2px 10px 4px;");
   const dir = el("input", `flex:1;min-width:0;font:inherit;font-size:11px;color:${v("tinta")};background:${v("pantalla")};border:1px solid ${v("borde")};padding:1px 4px;`);
   dir.placeholder = t("Direcci\xF3n web del audio");
@@ -3478,7 +3833,7 @@ function crearCaratula(nodo) {
   let tomada = null;
   const durDe = () => {
     const c = capa();
-    if (c && c.osc) return 0;
+    if (c && (c.osc || c.mod)) return 0;
     const mu = c && nodo.muestras[c.m];
     return mu && mu.estado === "lista" ? mu.dur : 0;
   };
@@ -3669,7 +4024,7 @@ function crearCaratula(nodo) {
   const pintarEstirar = () => {
     const c = capa();
     titEstirar.textContent = `${t("Estirar al tempo")} (${numero(nodo.bpm, 0)} bpm):`;
-    filaEstirar.style.display = c && c.osc ? "none" : "flex";
+    filaEstirar.style.display = c && (c.osc || c.mod) ? "none" : "flex";
     filaEstirar.style.opacity = c && durDe() ? "" : "0.4";
     const partes2 = !c || enTajadas() || !c.loop ? 1 : 3;
     estiradores.forEach((x, k) => {
@@ -3723,11 +4078,7 @@ function crearCaratula(nodo) {
   const mandar = (id, x) => void nodo.setParameterValues({ [id]: { id, value: x, normalized: false } });
   const generales = {};
   const hojas = {};
-  const filaPestanas = el("div", `display:flex;gap:4px;padding:6px 10px 0;`);
-  const filaGeneral = el("div", "padding:4px 10px 10px;");
-  let grupoSel = "general";
-  const botonesGrupo = {};
-  for (const [g, titulo] of GRUPOS) {
+  for (const [g, titulo2] of GRUPOS) {
     const ps = N.PARAMS.filter((p) => p.grupo === g);
     const lugares = Math.max(6, ps.reduce((n, p) => n + (p.tipo === "choice" ? 2 : 1), 0));
     const hoja = el("div", `display:grid;grid-template-columns:repeat(${lugares},minmax(0,1fr));gap:4px;align-items:start;`);
@@ -3756,23 +4107,52 @@ function crearCaratula(nodo) {
       }
     }
     hojas[g] = hoja;
-    const b = boton(t(titulo), () => {
-      grupoSel = g;
-      pintarPestanas();
-    });
-    botonesGrupo[g] = b;
-    filaPestanas.append(b);
-    filaGeneral.append(hoja);
   }
-  const pintarPestanas = () => {
-    for (const [g] of GRUPOS) {
-      hojas[g].style.display = g === grupoSel ? "grid" : "none";
-      botonesGrupo[g].style.fontWeight = g === grupoSel ? "bold" : "";
-      botonesGrupo[g].style.background = g === grupoSel ? v("acento") : v("pantalla");
+  const titulo = (texto) => el("div", `color:${v("tinta2")};font-size:11px;margin:8px 0 2px;`, texto);
+  const marco = (...hijos) => {
+    const m = el("div", "padding:4px 10px 10px;");
+    m.append(...hijos);
+    return m;
+  };
+  const filaCapaFuente = el("div", "padding:4px 10px 10px;");
+  filaCapaFuente.append(titulo(t("Capa")), moldeado.crearGrupo(["niv", "afi", "ret"]));
+  const ayuda = el("div", `padding:6px 10px 0;color:${v("tinta2")};font-size:11px;`, t("Clic en el teclado: elegir la zona \xB7 arrastrar las marcas: d\xF3nde parte, el loop y el fin"));
+  const CARPETAS = [
+    ["facil", "F\xE1cil", () => [marco(hojas.general, titulo(t("Filtro")), moldeado.crearGrupo(["ft", "fc", "fr", "fi"]))]],
+    ["fuente", "Fuente", () => [ayuda, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaCapaFuente]],
+    ["soplo", "Soplo", () => [marco(el("div", `color:${v("tinta2")};font-size:11px;`, t("Para una capa con la fuente \xABSoplo\xBB: el modelo del tubo y c\xF3mo se toca. La envolvente de Volumen es el soplo.")), titulo(t("Tubo")), moldeado.crearGrupo(["smt", "sex", "sfo", "stb", "stn"]), titulo(t("Interpretaci\xF3n")), moldeado.crearGrupo(["sai", "sem", "sru", "ssu", "ssa", "sas", "sgr"]), moldeado.crearGrupo(["sgi", "sap", "sca", "sdf", "sde", "sfa"]))]],
+    ["filtro", "Filtro", () => (moldeado.ponerHoja("fil"), [moldeado.el])],
+    ["volumen", "Volumen", () => (moldeado.ponerHoja("vol"), [moldeado.el])],
+    ["altura", "Altura", () => (moldeado.ponerHoja("alt"), [moldeado.el])],
+    ["control", "Control", () => [marco(titulo(t("Vaiv\xE9n 1")), hojas.v1, titulo(t("Vaiv\xE9n 2")), hojas.v2)]],
+    ["efectos", "Efectos", () => [marco(hojas.color, titulo(`${t("Capa")}: ${t("Realce de arm\xF3nicos")}`), moldeado.crearGrupo(["mhm", "mhi", "mhz"]), titulo(`${t("Capa")}: ${t("Resonador")}`), moldeado.crearGrupo(["mrm", "mrf", "mrz"]), titulo(`${t("Capa")}: ${t("Cuerpo")}`), moldeado.crearGrupo(["mcm", "mct", "mcy"]))]]
+  ];
+  const contenidos = {};
+  const paginas = el("div", "height:480px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;");
+  let carpeta = "fuente";
+  const botonesCarpeta = {};
+  for (const [k, nombre, armar] of CARPETAS) {
+    const b = boton(t(nombre), () => ponerCarpeta(k));
+    b.style.padding = "1px 4px";
+    botonesCarpeta[k] = { b, armar };
+    cabecera.append(b);
+  }
+  cabecera.append(el("span", "flex:1;"), el("span", `color:${v("tinta2")};margin-right:2px;`, t("Capa")), ...botonesCapa);
+  for (const b of botonesCapa) b.textContent = b.textContent.replace(/^.* (\d)$/, "$1");
+  for (const b of botonesCapa) b.style.padding = "1px 5px";
+  const ponerCarpeta = (k) => {
+    carpeta = k;
+    const c = botonesCarpeta[k];
+    if (!contenidos[k] || ["filtro", "volumen", "altura"].includes(k)) contenidos[k] = c.armar();
+    paginas.replaceChildren(...contenidos[k]);
+    paginas.scrollTop = 0;
+    for (const [kk, x] of Object.entries(botonesCarpeta)) {
+      x.b.style.fontWeight = kk === carpeta ? "bold" : "";
+      x.b.style.background = kk === carpeta ? v("acento") : v("pantalla");
     }
   };
-  pintarPestanas();
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, moldeado.el, filaPestanas, filaGeneral);
+  ponerCarpeta("fuente");
+  caja.append(cabecera, paginas);
   let C = coloresDe(caja);
   const pintarTeclado = () => {
     const g = tec.g;
@@ -3817,6 +4197,34 @@ function crearCaratula(nodo) {
     g.textAlign = "center";
     if (!zona()) {
       g.fillText(t("Sin zonas: crear una de piano o de bater\xEDa"), 268, 58);
+      return;
+    }
+    if (c && c.mod) {
+      const k = cSel + 1;
+      const val = (corto, d) => {
+        const p = N.PARAMS.find((q) => q.id === `c${k}${corto}`);
+        const x = moldeado.valor(`c${k}${corto}`);
+        return x !== void 0 ? x : p ? p.defecto : d;
+      };
+      const modelo = Math.round(val("smt", 0));
+      g.strokeStyle = C.tinta;
+      g.lineWidth = 2;
+      g.strokeRect(70, 45, 380, 22);
+      g.fillStyle = C.acento;
+      if (modelo === 1) {
+        g.beginPath();
+        g.moveTo(450, 45);
+        g.lineTo(500, 20);
+        g.moveTo(450, 67);
+        g.lineTo(500, 92);
+        g.stroke();
+      } else if (val("sex", 0) >= 0.5 && modelo === 0) g.fillRect(446, 45, 6, 22);
+      g.fillRect(48, 49, 22, 14);
+      g.lineWidth = 1;
+      g.fillStyle = C.tinta2;
+      g.font = "11px system-ui, sans-serif";
+      g.textAlign = "center";
+      g.fillText(`${t("Soplo")}: ${t(N.MODELOS[modelo] || "")}`, 268, 104);
       return;
     }
     if (c && c.osc) {
@@ -3967,14 +4375,15 @@ function crearCaratula(nodo) {
     const c = capa();
     const mu = c && nodo.muestras[c.m];
     const esOsc = !!(c && c.osc);
-    nombreAudio.textContent = esOsc ? "" : mu ? `${mu.nombre}${mu.url ? "" : ` (${t("no queda guardado")})`}` : "";
-    selFuente.poner(esOsc ? 1 : 0);
+    const esSoplo = !!(c && c.mod);
+    nombreAudio.textContent = esOsc || esSoplo ? "" : mu ? `${mu.nombre}${mu.url ? "" : ` (${t("no queda guardado")})`}` : "";
+    selFuente.poner(esSoplo ? 2 : esOsc ? 1 : 0);
     selFuente.el.style.display = c ? "" : "none";
-    botonAbrir.style.display = esOsc ? "none" : "";
-    if (elegirDeAnfitrion) botonPz.style.display = esOsc ? "none" : "";
-    filaDir.style.display = esOsc ? "none" : "flex";
+    botonAbrir.style.display = esOsc || esSoplo ? "none" : "";
+    if (elegirDeAnfitrion) botonPz.style.display = esOsc || esSoplo ? "none" : "";
+    filaDir.style.display = esOsc || esSoplo ? "none" : "flex";
     oscCaja.style.display = esOsc ? "inline-flex" : "none";
-    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? "none" : "inline-flex";
+    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc || esSoplo ? "none" : "inline-flex";
     if (esOsc) {
       selForma.poner(Math.round(Number(c.osc.forma) || 0));
       pAncho.poner(Number(c.osc.ancho) || 50);
@@ -4017,10 +4426,12 @@ function crearCaratula(nodo) {
     void nodo.getParameterValues(false).then((vals) => {
       if (!vals || !vigente) return;
       for (const p of N.PARAMS) {
-        const c = generales[p.id];
-        if (c && vals[p.id] && !c.agarrada()) c.poner(Number(vals[p.id].value));
+        const c2 = generales[p.id];
+        if (c2 && vals[p.id] && !c2.agarrada()) c2.poner(Number(vals[p.id].value));
       }
       moldeado.ponerValores(vals);
+      const c = capa();
+      if (c && c.mod) pintarOnda();
     });
     if (!caja.isConnected && visto) soltar();
     if (caja.isConnected) visto = true;
@@ -4306,7 +4717,7 @@ var NodoSampler = class extends WamNode {
     return { m: x.id, ini: 0, lIni: void 0, lFin: void 0, fin: s(1) };
   }
   _estirarCapa(z, c, necesarias, pedidos) {
-    const au = c && !c.osc && this._audios[c.m];
+    const au = c && !c.osc && !c.mod && this._audios[c.m];
     if (!au || !Array.isArray(c.est)) return c;
     const fm = au.fm;
     const partes = this._partes(z, c, au.canales[0].length / fm);
