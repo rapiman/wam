@@ -30,6 +30,104 @@ const boton = (texto, alClic, titulo) => {
 };
 
 export function crearCaratula(nodo) {
+
+  // EL TUBO CON MEDIDAS, a escala en el largo (el diámetro, aumentado para que se vea): recto,
+  // en espiral (como la trutruka de plástico) o en óvalo (como la trompeta), con su cacho.
+  const dibujarTuboMedido = (g, val, k) => {
+    const gp = {};
+    for (const p of N.PARAMS) if (p.id.startsWith(`c${k}`)) gp[p.id.slice(String(k).length + 1)] = val(p.id.slice(String(k).length + 1), p.defecto);
+    const med = N.medidaTubo(gp);
+    const Lc = gp.stb < 0.5 ? 140 : med.cm;
+    const Lh = gp.slh;
+    const dc = gp.sdc;
+    const db = Math.max(dc, gp.sdh);
+    const gam = 1 + (3 * gp.sfh) / 100;
+    const enr = Math.round(gp.sen);
+    const vueltas = Math.max(1, Math.round(gp.svu));
+    const C2 = { tinta: v('tinta'), acento: v('acento'), tinta2: v('tinta2') };
+    // alto: el cacho más ancho ocupa ≈ 80 px; el tubo, por lo menos 3 px
+    const ey = Math.min(1.2, 80 / db);
+    const ac = Math.max(3, dc * ey);
+    g.strokeStyle = C2.tinta;
+    g.fillStyle = C2.acento;
+    g.lineWidth = 1.5;
+    // el cacho: de (x0, y0) hacia la derecha, `largo` px
+    const cacho = (x0, y0, largo) => {
+      if (Lh <= 0) return;
+      g.beginPath();
+      for (let i = 0; i <= 30; i++) {
+        const f = i / 30;
+        const a = ac / 2 + ((db * ey - ac) / 2) * Math.pow(f, gam);
+        if (i === 0) g.moveTo(x0 + f * largo, y0 - a);
+        else g.lineTo(x0 + f * largo, y0 - a);
+      }
+      for (let i = 30; i >= 0; i--) {
+        const f = i / 30;
+        const a = ac / 2 + ((db * ey - ac) / 2) * Math.pow(f, gam);
+        g.lineTo(x0 + f * largo, y0 + a);
+      }
+      g.closePath();
+      g.globalAlpha = 0.25;
+      g.fill();
+      g.globalAlpha = 1;
+      g.stroke();
+    };
+    const cy = 50;
+    if (enr === 0) {
+      // recto: todo a escala en 470 px
+      const total = Math.max(1, Lc + Lh);
+      const ex = 470 / total;
+      const xc = 40 + Lc * ex;
+      g.fillRect(28, cy - Math.max(3, ac / 2) - 2, 12, Math.max(6, ac) + 4);
+      g.strokeRect(40, cy - ac / 2, Lc * ex, ac);
+      cacho(xc, cy, Lh * ex);
+    } else {
+      // enrollado: el tubo recto en vueltas; el cacho sale a la derecha, a escala con el diámetro
+      const xLibre = 330;
+      g.lineWidth = Math.min(6, Math.max(1.5, ac));
+      g.beginPath();
+      if (enr === 1) {
+        // espiral de Arquímedes, desde adentro hacia afuera
+        const c0 = 120;
+        for (let i = 0; i <= vueltas * 60; i++) {
+          const a = (i / 60) * 2 * Math.PI;
+          const r = 8 + (36 * i) / (vueltas * 60);
+          const x = c0 + r * Math.cos(a);
+          const y = cy + r * Math.sin(a);
+          if (i === 0) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        }
+        g.lineTo(xLibre, cy);
+        g.stroke();
+        g.fillRect(c0 + 4, cy - 4, 8, 8);
+      } else {
+        // óvalos, uno al lado del otro corrido (como las vueltas de una trompeta)
+        for (let j = 0; j < vueltas; j++) {
+          const x0 = 60 + j * (200 / vueltas);
+          g.ellipse(x0 + 60, cy, 60, 26 - (10 * j) / vueltas, 0, 0, 2 * Math.PI);
+        }
+        g.moveTo(60 + 200 / vueltas * (vueltas - 1) + 120, cy);
+        g.lineTo(xLibre, cy);
+        g.stroke();
+        g.fillRect(40, cy - 4, 14, 8);
+      }
+      g.lineWidth = 1.5;
+      cacho(xLibre, cy, Math.min(200, Math.max(20, Lh * 3)));
+    }
+    g.lineWidth = 1;
+    g.fillStyle = C2.tinta2;
+    g.font = '11px system-ui, sans-serif';
+    g.textAlign = 'center';
+    const nota = med.hz > 0 ? 69 + 12 * Math.log2(med.hz / 440) : 0;
+    const n = Math.round(nota);
+    const ct = Math.round((nota - n) * 100);
+    const txtNota = med.hz > 0 ? `${nombreNota(n)} ${ct >= 0 ? '+' : '−'}${Math.abs(ct)} ct` : '—';
+    const sigue = gp.stb < 0.5;
+    const partes = [`${t('Soplo')}: ${t('Labios')}`, sigue ? `${t('Tubo')}: ${t('Sigue la nota').toLowerCase()} · ${dc} mm` : `${t('Tubo')} ${Lc.toFixed(1)} cm · ${dc} mm`];
+    if (Lh > 0) partes.push(`${t('Cacho')} ${Lh} cm · ${gp.sdh} mm`);
+    if (!sigue) partes.push(`${t('Nota del tubo')} ${txtNota}`);
+    g.fillText(partes.join('   '), 268, 104);
+  };
   let inst = copia(nodo.inst);
   let zSel = inst.zonas.length ? 0 : -1;
   let cSel = 0;
@@ -572,12 +670,31 @@ export function crearCaratula(nodo) {
     return m;
   };
   const filaCapaFuente = el('div', 'padding:4px 10px 10px;');
+  // Materiales ya armados (medidas aproximadas; se pueden cambiar): ponen el tubo con medidas
+  const MATERIALES = [
+    ['Cañería de gas', { sdc: 10 }],
+    ['Cañería de agua', { sdc: 20 }],
+    ['Cacho de cabra', { slh: 18, sdh: 45, sfh: 60 }],
+    ['Cacho de vaca', { slh: 35, sdh: 90, sfh: 50 }],
+  ];
+  const filaMateriales = el('div', 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;');
+  filaMateriales.append(el('span', `color:${v('tinta2')};font-size:11px;`, t('Materiales:')));
+  for (const [nombre, vals] of MATERIALES)
+    filaMateriales.append(
+      boton(t(nombre), () => {
+        const k = cSel + 1;
+        const cambios = { sgm: 1, smt: 1, ...vals };
+        const pv = {};
+        for (const [c, x] of Object.entries(cambios)) pv[`c${k}${c}`] = { id: `c${k}${c}`, value: x, normalized: false };
+        void nodo.setParameterValues(pv);
+      }),
+    );
   filaCapaFuente.append(titulo(t('Capa')), moldeado.crearGrupo(['niv', 'afi', 'ret']));
   const ayuda = el('div', `padding:6px 10px 0;color:${v('tinta2')};font-size:11px;`, t('Clic en el teclado: elegir la zona · arrastrar las marcas: dónde parte, el loop y el fin'));
   const CARPETAS = [
     ['facil', 'Fácil', () => [marco(hojas.general, titulo(t('Filtro')), moldeado.crearGrupo(['ft', 'fc', 'fr', 'fi']))]],
     ['fuente', 'Fuente', () => [ayuda, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaCapaFuente]],
-    ['soplo', 'Soplo', () => [marco(el('div', `color:${v('tinta2')};font-size:11px;`, t('Para una capa con la fuente «Soplo»: el modelo del tubo y cómo se toca. La envolvente de Volumen es el soplo.')), titulo(t('Tubo')), moldeado.crearGrupo(['smt', 'sex', 'sfo', 'stb', 'stn', 'stf']), titulo(t('Interpretación')), moldeado.crearGrupo(['sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr']), moldeado.crearGrupo(['sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa']), titulo(t('Desvío de la nota')), moldeado.crearGrupo(['sds', 'sdt', 'sdx', 'sin', 'siv']))]],
+    ['soplo', 'Soplo', () => [marco(el('div', `color:${v('tinta2')};font-size:11px;`, t('Para una capa con la fuente «Soplo»: el modelo del tubo y cómo se toca. La envolvente de Volumen es el soplo.')), titulo(t('Tubo')), moldeado.crearGrupo(['smt', 'sex', 'sfo', 'stb', 'stn', 'stf']), titulo(t('Medidas del tubo')), moldeado.crearGrupo(['sgm', 'slm', 'slc', 'sdc', 'ssn']), moldeado.crearGrupo(['slh', 'sdh', 'sfh', 'sen', 'svu']), filaMateriales, titulo(t('Interpretación')), moldeado.crearGrupo(['sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr']), moldeado.crearGrupo(['sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa']), titulo(t('Desvío de la nota')), moldeado.crearGrupo(['sds', 'sdt', 'sdx', 'sin', 'siv']))]],
     ['filtro', 'Filtro', () => (moldeado.ponerHoja('fil'), [moldeado.el])],
     ['volumen', 'Volumen', () => (moldeado.ponerHoja('vol'), [moldeado.el])],
     ['altura', 'Altura', () => (moldeado.ponerHoja('alt'), [moldeado.el])],
@@ -671,6 +788,10 @@ export function crearCaratula(nodo) {
         return x !== undefined ? x : p ? p.defecto : d;
       };
       const modelo = Math.round(val('smt', 0));
+      if (modelo === 1 && val('sgm', 0) >= 0.5) {
+        dibujarTuboMedido(g, val, k);
+        return;
+      }
       g.strokeStyle = C.tinta;
       g.lineWidth = 2;
       g.strokeRect(70, 45, 380, 22);

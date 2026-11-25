@@ -132,6 +132,30 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
        3 × la nota (el modelo lo daba en −7 dB; grabado, −17 a −26). Oscurece también la trompeta.
      - «Inestabilidad» (`sin`, 0–50 ct, desviación típica) y su «Velocidad» (`siv`, 0,5–15 Hz):
        ruido suavizado sumado al desvío de la nota, para todos los modelos.
-     89 parámetros por capa, 287 en total. Pendiente (3): la geometría del tubo (largo, diámetro,
-     cono, diámetro final, enrollado), en conversación.
+     89 parámetros por capa, 287 en total.
+   - **El tubo con medidas, paso 1 de 3** (2026-11-25; JP: «todos los que tenga sentido, la nota
+     define el largo y el largo podría definir la nota»; el ñolkin «también es labio», de cañería de
+     gas y cacho de cabra, aspirado; la trutruka de cañería de agua y cacho de vaca; enrollada en
+     espiral u óvalo, y dibujada; eligió la física de verdad: «1b»). Solo labios, con «Forma del
+     tubo: Con medidas» (con «Simple» queda todo como antes):
+     - Tubo recto (dos líneas de retardo) + cacho de tajadas de una muestra que se reflejan por el
+       cambio de área (Kelly-Lochbaum); boca del cacho: −0,99 · paso bajo en 1,2·c/(2π·radio).
+       Pérdidas en las paredes ≈ 2,96·10⁻⁵ √f / radio por metro, como un paso bajo de un polo.
+       Enrollado: pérdida de 0,4 % (espiral) o 0,6 % (óvalo) por vuelta; casi no cambia el sonido.
+     - El labio conserva la convención de la STK (la onda de vuelta con el signo de la línea
+       simple); por eso las resonancias quedan en la serie entera, como en las grabaciones.
+     - «Largo desde la nota»: el tubo recto se corta para la resonancia elegida contando la fase
+       del resonador del labio y lo que igual queda alto (8 + 90/k² centésimas; aspirado, −65).
+       Medido: trutruka y ñolkin dentro de ±10 ct; una trompeta muy abierta, ≈ +30 ct.
+       «Largo desde el largo»: las resonancias salen de la impedancia (picos hasta 3 kHz); la tecla
+       va a la más cercana (lo que suena ≈ pico + 0,21 × la distancia entre resonancias).
+     - Aspirado: la presión de la boca al revés y el labio un semitono abajo.
+     - Lo que se oye: «Campana» mezcla la onda que vuelve a la boquilla (0) con lo que sale por la
+       boca del cacho (100).
+     - Carátula: «Medidas del tubo» en Soplo, botones de materiales (medidas aproximadas, JP las
+       dará después: cañería de gas 10 mm, de agua 20 mm, cacho de cabra 18 cm/45 mm, de vaca
+       35 cm/90 mm) y el dibujo a escala (recto, espiral, óvalo) donde va la forma de onda.
+     - Costo: 16 voces ≈ 20 % del tiempo real en el espacio de Claude (sin medidas, 12 %).
+     99 parámetros por capa, 317 en total. Faltan: paso 2, los hoyos (hasta 8, tapados a medias,
+     ubicados a mano o por escala); paso 3, la pifilka con dos secciones (la segunda más angosta).
 

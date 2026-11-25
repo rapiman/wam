@@ -365,6 +365,27 @@ function dB24() {
   };
   a.menorQue('sin inestabilidad, la altura quieta (ct)', desvAlt({}), 3);
   a.mayorQue('inestabilidad 20 ct: la altura tiembla (ct)', desvAlt({ sin: 20, siv: 4 }), 6);
+  // el tubo con medidas (2026-11-25): tubo recto + cacho, con la nota justa en cada armónico
+  const ct = (f, g) => 1200 * Math.log2(f / g);
+  const tkm = { smt: 1, stb: 1, stn: 28, stf: -50, sgm: 1, sai: 60, sru: 0 };
+  a.menorQue('tubo con medidas (trutruka, cañería de agua y cacho de vaca): La#3 justo (ct)', Math.abs(ct(frecAC(tocar(58, tkm), 0.4, 0.7), 6 * 40.02)), 15);
+  a.menorQue('… Do#4 justo (ct)', Math.abs(ct(frecAC(tocar(61, tkm), 0.4, 0.7), 7 * 40.02)), 15);
+  a.mayorQue('… y suena (pico)', pico2(tocar(58, tkm), 0.4, 0.7), 0.1);
+  const nkm = { smt: 1, stb: 1, stn: 41, stf: -39, sgm: 1, sdc: 10, slh: 18, sdh: 45, sai: 55, sru: 0 };
+  a.menorQue('ñolkin (cañería de gas y cacho de cabra): Mi4 en el armónico 4 (ct)', Math.abs(ct(frecAC(tocar(64, nkm), 0.4, 0.7), 4 * 85.36)), 15);
+  a.menorQue('… aspirado, también (ct)', Math.abs(ct(frecAC(tocar(64, { ...nkm, ssn: 1 }), 0.4, 0.7), 4 * 85.36)), 25);
+  const enr = tocar(58, { ...tkm, sen: 1, svu: 6 });
+  a.ver('enrollado en espiral: suena y no se dispara', sano(enr) && pico2(enr, 0.4, 0.7) > 0.05 ? 1 : 0, 1, 0);
+  const tp = tocar(64, { smt: 1, sgm: 1, sdc: 11, slh: 50, sdh: 120, sfh: 80, sai: 70, sru: 0 });
+  a.menorQue('trompeta con medidas (el tubo sigue la nota): cerca de Mi4 (ct)', Math.abs(ct(frecAC(tp, 0.4, 0.7), 329.63)), 50);
+  // la nota del tubo y su largo, como los muestra la carátula
+  const gm = {};
+  for (const q of N.PARAMS) if (q.id.startsWith('c1')) gm[q.id.slice(2)] = q.defecto;
+  Object.assign(gm, { stn: 28, stf: -50 });
+  const mn = N.medidaTubo(gm, FM);
+  a.ver('largo desde la nota: 40 Hz da un tubo recto de unos 4 m (cm)', mn.cm, 425, 40);
+  const ml = N.medidaTubo({ ...gm, slm: 1, slc: mn.cm }, FM);
+  a.ver('… y ese largo, puesto a mano, da otra vez ≈ 40 Hz', ml.hz, 40, 1.5);
 
   const c = tocar(57, { smt: 2, sai: 70 });
   a.ver('caña recta: suena en su nota (220 Hz, ±3 %)', frecAC(c, 0.4, 0.7), 220, 7);
