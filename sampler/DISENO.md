@@ -97,4 +97,17 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
    (los puntos se arrastran: a los lados el tiempo, arriba y abajo el nivel) y sus perillas. Las
    envolventes corren cada 16 muestras y el volumen se reparte en línea recta entre medio. Costo en
    wedwed (Node): 16 voces × 3 capas ≈ 33 % del tiempo real sin filtros, ≈ 56 % con todo.
+8. **El soplo y los modificadores** — HECHO (2026-11-25; JP, tomando la manera del Yamaha VL70-m
+   como parte del moldeado: «esas desafinaciones como de flauta cuando entre más aire, muy tarka o
+   pifilkas o trutrucas o trompetas»). Una capa puede ser un modelo físico (`mod: {}`, fuente
+   «Soplo»): bisel (chorro contra un filo: sube con el aire y, sin «salto», brinca al armónico;
+   extremo cerrado = solo armónicos impares, restando lo de medio período antes; doble fondo = un
+   segundo tubo más hondo que entra con la fuerza, la pifilka), labios (el tubo sigue la nota, o
+   queda fijo y los labios eligen su armónico: la trutruka) y caña (tubo recto o cónico). Modelos de
+   la STK (Cook y Scavone) retocados; afinación medida (`CAL`). La envolvente de Volumen es el
+   soplo; el aire = «Aire» × intensidad × (rueda, aliento CC 2, expresión CC 11 o aftertouch, si se
+   elige). Modificadores por capa para cualquier fuente: realce de armónicos (FM sobre el sonido),
+   resonador (retardo realimentado afinado a la nota) y cuerpo (madera, campana o caja). Carpeta
+   «Soplo»; los modificadores, en «Efectos». 81 parámetros por capa, 266 en total. Costo: 16 voces de
+   soplo con todo ≈ 53 % del tiempo real en wedwed.
 
