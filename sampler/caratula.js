@@ -830,7 +830,14 @@ export function crearCaratula(nodo) {
   let vigente = true;
   const reloj = setInterval(() => {
     if (!vigente) return;
+    // los colores del tema: si cambiaron (o recién se supieron), se vuelve a dibujar
+    const antes = JSON.stringify(C);
     C = coloresDe(caja);
+    if (JSON.stringify(C) !== antes) {
+      pintarTeclado();
+      pintarOnda();
+      moldeado.pintar();
+    }
     void nodo.getParameterValues(false).then((vals) => {
       if (!vals || !vigente) return;
       for (const p of N.PARAMS) {
