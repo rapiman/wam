@@ -195,12 +195,15 @@ export function nucleoSampler() {
           { id: 'sds', nombre: 'Desvío al sostener', corto: 'Desvío', sub: 'sop2', min: -100, max: 100, defecto: 0, unidad: 'ct', paso: 1 },
           { id: 'sdt', nombre: 'Tiempo del desvío', corto: 'Tiempo', sub: 'sop2', ...tiempo(300) },
           { id: 'sdx', nombre: 'Desvío al final', corto: 'Al final', sub: 'sop2', min: -200, max: 200, defecto: 0, unidad: 'ct', paso: 1 },
+          { id: 'sin', nombre: 'Inestabilidad', sub: 'sop2', min: 0, max: 50, defecto: 0, unidad: 'ct', paso: 1 },
+          { id: 'siv', nombre: 'Velocidad de la inestabilidad', corto: 'Velocidad', sub: 'sop2', min: 0.5, max: 15, defecto: 5, unidad: 'Hz', paso: 0.1, dec: 1 },
           { id: 'ssa', nombre: 'Salto', sub: 'sop2', min: 0, max: 100, defecto: 70, unidad: '%', paso: 1 },
           { id: 'sas', nombre: 'Aspereza', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
           { id: 'sgr', nombre: 'Gruñido', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
           { id: 'sgi', nombre: 'Grito', sub: 'sop3', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
           { id: 'sap', nombre: 'Apagado', sub: 'sop3', min: 0, max: 100, defecto: 30, unidad: '%', paso: 1 },
           { id: 'sca', nombre: 'Campana', sub: 'sop3', solo: [1], min: 0, max: 100, defecto: 30, unidad: '%', paso: 1 },
+          { id: 'stc', nombre: 'Tercer parcial', corto: 'Tercero', sub: 'sop3', solo: [1], min: -30, max: 12, defecto: -10, unidad: 'dB', paso: 0.5, dec: 1 },
           { id: 'sdf', nombre: 'Doble fondo', sub: 'sop3', solo: [0], min: 0, max: 1200, defecto: 0, unidad: 'ct', paso: 1 },
           { id: 'sde', nombre: 'Entrada del fondo', corto: 'Entrada', sub: 'sop3', solo: [0], min: 0, max: 100, defecto: 50, unidad: '%', paso: 1 },
           { id: 'sfa', nombre: 'Fuente del aire', corto: 'Aire desde', sub: 'sop3', tipo: 'choice', opciones: FUENTES_AIRE, defecto: 0, min: 0, max: FUENTES_AIRE.length - 1 },
@@ -395,7 +398,7 @@ export function nucleoSampler() {
       l.b[l.i] = x;
       l.i = (l.i + 1) & (MAXL - 1);
     };
-    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0 });
+    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0, q1: 0, q2: 0, q3: 0, q4: 0 });
     // la afinación de cada modelo (medida: cada uno suena un poco alto por sus filtros)
     const CAL = [1.0195, 1.07, 1.009, 1.025];
     const CONTROL_DE = [null, 'rueda', 'aliento', 'expresion', 'presion'];
@@ -455,6 +458,14 @@ export function nucleoSampler() {
         // la campana deja salir más agudo
         st.cx = 0.9 * st.cx + 0.1 * z;
         y = 4 * (z - M.camp * 0.8 * st.cx);
+        if (M.tc) {
+          const o = M.t0 * y + M.t1 * st.q1 + M.t2 * st.q2 - M.t1 * st.q3 - M.t4 * st.q4;
+          st.q2 = st.q1;
+          st.q1 = y;
+          st.q4 = st.q3;
+          st.q3 = o;
+          y = o;
+        }
       } else if (!M.conico) {
         const x = leerS(st.a, M.N);
         const lp = 0.5 * (x + st.z1);
@@ -503,6 +514,13 @@ export function nucleoSampler() {
       if (v.soltada && g.sdx) {
         if (!cap.n0) cap.n0 = Math.max(1e-4, nivel);
         des += g.sdx * (1 - Math.min(1, nivel / cap.n0));
+      }
+      // la inestabilidad: la nota tiembla sin regularidad (ruido suavizado a «Velocidad»,
+      // normalizado para que «Inestabilidad» sea la desviación típica en centésimas)
+      if (g.sin > 0) {
+        const cI = 1 - Math.exp((-2 * Math.PI * g.siv * CADA) / fm);
+        cap.ri = (cap.ri || 0) + cI * (azar() * 1.732 - (cap.ri || 0));
+        des += (g.sin * cap.ri) / Math.sqrt(cI / (2 - cI));
       }
       // la nota, con la subida que da el aire y el desvío (en centésimas)
       const stTecla = v.nota - 69 + cap.c.afinar + st;
@@ -558,6 +576,19 @@ export function nucleoSampler() {
         M.a1 = -2 * r * Math.cos(w);
         M.a2 = r * r;
         M.b0 = 25 * (1 - r) * 2 * Math.sin(w);
+        // el tercer parcial de la nota: un filtro angosto en 3 × la nota que lo sube o lo baja
+        // (el modelo lo da muy fuerte: −7 dB, y en la trutruka y el ñolkin grabados está en −17 a −26)
+        M.tc = g.stc !== 0 && 3 * cap.fN < 0.45 * fm;
+        if (M.tc) {
+          const A = Math.pow(10, g.stc / 40);
+          const w3 = (2 * Math.PI * 3 * cap.fN) / fm;
+          const al = Math.sin(w3) / (2 * 6);
+          const a0 = 1 + al / A;
+          M.t0 = (1 + al * A) / a0;
+          M.t1 = (-2 * Math.cos(w3)) / a0;
+          M.t2 = (1 - al * A) / a0;
+          M.t4 = (1 - al / A) / a0;
+        }
         M.pb = 0.4 + 0.8 * Math.min(1, a);
       } else {
         M.conico = g.sfo >= 0.5;
@@ -758,7 +789,7 @@ export function nucleoSampler() {
 
     // Lo de cada capa (1, 2, 3) que dicen los parámetros, leído una vez por bloque. Los nombres
     // (`c1vat`…) se arman una sola vez: armarlos en cada bloque costaba más que el sonido.
-    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'stf', 'sai', 'sem', 'sru', 'ssu', 'sds', 'sdt', 'sdx', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
+    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'stf', 'sai', 'sem', 'sru', 'ssu', 'sds', 'sdt', 'sdx', 'sin', 'siv', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
     for (const pre of ['vvp', 'vkp', 'fvp', 'fkp']) for (const L of 'ADSR') CLAVES.push(pre + L);
     const DEFECTO = {};
     for (const q of PARAMS) if (q.id.startsWith('c1')) DEFECTO[q.id.slice(2)] = q.defecto;

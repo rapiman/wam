@@ -125,5 +125,13 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
        que se suelta hasta que el volumen se apaga).
      - Los labios salen 2,7 veces más fuerte (estaban 12 dB bajo los otros modelos; por eso el
        aliento los tapaba). Con 15 % de aliento la nota queda ≈ 34 dB arriba del ruido.
-     86 parámetros por capa, 278 en total.
+   - **Con una grabación de ñolkin** (2026-11-25): tubo de ≈ 85,3 Hz (Fa 2 −39 ct), armónicos 4 a 7
+     (el 3.º nunca), pares e impares, ataque ≈ 105 ms, la altura tiembla ±10–14 ct sin regularidad
+     (2–7 Hz). Sale con labios y tubo fijo. JP pidió (1 y 2):
+     - «Tercer parcial» (`stc`, −30 a +12 dB, −10 por defecto; solo labios): filtro angosto en
+       3 × la nota (el modelo lo daba en −7 dB; grabado, −17 a −26). Oscurece también la trompeta.
+     - «Inestabilidad» (`sin`, 0–50 ct, desviación típica) y su «Velocidad» (`siv`, 0,5–15 Hz):
+       ruido suavizado sumado al desvío de la nota, para todos los modelos.
+     89 parámetros por capa, 287 en total. Pendiente (3): la geometría del tubo (largo, diámetro,
+     cono, diámetro final, enrollado), en conversación.
 

@@ -577,7 +577,7 @@ export function crearCaratula(nodo) {
   const CARPETAS = [
     ['facil', 'Fácil', () => [marco(hojas.general, titulo(t('Filtro')), moldeado.crearGrupo(['ft', 'fc', 'fr', 'fi']))]],
     ['fuente', 'Fuente', () => [ayuda, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaCapaFuente]],
-    ['soplo', 'Soplo', () => [marco(el('div', `color:${v('tinta2')};font-size:11px;`, t('Para una capa con la fuente «Soplo»: el modelo del tubo y cómo se toca. La envolvente de Volumen es el soplo.')), titulo(t('Tubo')), moldeado.crearGrupo(['smt', 'sex', 'sfo', 'stb', 'stn', 'stf']), titulo(t('Interpretación')), moldeado.crearGrupo(['sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr']), moldeado.crearGrupo(['sgi', 'sap', 'sca', 'sdf', 'sde', 'sfa']), titulo(t('Desvío de la nota')), moldeado.crearGrupo(['sds', 'sdt', 'sdx']))]],
+    ['soplo', 'Soplo', () => [marco(el('div', `color:${v('tinta2')};font-size:11px;`, t('Para una capa con la fuente «Soplo»: el modelo del tubo y cómo se toca. La envolvente de Volumen es el soplo.')), titulo(t('Tubo')), moldeado.crearGrupo(['smt', 'sex', 'sfo', 'stb', 'stn', 'stf']), titulo(t('Interpretación')), moldeado.crearGrupo(['sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr']), moldeado.crearGrupo(['sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa']), titulo(t('Desvío de la nota')), moldeado.crearGrupo(['sds', 'sdt', 'sdx', 'sin', 'siv']))]],
     ['filtro', 'Filtro', () => (moldeado.ponerHoja('fil'), [moldeado.el])],
     ['volumen', 'Volumen', () => (moldeado.ponerHoja('vol'), [moldeado.el])],
     ['altura', 'Altura', () => (moldeado.ponerHoja('alt'), [moldeado.el])],

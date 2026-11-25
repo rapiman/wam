@@ -337,6 +337,34 @@ function dB24() {
   const fFin = frecAC(Ld, 0.95, 1.0);
   a.mayorQue('desvío al sostener +60 ct: sube (ct)', 1200 * Math.log2(fSos / fIni), 35);
   a.mayorQue('desvío al final −200 ct: baja al soltar (ct)', 1200 * Math.log2(fSos / fFin), 60);
+  // el tercer parcial (2026-11-25, con el ñolkin): −10 dB por defecto lo deja cerca de lo grabado
+  const parcial = (x, f, k) => {
+    const q = x.subarray(...tramo(0.4, 0.7));
+    let re = 0;
+    let im = 0;
+    for (let i = 0; i < q.length; i++) {
+      const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / q.length);
+      re += q[i] * w * Math.cos((2 * Math.PI * k * f * i) / FM);
+      im += q[i] * w * Math.sin((2 * Math.PI * k * f * i) / FM);
+    }
+    return Math.hypot(re, im);
+  };
+  const nk = { smt: 1, stb: 1, stn: 41, stf: -39, sai: 55, sca: 0, sru: 0 };
+  const t0 = tocar(64, { ...nk, stc: 0 });
+  const t20 = tocar(64, { ...nk, stc: -20 });
+  const r0 = parcial(t0, 341.3, 3) / parcial(t0, 341.3, 1);
+  const r20 = parcial(t20, 341.3, 3) / parcial(t20, 341.3, 1);
+  a.mayorQue('tercer parcial −20 dB: baja el 3.º respecto del fundamental (dB)', 20 * Math.log10(r0 / r20), 15);
+  // la inestabilidad: la altura tiembla; sin ella, quieta
+  const desvAlt = (o) => {
+    const x = tocar(64, { ...nk, ...o }, 2.2);
+    const f = [];
+    for (let t = 0.4; t < 2.1; t += 0.1) f.push(1200 * Math.log2(frecAC(x, t, t + 0.06)));
+    const m = f.reduce((p, q) => p + q, 0) / f.length;
+    return Math.sqrt(f.reduce((p, q) => p + (q - m) ** 2, 0) / f.length);
+  };
+  a.menorQue('sin inestabilidad, la altura quieta (ct)', desvAlt({}), 3);
+  a.mayorQue('inestabilidad 20 ct: la altura tiembla (ct)', desvAlt({ sin: 20, siv: 4 }), 6);
 
   const c = tocar(57, { smt: 2, sai: 70 });
   a.ver('caña recta: suena en su nota (220 Hz, ±3 %)', frecAC(c, 0.4, 0.7), 220, 7);
