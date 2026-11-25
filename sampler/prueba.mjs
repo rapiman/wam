@@ -322,6 +322,21 @@ function dB24() {
   const ftr = (nota) => frecAC(tocar(nota, { smt: 1, stb: 1, stn: 36, sai: 70 }), 0.4, 0.7) / 65.41;
   a.menorQue('trutruka (tubo fijo): Sol 3 cae en el armónico 3 del tubo', Math.abs(ftr(55) - 3), 0.1);
   a.menorQue('… y Mi 4, en el 5', Math.abs(ftr(64) - 5), 0.15);
+  // la trutruka de la grabación (2026-11-25): tubo de 40 Hz (Mi 1 −50 ct), armónicos 5 a 8
+  const tk = { smt: 1, stb: 1, stn: 28, stf: -50, sai: 50, sru: 0 };
+  const ftk = (nota, o = {}) => frecAC(tocar(nota, { ...tk, ...o }), 0.4, 0.7) / 40.02;
+  a.menorQue('trutruka de 40 Hz (afinación del tubo): La#3 en el armónico 6', Math.abs(ftk(58) - 6), 0.06);
+  a.menorQue('… Do#4 en el 7', Math.abs(ftk(61) - 7), 0.07);
+  a.menorQue('… una tecla entre dos armónicos (Fa#3, 185 Hz) va al más cercano, el 5', Math.abs(ftk(54) - 5), 0.05);
+  a.mayorQue('… y suena fuerte, no un hilo (pico)', pico2(tocar(58, tk), 0.4, 0.7), 0.1);
+  // el desvío: sube mientras se sostiene y baja al final
+  const dv = { ...tk, sds: 60, sdt: 600, sdx: -200, vrt: 300 };
+  const Ld = tocar(58, dv, 1.4, [[0, 'on', 58], [0.8, 'off', 58]]);
+  const fIni = frecAC(Ld, 0.1, 0.16);
+  const fSos = frecAC(Ld, 0.5, 0.75);
+  const fFin = frecAC(Ld, 0.95, 1.0);
+  a.mayorQue('desvío al sostener +60 ct: sube (ct)', 1200 * Math.log2(fSos / fIni), 35);
+  a.mayorQue('desvío al final −200 ct: baja al soltar (ct)', 1200 * Math.log2(fSos / fFin), 60);
 
   const c = tocar(57, { smt: 2, sai: 70 });
   a.ver('caña recta: suena en su nota (220 Hz, ±3 %)', frecAC(c, 0.4, 0.7), 220, 7);

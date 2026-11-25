@@ -110,4 +110,20 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
    resonador (retardo realimentado afinado a la nota) y cuerpo (madera, campana o caja). Carpeta
    «Soplo»; los modificadores, en «Efectos». 81 parámetros por capa, 266 en total. Costo: 16 voces de
    soplo con todo ≈ 53 % del tiempo real en wedwed.
+   - **Retoque con una grabación de trutruka** (2026-11-25; JP mandó un trutrukero y pidió los
+     cambios a, c, d y e, y que el aliento se pueda bajar). Lo medido: tubo de ≈ 40 Hz (Mi 1 −50 ct),
+     toca los armónicos 6–7–8 (5 y 9 a veces), notas de 0,2 s, ataque de 30 ms, la nota sube ≈ 20 ct
+     al sostenerse, 2.º parcial a −7 dB, aliento 20–25 dB bajo la nota. Cambios:
+     - Labios con tubo fijo: el ancho del labio va con la distancia entre las resonancias del tubo
+       (0,6 × la nota del tubo; antes 0,25 × la de los labios, que cubría varias y salía casi un
+       seno, muy bajo). Suenan los armónicos 3 a 10 con timbre de bronce.
+     - La tecla elige el armónico más cercano (del 3.º arriba: el 1.º y el 2.º no se afirman); el
+       tubo se corrige porque sus resonancias caen en (k + 0,19)·f (medido) y no usa `CAL`.
+     - «Afinación del tubo» (`stf`, ±100 ct).
+     - «Desvío de la nota», para todos los modelos: «Desvío al sostener» (`sds`, ±100 ct, llega en
+       «Tiempo del desvío», `sdt`) y «Desvío al final» (`sdx`, ±200 ct, con el soplo que se va desde
+       que se suelta hasta que el volumen se apaga).
+     - Los labios salen 2,7 veces más fuerte (estaban 12 dB bajo los otros modelos; por eso el
+       aliento los tapaba). Con 15 % de aliento la nota queda ≈ 34 dB arriba del ruido.
+     86 parámetros por capa, 278 en total.
 

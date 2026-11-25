@@ -187,10 +187,14 @@ export function nucleoSampler() {
           { id: 'sfo', nombre: 'Tubo de la caña', corto: 'Tubo de la caña', sub: 'sop1', solo: [2], tipo: 'choice', opciones: ['Recto', 'Cónico'], defecto: 0, min: 0, max: 1 },
           { id: 'stb', nombre: 'Largo del tubo', corto: 'Largo', sub: 'sop1', solo: [1], tipo: 'choice', opciones: ['Sigue la nota', 'Fijo'], defecto: 0, min: 0, max: 1 },
           { id: 'stn', nombre: 'Nota del tubo', sub: 'sop1', solo: [1], nota: true, min: 24, max: 96, defecto: 36, paso: 1 },
+          { id: 'stf', nombre: 'Afinación del tubo', corto: 'Afinación', sub: 'sop1', solo: [1], min: -100, max: 100, defecto: 0, unidad: 'ct', paso: 1 },
           { id: 'sai', nombre: 'Aire', sub: 'sop2', min: 0, max: 100, defecto: 60, unidad: '%', paso: 1 },
           { id: 'sem', nombre: 'Embocadura', sub: 'sop2', min: 0, max: 100, defecto: 50, unidad: '%', paso: 1 },
           { id: 'sru', nombre: 'Ruido de aliento', corto: 'Aliento', sub: 'sop2', min: 0, max: 100, defecto: 15, unidad: '%', paso: 1 },
           { id: 'ssu', nombre: 'Subida con el aire', corto: 'Subida', sub: 'sop2', min: 0, max: 100, defecto: 20, unidad: 'ct', paso: 1 },
+          { id: 'sds', nombre: 'Desvío al sostener', corto: 'Desvío', sub: 'sop2', min: -100, max: 100, defecto: 0, unidad: 'ct', paso: 1 },
+          { id: 'sdt', nombre: 'Tiempo del desvío', corto: 'Tiempo', sub: 'sop2', ...tiempo(300) },
+          { id: 'sdx', nombre: 'Desvío al final', corto: 'Al final', sub: 'sop2', min: -200, max: 200, defecto: 0, unidad: 'ct', paso: 1 },
           { id: 'ssa', nombre: 'Salto', sub: 'sop2', min: 0, max: 100, defecto: 70, unidad: '%', paso: 1 },
           { id: 'sas', nombre: 'Aspereza', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
           { id: 'sgr', nombre: 'Gruñido', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
@@ -450,7 +454,7 @@ export function nucleoSampler() {
         ponerS(st.a, z);
         // la campana deja salir más agudo
         st.cx = 0.9 * st.cx + 0.1 * z;
-        y = 1.5 * (z - M.camp * 0.8 * st.cx);
+        y = 4 * (z - M.camp * 0.8 * st.cx);
       } else if (!M.conico) {
         const x = leerS(st.a, M.N);
         const lp = 0.5 * (x + st.z1);
@@ -492,8 +496,17 @@ export function nucleoSampler() {
       const a = Math.max(0, Math.min(1.5, (g.sai / 100) * (1 - sens + (sens * v.vel) / 127) * ctl));
       const emb = g.sem / 100;
       const salto = g.ssa / 100;
-      // la nota, con la subida que da el aire (en centésimas)
-      const stN = v.nota - 69 + cap.c.afinar + st + (g.ssu * a) / 100;
+      // el desvío de la nota: mientras se sostiene (llega en «Tiempo del desvío») y al final (con
+      // el soplo que se va: desde que se suelta hasta que el volumen se apaga)
+      cap.tS = (cap.tS || 0) + CADA;
+      let des = g.sds * suave(cap.tS / Math.max(1, (g.sdt / 1000) * fm));
+      if (v.soltada && g.sdx) {
+        if (!cap.n0) cap.n0 = Math.max(1e-4, nivel);
+        des += g.sdx * (1 - Math.min(1, nivel / cap.n0));
+      }
+      // la nota, con la subida que da el aire y el desvío (en centésimas)
+      const stTecla = v.nota - 69 + cap.c.afinar + st;
+      const stN = stTecla + (g.ssu * a + des) / 100;
       const fN = 440 * Math.pow(2, stN / 12);
       cap.fN = fN;
       M.tipo = Math.round(g.smt);
@@ -518,12 +531,30 @@ export function nucleoSampler() {
         M.pb = 0.6 + 0.8 * Math.min(1, a);
       } else if (M.tipo === 1) {
         // los labios a la nota (con la embocadura y, sin «salto», subiendo con el aire)
-        let fL = (fN / CAL[1]) * Math.pow(2, ((emb - 0.5) * 6 + (1 - salto) * 4 * Math.max(0, a - 0.5)) / 12);
+        const labio = Math.pow(2, ((emb - 0.5) * 6 + (1 - salto) * 4 * Math.max(0, a - 0.5)) / 12);
+        let fL;
+        if (g.stb >= 0.5) {
+          // tubo fijo: sus resonancias en la nota del tubo × 1, 2, 3…; la tecla elige el armónico
+          // más cercano (el labio no se sostiene entre dos) y el desvío estira el tubo con él
+          const fT = 440 * Math.pow(2, (g.stn - 69 + g.stf / 100 + st) / 12);
+          // (del 3.º para arriba: el 1.º y el 2.º no se afirman, como en la trutruka de verdad)
+          const k = Math.max(3, Math.round((440 * Math.pow(2, stTecla / 12)) / fT));
+          const fTd = fT * Math.pow(2, des / 1200);
+          // el tubo suena con sus resonancias corridas en (k + 0,19)·f (medido): se acorta para que
+          // la elegida caiga justo; en los armónicos bajos un poco más
+          M.N = (fm * (k + 0.19 + 0.15 / k)) / (k * fTd) + 3;
+          M.fTx = fTd;
+          fL = k * fTd * Math.pow(2, (g.ssu * a) / 1200) * labio;
+          cap.fN = k * fT * Math.pow(2, des / 1200);
+        } else {
+          M.N = (2 * fm) / (fN / CAL[1]) + 3;
+          fL = (fN / CAL[1]) * labio;
+        }
         fL = Math.min(0.2 * fm, fL);
-        // tubo fijo: sus resonancias en la nota del tubo × 1, 2, 3…; los labios eligen cuál
-        M.N = g.stb >= 0.5 ? fm / ((440 * Math.pow(2, (g.stn - 69 + st) / 12)) / CAL[1]) + 3 : (2 * fm) / (fN / CAL[1]) + 3;
         const w = (2 * Math.PI * fL) / fm;
-        const r = 1 - (Math.PI * (g.stb >= 0.5 ? 0.25 : 0.15) * fL) / fm;
+        // el ancho del labio: con el tubo fijo, angosto como la distancia entre sus resonancias (si no,
+        // cubre varias y el labio no se afirma en ninguna)
+        const r = 1 - (Math.PI * (g.stb >= 0.5 ? 0.6 * M.fTx : 0.15 * fL)) / fm;
         M.a1 = -2 * r * Math.cos(w);
         M.a2 = r * r;
         M.b0 = 25 * (1 - r) * 2 * Math.sin(w);
@@ -727,7 +758,7 @@ export function nucleoSampler() {
 
     // Lo de cada capa (1, 2, 3) que dicen los parámetros, leído una vez por bloque. Los nombres
     // (`c1vat`…) se arman una sola vez: armarlos en cada bloque costaba más que el sonido.
-    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
+    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'stf', 'sai', 'sem', 'sru', 'ssu', 'sds', 'sdt', 'sdx', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
     for (const pre of ['vvp', 'vkp', 'fvp', 'fkp']) for (const L of 'ADSR') CLAVES.push(pre + L);
     const DEFECTO = {};
     for (const q of PARAMS) if (q.id.startsWith('c1')) DEFECTO[q.id.slice(2)] = q.defecto;
