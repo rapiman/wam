@@ -82,3 +82,19 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
    con polyBLEP). Pasa por todo lo demás: envolvente, filtro, color, vaivenes; el desafinado le
    da dos fases, una por oreja. En un golpe cae a cero en el decaimiento. CAPA: `osc: { forma, ancho }`.
 6. **La pieza de Pizarrita** — HECHO (2026-11-25): si el anfitrión le pone al nodo `pz.elegirAudio()` (Pizarrita: `canvas/caja/audioSampler.tsx`, al abrir el panel del instrumento en la caja), la carátula muestra «Desde Pizarrita», que abre la ventana del anfitrión con los audios de las cajas que se pueden ver (primero los de esa caja) y deja la dirección en la capa. Además, pestaña con los audios sueltos de todas las pizarritas, y **subir y grabar**: el audio queda en la pizarra donde está la caja, como un audio suelto (JP: «en la pizarra como un audio»), y se usa en la capa.
+7. **Moldear cada capa como el Korg M1** — HECHO (2026-11-25; JP: «copiarle los VDA, VDF,
+   envelope… el gráfico», «todo, que quede bien complejo»). La capa 1, 2 o 3 de cada zona es como
+   un oscilador del M1: lo del audio va en la zona; lo que moldea el sonido son parámetros de la
+   capa (`c1…`, `c2…`, `c3…`, 55 por capa, 185 en total, todos automatizables), iguales en todas las
+   zonas. Volumen (VDA): envolvente de seis tramos con punto de quiebre y pendiente, sensibilidad,
+   y la intensidad y la tecla alargan (+), dejan (x) o acortan (−) cada tiempo. Filtro (VDF), uno
+   por capa: tipo, corte, resonancia, intensidad en octavas, envolvente de ocho tramos con niveles
+   ±100 %, intensidad de la nota sobre la intensidad y los tiempos, tecla sobre el corte y los
+   tiempos. Altura: envolvente con inicio, cima, decaimiento a la nota y final, más honda y más
+   lenta según la intensidad. Nivel, afinación y retardo de entrada por capa. Lo general: volumen,
+   afinación y un ataque, decaimiento y soltado (±50) que se suman a todas las envolventes, como en
+   el M1. La carátula (`moldear.js`): pestañas Volumen, Filtro y Altura con la envolvente dibujada
+   (los puntos se arrastran: a los lados el tiempo, arriba y abajo el nivel) y sus perillas. Las
+   envolventes corren cada 16 muestras y el volumen se reparte en línea recta entre medio. Costo en
+   wedwed (Node): 16 voces × 3 capas ≈ 33 % del tiempo real sin filtros, ≈ 56 % con todo.
+

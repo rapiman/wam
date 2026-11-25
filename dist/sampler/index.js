@@ -1594,26 +1594,102 @@ function nucleoSampler() {
   const TIPOS_FILTRO = ["Apagado", "Pasa bajos", "Pasa altos", "Pasa banda"];
   const FORMAS = ["Seno", "Tri\xE1ngulo", "Cuadrada", "Sierra", "Azar"];
   const DESTINOS = ["Altura", "Volumen", "Filtro", "Distorsi\xF3n", "Paneo"];
+  const POLARIDAD = ["+", "x", "\u2212"];
+  const TRAMOS = [
+    ["A", "Ataque"],
+    ["D", "Decaimiento"],
+    ["S", "Pendiente"],
+    ["R", "Soltado"]
+  ];
   const vaiven = (k) => [
     { id: `l${k}f`, nombre: `Forma del vaiv\xE9n ${k}`, corto: "Forma", grupo: `v${k}`, tipo: "choice", opciones: FORMAS, defecto: 0, min: 0, max: FORMAS.length - 1 },
     { id: `l${k}v`, nombre: `Velocidad del vaiv\xE9n ${k}`, corto: "Velocidad", grupo: `v${k}`, min: 0.05, max: 30, defecto: 2, unidad: "Hz", paso: 0.01, dec: 2, log: true },
     { id: `l${k}p`, nombre: `Profundidad del vaiv\xE9n ${k}`, corto: "Profundidad", grupo: `v${k}`, min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
     { id: `l${k}d`, nombre: `Destino del vaiv\xE9n ${k}`, corto: "Destino", grupo: `v${k}`, tipo: "choice", opciones: DESTINOS, defecto: k === 1 ? 0 : 2, min: 0, max: DESTINOS.length - 1 }
   ];
+  const tiempo = (defecto) => ({ min: 0.5, max: 1e4, defecto, unidad: "ms", paso: 0.1, dec: 1, log: true });
+  const nivel = (defecto, bipolar) => ({ min: bipolar ? -100 : 0, max: 100, defecto, unidad: "%", paso: 1 });
+  const polaridades = (k, pre, sub, que) => TRAMOS.map(([L, nom]) => ({
+    id: `c${k}${pre}${L}`,
+    nombre: `${que}: ${nom}`,
+    corto: L,
+    sub,
+    tipo: "choice",
+    opciones: POLARIDAD,
+    defecto: 0,
+    min: 0,
+    max: 2,
+    angosto: true
+  }));
+  const capa = (k) => {
+    const P = (lista, grupo) => lista.map((p) => ({ ...p, id: p.id.startsWith(`c${k}`) ? p.id : `c${k}${p.id}`, nombre: `Capa ${k}: ${p.nombre}`, grupo: `c${k}${grupo}` }));
+    return [
+      ...P(
+        [
+          { id: "niv", nombre: "Nivel", sub: "capa", min: -40, max: 12, defecto: 0, unidad: "dB", paso: 0.1, dec: 1 },
+          { id: "afi", nombre: "Afinaci\xF3n", sub: "capa", min: -24, max: 24, defecto: 0, unidad: "st", paso: 0.01, dec: 2 },
+          { id: "ret", nombre: "Retardo de entrada", corto: "Retardo", sub: "capa", min: 0, max: 2e3, defecto: 0, unidad: "ms", paso: 1 },
+          { id: "vat", nombre: "Ataque del volumen", corto: "Ataque", sub: "env", ...tiempo(2) },
+          { id: "val", nombre: "Nivel de ataque del volumen", corto: "Cima", sub: "env", ...nivel(100) },
+          { id: "vdt", nombre: "Decaimiento del volumen", corto: "Decaimiento", sub: "env", ...tiempo(300) },
+          { id: "vbp", nombre: "Quiebre del volumen", corto: "Quiebre", sub: "env", ...nivel(100) },
+          { id: "vst", nombre: "Pendiente del volumen", corto: "Pendiente", sub: "env", ...tiempo(300) },
+          { id: "vsl", nombre: "Sostenido del volumen", corto: "Sostenido", sub: "env", ...nivel(100) },
+          { id: "vrt", nombre: "Soltado del volumen", corto: "Soltado", sub: "env", ...tiempo(200) },
+          { id: "vvs", nombre: "Sensibilidad del volumen", corto: "Sensibilidad", sub: "vel", min: 0, max: 100, defecto: 70, unidad: "%", paso: 1 },
+          { id: "vvt", nombre: "Tiempos del volumen por intensidad", corto: "Tiempo", sub: "vel", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          ...polaridades(k, "vvp", "vel", "Intensidad en los tiempos del volumen"),
+          { id: "vkt", nombre: "Tiempos del volumen por tecla", corto: "Tiempo", sub: "tec", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          ...polaridades(k, "vkp", "tec", "Tecla en los tiempos del volumen")
+        ],
+        "vol"
+      ),
+      ...P(
+        [
+          { id: "ft", nombre: "Tipo de filtro", corto: "Tipo", sub: "capa", tipo: "choice", opciones: TIPOS_FILTRO, defecto: 0, min: 0, max: 3 },
+          { id: "fc", nombre: "Corte", sub: "capa", min: 20, max: 2e4, defecto: 2e3, unidad: "Hz", paso: 1, log: true },
+          { id: "fr", nombre: "Resonancia", sub: "capa", min: 0, max: 100, defecto: 10, unidad: "%", paso: 1 },
+          { id: "fi", nombre: "Intensidad del filtro", corto: "Intensidad", sub: "capa", min: -8, max: 8, defecto: 0, unidad: "oct", paso: 0.05, dec: 2 },
+          { id: "fl0", nombre: "Nivel inicial del filtro", corto: "Inicio", sub: "env", ...nivel(0, true) },
+          { id: "fat", nombre: "Ataque del filtro", corto: "Ataque", sub: "env", ...tiempo(2) },
+          { id: "fal", nombre: "Nivel de ataque del filtro", corto: "Cima", sub: "env", ...nivel(100, true) },
+          { id: "fdt", nombre: "Decaimiento del filtro", corto: "Decaimiento", sub: "env", ...tiempo(300) },
+          { id: "fbp", nombre: "Quiebre del filtro", corto: "Quiebre", sub: "env", ...nivel(50, true) },
+          { id: "fst", nombre: "Pendiente del filtro", corto: "Pendiente", sub: "env", ...tiempo(600) },
+          { id: "fsl", nombre: "Sostenido del filtro", corto: "Sostenido", sub: "env", ...nivel(0, true) },
+          { id: "frt", nombre: "Soltado del filtro", corto: "Soltado", sub: "env", ...tiempo(200) },
+          { id: "frl", nombre: "Nivel final del filtro", corto: "Final", sub: "env", ...nivel(0, true) },
+          { id: "fvi", nombre: "Intensidad del filtro por intensidad", corto: "Intensidad", sub: "vel", min: -100, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "fvt", nombre: "Tiempos del filtro por intensidad", corto: "Tiempo", sub: "vel", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          ...polaridades(k, "fvp", "vel", "Intensidad en los tiempos del filtro"),
+          { id: "fkc", nombre: "Corte por tecla", corto: "Corte", sub: "tec", min: -200, max: 200, defecto: 0, unidad: "%", paso: 1 },
+          { id: "fkt", nombre: "Tiempos del filtro por tecla", corto: "Tiempo", sub: "tec", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          ...polaridades(k, "fkp", "tec", "Tecla en los tiempos del filtro")
+        ],
+        "fil"
+      ),
+      ...P(
+        [
+          { id: "pi", nombre: "Intensidad de la altura", corto: "Intensidad", sub: "capa", min: 0, max: 24, defecto: 12, unidad: "st", paso: 0.01, dec: 2 },
+          { id: "pl0", nombre: "Nivel inicial de la altura", corto: "Inicio", sub: "env", ...nivel(0, true) },
+          { id: "pat", nombre: "Ataque de la altura", corto: "Ataque", sub: "env", ...tiempo(2) },
+          { id: "pal", nombre: "Nivel de ataque de la altura", corto: "Cima", sub: "env", ...nivel(0, true) },
+          { id: "pdt", nombre: "Decaimiento de la altura", corto: "Decaimiento", sub: "env", ...tiempo(100) },
+          { id: "prt", nombre: "Soltado de la altura", corto: "Soltado", sub: "env", ...tiempo(200) },
+          { id: "prl", nombre: "Nivel final de la altura", corto: "Final", sub: "env", ...nivel(0, true) },
+          { id: "pvi", nombre: "Intensidad de la altura por intensidad", corto: "Intensidad", sub: "vel", min: -100, max: 100, defecto: 0, unidad: "%", paso: 1 },
+          { id: "pvt", nombre: "Tiempos de la altura por intensidad", corto: "Tiempo", sub: "vel", min: -100, max: 100, defecto: 0, unidad: "%", paso: 1 }
+        ],
+        "alt"
+      )
+    ];
+  };
   const PARAMS = [
     { id: "vol", nombre: "Volumen", grupo: "general", min: -60, max: 6, defecto: 0, unidad: "dB", paso: 0.1, dec: 1 },
-    { id: "atq", nombre: "Ataque", grupo: "general", min: 0.5, max: 5e3, defecto: 2, unidad: "ms", paso: 0.1, dec: 1, log: true },
-    { id: "dec", nombre: "Decaimiento", grupo: "general", min: 1, max: 5e3, defecto: 300, unidad: "ms", paso: 1, log: true },
-    { id: "sos", nombre: "Sostenido", grupo: "general", min: 0, max: 100, defecto: 100, unidad: "%", paso: 1 },
-    { id: "sol", nombre: "Soltado", grupo: "general", min: 1, max: 8e3, defecto: 200, unidad: "ms", paso: 1, log: true },
     { id: "afinar", nombre: "Afinaci\xF3n", grupo: "general", min: -24, max: 24, defecto: 0, unidad: "st", paso: 0.01, dec: 2 },
-    { id: "vel", nombre: "Sensibilidad", grupo: "general", min: 0, max: 100, defecto: 70, unidad: "%", paso: 1 },
-    { id: "ftipo", nombre: "Filtro", corto: "Tipo", grupo: "filtro", tipo: "choice", opciones: TIPOS_FILTRO, defecto: 0, min: 0, max: 3 },
-    { id: "corte", nombre: "Corte", grupo: "filtro", min: 20, max: 2e4, defecto: 2e3, unidad: "Hz", paso: 1, log: true },
-    { id: "reso", nombre: "Resonancia", grupo: "filtro", min: 0, max: 100, defecto: 10, unidad: "%", paso: 1 },
-    { id: "fenv", nombre: "Envolvente del filtro", corto: "Envolvente", grupo: "filtro", min: -8, max: 8, defecto: 0, unidad: "oct", paso: 0.05, dec: 2 },
-    { id: "fatq", nombre: "Ataque del filtro", corto: "Ataque", grupo: "filtro", min: 0.5, max: 5e3, defecto: 2, unidad: "ms", paso: 0.1, dec: 1, log: true },
-    { id: "fdec", nombre: "Ca\xEDda del filtro", corto: "Ca\xEDda", grupo: "filtro", min: 1, max: 5e3, defecto: 400, unidad: "ms", paso: 1, log: true },
+    { id: "gat", nombre: "Ataque general", corto: "Ataque", grupo: "general", min: -50, max: 50, defecto: 0, paso: 1 },
+    { id: "gdt", nombre: "Decaimiento general", corto: "Decaimiento", grupo: "general", min: -50, max: 50, defecto: 0, paso: 1 },
+    { id: "grt", nombre: "Soltado general", corto: "Soltado", grupo: "general", min: -50, max: 50, defecto: 0, paso: 1 },
     { id: "dist", nombre: "Distorsi\xF3n", grupo: "color", min: 0, max: 36, defecto: 0, unidad: "dB", paso: 0.5, dec: 1 },
     { id: "dmez", nombre: "Mezcla de la distorsi\xF3n", corto: "Mezcla", grupo: "color", min: 0, max: 100, defecto: 100, unidad: "%", paso: 1 },
     { id: "ruido", nombre: "Ruido", grupo: "color", min: 0, max: 100, defecto: 0, unidad: "%", paso: 1 },
@@ -1622,15 +1698,20 @@ function nucleoSampler() {
     { id: "subOct", nombre: "Octava del sub", corto: "Octava", grupo: "color", tipo: "choice", opciones: ["\u22121", "\u22122"], defecto: 0, min: 0, max: 1 },
     { id: "subForma", nombre: "Forma del sub", corto: "Forma", grupo: "color", tipo: "choice", opciones: ["Seno", "Cuadrada"], defecto: 0, min: 0, max: 1 },
     ...vaiven(1),
-    ...vaiven(2)
+    ...vaiven(2),
+    ...capa(1),
+    ...capa(2),
+    ...capa(3)
   ];
   const VOCES = 32;
   const CRUCE_S = 4e-3;
   const AHOGO_S = 6e-3;
   const BORDE_S = 2e-3;
-  const CADA_FILTRO = 16;
+  const CADA = 16;
   const dB = (x) => Math.pow(10, x / 20);
   const val = (p, id, def) => p[id] === void 0 ? def : p[id];
+  const POL = [1, 0, -1];
+  const porTiempo = (pol, cant, x) => Math.pow(2, POL[Math.round(pol)] * cant * x * 3);
   function crear(fm) {
     const muestras = /* @__PURE__ */ new Map();
     let zonas = [];
@@ -1742,6 +1823,34 @@ function nucleoSampler() {
       for (const z of zonas) if (nota >= z.baja && nota <= z.alta) return z;
       return null;
     };
+    const envolvente = () => ({ fase: 0, t: 0, nivel: null, desde: 0 });
+    const paso = (e, D, m) => {
+      if (e.nivel === null) e.nivel = D.L[0];
+      while (m > 0) {
+        if (e.fase === 5) return e.nivel;
+        if (e.fase === 3) return e.nivel = D.L[3];
+        const T = Math.max(1, D.T[e.fase === 4 ? 3 : e.fase]);
+        const a = e.fase === 4 ? e.desde : D.L[e.fase];
+        const b = e.fase === 4 ? D.L[4] : D.L[e.fase + 1];
+        const resta = T - e.t;
+        if (m < resta) {
+          e.t += m;
+          e.nivel = a + (b - a) * e.t / T;
+          return e.nivel;
+        }
+        m -= resta;
+        e.nivel = b;
+        e.t = 0;
+        e.fase = e.fase === 4 ? 5 : e.fase + 1;
+      }
+      return e.nivel;
+    };
+    const soltar = (e) => {
+      if (e.fase >= 4) return;
+      e.desde = e.nivel === null ? 0 : e.nivel;
+      e.fase = 4;
+      e.t = 0;
+    };
     function notaOn(nota, vel, p) {
       const z = zonaDe(nota);
       if (!z) return;
@@ -1751,10 +1860,31 @@ function nucleoSampler() {
         for (const v2 of voces) if (v2.nota === nota && !v2.ahogo) v2.ahogo = AHOGO_S * fm;
       }
       const capas = [];
-      for (const c of (z.capas || []).slice(0, 3)) {
+      (z.capas || []).slice(0, 3).forEach((c, k) => {
         const pc = prepararCapa(c, tajadas ? nota - z.baja : -1, nota);
-        if (pc) capas.push({ c: pc, pos: pc.osc ? 0 : pc.ini, pos2: pc.osc ? 0 : pc.ini, viva: true, viva2: true });
-      }
+        if (!pc) return;
+        capas.push({
+          c: pc,
+          k: k + 1,
+          pos: pc.osc ? 0 : pc.ini,
+          pos2: pc.osc ? 0 : pc.ini,
+          viva: true,
+          viva2: true,
+          muerta: false,
+          espera: Math.round(Math.max(0, val(p, `c${k + 1}ret`, 0)) / 1e3 * fm),
+          eV: envolvente(),
+          eF: envolvente(),
+          eP: envolvente(),
+          f: [0, 0, 0, 0],
+          fG: 0,
+          fK: 1,
+          cuenta: 0,
+          r: [0, 0, 0],
+          lv: 0,
+          dlv: 0,
+          fin: false
+        });
+      });
       if (!capas.length) return;
       if (voces.length >= VOCES) {
         let vieja = voces[0];
@@ -1762,28 +1892,20 @@ function nucleoSampler() {
         vieja.ahogo = vieja.ahogo || AHOGO_S * fm;
         if (voces.length >= VOCES + 8) voces.splice(voces.indexOf(vieja), 1);
       }
-      const sens = Math.max(0, Math.min(1, val(p, "vel", 70) / 100));
+      const ve = Math.max(0, Math.min(127, vel));
       voces.push({
         nota,
         raiz: tajadas ? nota : Number(z.raiz) || 60,
         golpe,
         capas,
-        // con un oscilador, un golpe cae a cero (si no, sonaría para siempre)
-        conOsc: capas.some((x) => x.c.osc),
-        gan: 1 - sens + sens * Math.max(0, Math.min(127, vel)) / 127,
-        // la envolvente: fase 0 ataque, 1 decaimiento, 2 sostenido, 3 soltado
-        fase: 0,
-        env: 0,
+        vel: ve,
+        velX: (ve - 64) / 63,
+        tecX: Math.max(-2.5, Math.min(2.5, (nota - 60) / 24)),
         soltada: false,
+        soltadaHecha: false,
         ahogo: 0,
+        ahogoN: 1,
         orden: orden++,
-        // la envolvente del filtro (sube y cae a cero) y su estado, una pareja por oreja
-        fEnv: 0,
-        fSube: true,
-        f: [0, 0, 0, 0],
-        fG: 0,
-        fK: 1,
-        fCuenta: 0,
         subFase: 0
       });
     }
@@ -1820,6 +1942,89 @@ function nucleoSampler() {
       if (k === 3) return 2 * ph - 1;
       return l.azar;
     };
+    const CLAVES = ["niv", "afi", "vat", "val", "vdt", "vbp", "vst", "vsl", "vrt", "vvs", "vvt", "vkt", "ft", "fc", "fr", "fi", "fl0", "fat", "fal", "fdt", "fbp", "fst", "fsl", "frt", "frl", "fvi", "fvt", "fkc", "fkt", "pi", "pl0", "pat", "pal", "pdt", "prt", "prl", "pvi", "pvt"];
+    for (const pre of ["vvp", "vkp", "fvp", "fkp"]) for (const L of "ADSR") CLAVES.push(pre + L);
+    const DEFECTO = {};
+    for (const q of PARAMS) if (q.id.startsWith("c1")) DEFECTO[q.id.slice(2)] = q.defecto;
+    const IDS = [1, 2, 3].map((k) => CLAVES.map((c) => [c, `c${k}${c}`]));
+    const leerCapa = (p, k) => {
+      const o = {};
+      for (const [c, id] of IDS[k - 1]) o[c] = p[id] === void 0 ? DEFECTO[c] : p[id];
+      o.firma = firmaDe(o);
+      o.ganBase = dB(o.niv);
+      o.ftipo = Math.round(o.ft);
+      o.fK = 1 / (0.5 * Math.pow(40, Math.max(0, Math.min(100, o.fr)) / 100));
+      return o;
+    };
+    const ms = (x) => Math.max(1, x / 1e3 * fm);
+    const firmaDe = (g) => {
+      let f = g.vvt + g.vkt * 101 + g.fvt * 10201 + g.fkt * 1030301 + g.pvt * 104060401;
+      let b = 1;
+      for (const pre of ["vvp", "vkp", "fvp", "fkp"]) for (const L of "ADSR") {
+        f += Math.round(g[pre + L]) * b * 1e-6;
+        b *= 3;
+      }
+      return f;
+    };
+    const describir = (v2, cap, g, g3) => {
+      let d = cap.d;
+      if (!d) {
+        d = cap.d = {
+          vol: { T: [1, 1, 1, 1], L: [0, 0, 0, 0, 0] },
+          fil: { T: [1, 1, 1, 1], L: [0, 0, 0, 0, 0], int: 0 },
+          alt: { T: [1, 1, 1, 1], L: [0, 0, 0, 0, 0], int: 0 },
+          tv: [1, 1, 1, 1],
+          tf: [1, 1, 1, 1],
+          pt: 1,
+          firma: NaN
+        };
+      }
+      if (d.firma !== g.firma) {
+        d.firma = g.firma;
+        for (let w = 0; w < 4; w++) {
+          const L = "ADSR"[w];
+          d.tv[w] = porTiempo(g["vvp" + L], g.vvt / 100, v2.velX) * porTiempo(g["vkp" + L], g.vkt / 100, v2.tecX);
+          d.tf[w] = porTiempo(g["fvp" + L], g.fvt / 100, v2.velX) * porTiempo(g["fkp" + L], g.fkt / 100, v2.tecX);
+        }
+        d.pt = Math.pow(2, g.pvt / 100 * v2.velX * 3);
+      }
+      const [fa, fd, fr] = g3;
+      const V = d.vol;
+      V.T[0] = ms(g.vat) * fa * d.tv[0];
+      V.T[1] = ms(g.vdt) * fd * d.tv[1];
+      V.T[2] = ms(g.vst) * fd * d.tv[2];
+      V.T[3] = ms(g.vrt) * fr * d.tv[3];
+      V.L[1] = g.val / 100;
+      V.L[2] = g.vbp / 100;
+      V.L[3] = v2.golpe && cap.c.osc ? 0 : g.vsl / 100;
+      const F = d.fil;
+      F.T[0] = ms(g.fat) * fa * d.tf[0];
+      F.T[1] = ms(g.fdt) * fd * d.tf[1];
+      F.T[2] = ms(g.fst) * fd * d.tf[2];
+      F.T[3] = ms(g.frt) * fr * d.tf[3];
+      F.L[0] = g.fl0 / 100;
+      F.L[1] = g.fal / 100;
+      F.L[2] = g.fbp / 100;
+      F.L[3] = g.fsl / 100;
+      F.L[4] = g.frl / 100;
+      F.int = g.fi * (1 + g.fvi / 100 * v2.velX);
+      const A = d.alt;
+      A.T[0] = ms(g.pat) * fa * d.pt;
+      A.T[1] = ms(g.pdt) * fd * d.pt;
+      A.T[2] = 1;
+      A.T[3] = ms(g.prt) * fr * d.pt;
+      A.L[0] = g.pl0 / 100;
+      A.L[1] = g.pal / 100;
+      A.L[4] = g.prl / 100;
+      A.int = g.pi * (1 + g.pvi / 100 * v2.velX);
+      const sens = Math.max(0, Math.min(1, g.vvs / 100));
+      d.gan = g.ganBase * (1 - sens + sens * v2.vel / 127);
+      d.afi = g.afi;
+      d.ftipo = g.ftipo;
+      d.corte = g.fkc ? g.fc * Math.pow(2, g.fkc / 100 * (v2.nota - 60) / 12) : g.fc;
+      d.fK = g.fK;
+      return d;
+    };
     function procesar(sL, sR, desde, hasta, p) {
       const n = hasta - desde;
       if (n <= 0) return;
@@ -1829,18 +2034,9 @@ function nucleoSampler() {
         mDis = new Float32Array(n);
         mPan = new Float32Array(n);
       }
-      const atq = Math.max(1, val(p, "atq", 2) / 1e3 * fm);
-      const dec = Math.max(1, val(p, "dec", 300) / 1e3 * fm);
-      const sos = Math.max(0, Math.min(1, val(p, "sos", 100) / 100));
-      const sol = Math.max(1, val(p, "sol", 200) / 1e3 * fm);
       const vol = dB(val(p, "vol", 0));
       const afinar = val(p, "afinar", 0);
-      const ftipo = Math.round(val(p, "ftipo", 0));
-      const corte = val(p, "corte", 2e3);
-      const fK = 1 / (0.5 * Math.pow(40, Math.max(0, Math.min(100, val(p, "reso", 10))) / 100));
-      const fenv = val(p, "fenv", 0);
-      const fatq = Math.max(1, val(p, "fatq", 2) / 1e3 * fm);
-      const fdec = Math.max(1, val(p, "fdec", 400) / 1e3 * fm);
+      const g3 = [Math.pow(2, val(p, "gat", 0) / 12.5), Math.pow(2, val(p, "gdt", 0) / 12.5), Math.pow(2, val(p, "grt", 0) / 12.5)];
       const ruido = Math.pow(Math.max(0, val(p, "ruido", 0)) / 100, 2) * 0.5;
       const desaf = Math.max(0, val(p, "desaf", 0));
       const sub = Math.max(0, val(p, "sub", 0)) / 100 * 0.6;
@@ -1856,9 +2052,9 @@ function nucleoSampler() {
         const pre = `l${k + 1}`;
         const prof = Math.max(0, Math.min(100, val(p, `${pre}p`, 0))) / 100;
         const l = lfo[k];
-        const paso = Math.max(0, val(p, `${pre}v`, 2)) / fm;
+        const ritmo = Math.max(0, val(p, `${pre}v`, 2)) / fm;
         if (prof <= 0) {
-          l.fase = (l.fase + paso * n) % 1;
+          l.fase = (l.fase + ritmo * n) % 1;
           continue;
         }
         const fo = Math.round(val(p, `${pre}f`, 0));
@@ -1871,168 +2067,169 @@ function nucleoSampler() {
           else if (de === 2) mFil[i] += x * prof * 4;
           else if (de === 3) mDis[i] += x * prof * 24;
           else if (de === 4) mPan[i] += x * prof;
-          l.fase += paso;
+          l.fase += ritmo;
           if (l.fase >= 1) {
             l.fase -= 1;
             l.azar = azar();
           }
         }
       }
-      for (let k = voces.length - 1; k >= 0; k--) {
-        const v2 = voces[k];
-        const dA = Math.pow(2, -desaf / 2400);
-        const dB2 = Math.pow(2, desaf / 2400);
-        const rates = v2.capas.map(({ c }) => {
-          if (c.osc) {
-            const f = 440 * Math.pow(2, (v2.nota - 69 + c.afinar + afinar + altSt) / 12) / fm;
-            return [f, f, f];
+      const S = [null, leerCapa(p, 1), leerCapa(p, 2), leerCapa(p, 3)];
+      const dA = Math.pow(2, -desaf / 2400);
+      const dB2 = Math.pow(2, desaf / 2400);
+      for (let kv = voces.length - 1; kv >= 0; kv--) {
+        const v2 = voces[kv];
+        if (v2.soltada && !v2.golpe && !v2.soltadaHecha) {
+          v2.soltadaHecha = true;
+          for (const cap of v2.capas) {
+            soltar(cap.eV);
+            soltar(cap.eF);
+            soltar(cap.eP);
           }
-          const base = c.mu.fm / fm;
-          const conNota = Math.pow(2, (v2.nota - v2.raiz + c.afinar + afinar + altSt) / 12);
-          const sinNota = Math.pow(2, (c.afinar + afinar + altSt) / 12);
-          return [base * (c.alt[0] ? conNota : sinNota), base * (c.alt[1] ? conNota : sinNota), base * (c.alt[2] ? conNota : sinNota)];
-        });
+        }
+        const ds = v2.capas.map((cap) => describir(v2, cap, S[cap.k], g3));
         const subPaso = 440 * Math.pow(2, (v2.nota - 69 - 12 * subOct + afinar + altSt) / 12) / fm;
+        const primera = v2.capas.findIndex((x) => !x.muerta);
         let terminada = false;
         for (let j = 0; j < n; j++) {
           const i = desde + j;
+          let ah = 1;
           if (v2.ahogo) {
-            v2.env -= 1 / Math.max(1, v2.ahogo);
-            if (v2.env <= 0) {
+            v2.ahogoN -= 1 / Math.max(1, v2.ahogo);
+            if (v2.ahogoN <= 0) {
               terminada = true;
               break;
             }
-          } else if (v2.soltada && !v2.golpe) {
-            if (v2.fase !== 3) {
-              v2.fase = 3;
-              v2.desdeEnv = v2.env;
-            }
-            v2.env -= v2.desdeEnv / sol;
-            if (v2.env <= 0) {
-              terminada = true;
-              break;
-            }
-          } else if (v2.fase === 0) {
-            v2.env += 1 / atq;
-            if (v2.env >= 1) {
-              v2.env = 1;
-              v2.fase = v2.golpe && !v2.conOsc ? 2 : 1;
-            }
-          } else if (v2.fase === 1) {
-            const piso = v2.golpe ? 0 : sos;
-            v2.env -= (1 - piso) / dec;
-            if (v2.env <= piso) {
-              v2.env = piso;
-              v2.fase = 2;
-              if (v2.golpe) {
-                terminada = true;
-                break;
-              }
-            }
+            ah = v2.ahogoN;
           }
-          let xL = 0;
-          let xR = 0;
+          let oL = 0;
+          let oR = 0;
           let vivas = 0;
           for (let q = 0; q < v2.capas.length; q++) {
             const cap = v2.capas[q];
+            if (cap.muerta) continue;
+            vivas++;
+            if (cap.espera > 0) {
+              cap.espera--;
+              continue;
+            }
+            const d = ds[q];
             const c = cap.c;
+            if (cap.cuenta-- <= 0) {
+              cap.cuenta = CADA - 1;
+              const meta = paso(cap.eV, d.vol, CADA);
+              cap.dlv = (meta - cap.lv) / CADA;
+              const lf = paso(cap.eF, d.fil, CADA);
+              const lp = paso(cap.eP, d.alt, CADA);
+              if (cap.eV.fase === 5 || cap.eV.fase === 3 && d.vol.L[3] <= 0) cap.fin = true;
+              else if (cap.fin) cap.fin = false;
+              const st = afinar + altSt + d.afi + d.alt.int * lp;
+              if (c.osc) {
+                const f = 440 * Math.pow(2, (v2.nota - 69 + c.afinar + st) / 12) / fm;
+                cap.r[0] = cap.r[1] = cap.r[2] = f;
+              } else {
+                const base = c.mu.fm / fm;
+                const conNota = Math.pow(2, (v2.nota - v2.raiz + c.afinar + st) / 12);
+                const sinNota = Math.pow(2, (c.afinar + st) / 12);
+                for (let w = 0; w < 3; w++) cap.r[w] = base * (c.alt[w] ? conNota : sinNota);
+              }
+              if (d.ftipo > 0) {
+                const f = Math.min(0.45 * fm, Math.max(20, d.corte * Math.pow(2, d.fil.int * lf + mFil[j])));
+                cap.fG = Math.tan(Math.PI * f / fm);
+                cap.fK = d.fK;
+              }
+            }
+            let xL = 0;
+            let xR = 0;
             if (c.osc) {
-              const pa = rates[q][0] * dA;
-              const pb = rates[q][0] * dB2;
-              xL += onda(c, cap.pos, pa) * c.gL;
-              xR += onda(c, cap.pos2, pb) * c.gR;
+              const pa = cap.r[0] * dA;
+              const pb = cap.r[0] * dB2;
+              xL = onda(c, cap.pos, pa) * c.gL;
+              xR = onda(c, cap.pos2, pb) * c.gR;
               cap.pos += pa;
               if (cap.pos >= 1) cap.pos -= 1;
               cap.pos2 += pb;
               if (cap.pos2 >= 1) cap.pos2 -= 1;
-              vivas++;
-              continue;
+            } else {
+              const enLoop = c.loop && !v2.golpe && !v2.soltada;
+              const L = c.mu.c[0];
+              const R = c.mu.c[1] || L;
+              if (cap.viva) {
+                xL = cabeza(c, L, cap.pos, enLoop) * c.gL;
+                cap.pos += cap.r[parteDe(c, cap.pos)] * dA;
+                if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
+                if (cap.pos >= c.fin) cap.viva = false;
+              }
+              if (cap.viva2) {
+                xR = cabeza(c, R, cap.pos2, enLoop) * c.gR;
+                cap.pos2 += cap.r[parteDe(c, cap.pos2)] * dB2;
+                if (enLoop && cap.pos2 >= c.lFin) cap.pos2 -= c.lFin - c.lIni;
+                if (cap.pos2 >= c.fin) cap.viva2 = false;
+              }
+              if (!cap.viva && !cap.viva2) cap.muerta = true;
             }
-            const enLoop = c.loop && !v2.golpe && !v2.soltada;
-            const L = c.mu.c[0];
-            const R = c.mu.c[1] || L;
-            if (cap.viva) {
-              xL += cabeza(c, L, cap.pos, enLoop) * c.gL;
-              cap.pos += rates[q][parteDe(c, cap.pos)] * dA;
-              if (enLoop && cap.pos >= c.lFin) cap.pos -= c.lFin - c.lIni;
-              if (cap.pos >= c.fin) cap.viva = false;
+            if (q === primera) {
+              if (ruido > 0) {
+                const r = azar() * ruido;
+                xL += r;
+                xR += r;
+              }
+              if (sub > 0) {
+                const s = (subCuadrada ? v2.subFase < 0.5 ? 0.7 : -0.7 : Math.sin(2 * Math.PI * v2.subFase)) * sub;
+                xL += s;
+                xR += s;
+                v2.subFase += subPaso;
+                if (v2.subFase >= 1) v2.subFase -= 1;
+              }
             }
-            if (cap.viva2) {
-              xR += cabeza(c, R, cap.pos2, enLoop) * c.gR;
-              cap.pos2 += rates[q][parteDe(c, cap.pos2)] * dB2;
-              if (enLoop && cap.pos2 >= c.lFin) cap.pos2 -= c.lFin - c.lIni;
-              if (cap.pos2 >= c.fin) cap.viva2 = false;
+            if (d.ftipo > 0) {
+              const gg = cap.fG;
+              const kk = cap.fK;
+              const a1 = 1 / (1 + gg * (gg + kk));
+              const a2 = gg * a1;
+              const a3 = gg * a2;
+              const s = cap.f;
+              for (let o = 0; o < 2; o++) {
+                const x = o === 0 ? xL : xR;
+                const v3 = x - s[2 * o + 1];
+                const v1 = a1 * s[2 * o] + a2 * v3;
+                const v22 = s[2 * o + 1] + a2 * s[2 * o] + a3 * v3;
+                s[2 * o] = 2 * v1 - s[2 * o];
+                s[2 * o + 1] = 2 * v22 - s[2 * o + 1];
+                const y = d.ftipo === 1 ? v22 : d.ftipo === 2 ? x - kk * v1 - v22 : v1;
+                if (o === 0) xL = y;
+                else xR = y;
+              }
             }
-            if (cap.viva || cap.viva2) vivas++;
+            cap.lv += cap.dlv;
+            const gc = cap.lv * d.gan;
+            oL += xL * gc;
+            oR += xR * gc;
+            if (cap.fin && cap.cuenta === 0) cap.muerta = true;
           }
           if (!vivas) {
             terminada = true;
             break;
           }
-          if (ruido > 0) {
-            const r = azar() * ruido;
-            xL += r;
-            xR += r;
-          }
-          if (sub > 0) {
-            const s = (subCuadrada ? v2.subFase < 0.5 ? 0.7 : -0.7 : Math.sin(2 * Math.PI * v2.subFase)) * sub;
-            xL += s;
-            xR += s;
-            v2.subFase += subPaso;
-            if (v2.subFase >= 1) v2.subFase -= 1;
-          }
-          if (v2.fSube) {
-            v2.fEnv += 1 / fatq;
-            if (v2.fEnv >= 1) {
-              v2.fEnv = 1;
-              v2.fSube = false;
-            }
-          } else if (v2.fEnv > 0) v2.fEnv = Math.max(0, v2.fEnv - 1 / fdec);
-          if (ftipo > 0) {
-            if (v2.fCuenta-- <= 0) {
-              v2.fCuenta = CADA_FILTRO - 1;
-              const f = Math.min(0.45 * fm, Math.max(20, corte * Math.pow(2, fenv * v2.fEnv + mFil[j])));
-              v2.fG = Math.tan(Math.PI * f / fm);
-              v2.fK = fK;
-            }
-            const g2 = v2.fG;
-            const kk = v2.fK;
-            const a1 = 1 / (1 + g2 * (g2 + kk));
-            const a2 = g2 * a1;
-            const a3 = g2 * a2;
-            const st = v2.f;
-            for (let o = 0; o < 2; o++) {
-              const x = o === 0 ? xL : xR;
-              const v3 = x - st[2 * o + 1];
-              const v1 = a1 * st[2 * o] + a2 * v3;
-              const v22 = st[2 * o + 1] + a2 * st[2 * o] + a3 * v3;
-              st[2 * o] = 2 * v1 - st[2 * o];
-              st[2 * o + 1] = 2 * v22 - st[2 * o + 1];
-              const y = ftipo === 1 ? v22 : ftipo === 2 ? x - kk * v1 - v22 : v1;
-              if (o === 0) xL = y;
-              else xR = y;
-            }
-          }
-          let g = v2.env * v2.gan * vol * mVol[j];
-          let gL = g;
-          let gR = g;
+          let gL = vol * mVol[j] * ah;
+          let gR = gL;
           if (hayPan) {
             const a = (Math.max(-1, Math.min(1, mPan[j])) + 1) * Math.PI / 4;
             gL *= Math.cos(a) * Math.SQRT2;
             gR *= Math.sin(a) * Math.SQRT2;
           }
-          sL[i] += xL * gL;
-          sR[i] += xR * gR;
+          sL[i] += oL * gL;
+          sR[i] += oR * gR;
         }
-        if (terminada) voces.splice(k, 1);
+        if (terminada || v2.capas.every((x) => x.muerta)) voces.splice(kv, 1);
       }
       const dist = val(p, "dist", 0);
       const mez = Math.max(0, Math.min(100, val(p, "dmez", 100))) / 100;
       if (mez > 0 && (dist > 0 || mDis.some((x, j) => j < n && x !== 0))) {
         for (let j = 0; j < n; j++) {
-          const d = dist + mDis[j];
-          if (d <= 0) continue;
-          const g = dB(d);
+          const dd = dist + mDis[j];
+          if (dd <= 0) continue;
+          const g = dB(dd);
           const comp = 1 / Math.sqrt(g);
           const i = desde + j;
           sL[i] = sL[i] * (1 - mez) + Math.tanh(g * sL[i]) * comp * mez;
@@ -2057,7 +2254,7 @@ function nucleoSampler() {
       cuantasVoces: () => voces.length
     };
   }
-  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, crear };
+  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, POLARIDAD, crear };
 }
 
 // sampler/procesador.js
@@ -2570,6 +2767,65 @@ var TEXTOS = {
   Oscilador: ["Oscillator", "Oscilador", "Oscillateur", "Osziladorea", "\u041E\u0441\u0446\u0438\u043B\u043B\u044F\u0442\u043E\u0440", "\u30AA\u30B7\u30EC\u30FC\u30BF\u30FC", "\uC624\uC2E4\uB808\uC774\uD130", "\u632F\u8361\u5668", "\u0E2D\u0E2D\u0E2A\u0E0B\u0E34\u0E25\u0E40\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
   Milisegundos: ["Milliseconds", "Milissegundos", "Millisecondes", "Milisegundoak", "\u041C\u0438\u043B\u043B\u0438\u0441\u0435\u043A\u0443\u043D\u0434\u044B", "\u30DF\u30EA\u79D2", "\uBC00\uB9AC\uCD08", "\u6BEB\u79D2", "\u0E21\u0E34\u0E25\u0E25\u0E34\u0E27\u0E34\u0E19\u0E32\u0E17\u0E35"],
   "Desde Pizarrita": ["From Pizarrita", "Do Pizarrita", "Depuis Pizarrita", "Pizarritatik", "\u0418\u0437 Pizarrita", "Pizarrita\u304B\u3089", "Pizarrita\uC5D0\uC11C", "\u4ECE Pizarrita", "\u0E08\u0E32\u0E01 Pizarrita"],
+  Moldear: ["Shape", "Moldar", "Fa\xE7onner", "Moldatu", "\u0424\u043E\u0440\u043C\u0438\u0440\u043E\u0432\u0430\u043D\u0438\u0435", "\u97F3\u4F5C\u308A", "\uC74C\uC0C9 \uB2E4\uB4EC\uAE30", "\u5851\u9020", "\u0E1B\u0E23\u0E31\u0E1A\u0E41\u0E15\u0E48\u0E07\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Intensidad de la nota": ["Velocity", "Intensidade da nota", "V\xE9locit\xE9", "Notaren indarra", "\u0421\u0438\u043B\u0430 \u043D\u0430\u0436\u0430\u0442\u0438\u044F", "\u30D9\u30ED\u30B7\u30C6\u30A3", "\uBCA8\uB85C\uC2DC\uD2F0", "\u529B\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07\u0E02\u0E2D\u0E07\u0E42\u0E19\u0E49\u0E15"],
+  Tecla: ["Key", "Tecla", "Touche", "Tekla", "\u041A\u043B\u0430\u0432\u0438\u0448\u0430", "\u30AD\u30FC", "\uAC74\uBC18", "\u7434\u952E", "\u0E04\u0E35\u0E22\u0E4C"],
+  Tiempo: ["Time", "Tempo", "Temps", "Denbora", "\u0412\u0440\u0435\u043C\u044F", "\u30BF\u30A4\u30E0", "\uD0C0\uC784", "\u65F6\u95F4", "\u0E40\u0E27\u0E25\u0E32"],
+  Nivel: ["Level", "N\xEDvel", "Niveau", "Maila", "\u0423\u0440\u043E\u0432\u0435\u043D\u044C", "\u30EC\u30D9\u30EB", "\uB808\uBCA8", "\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A"],
+  "Retardo de entrada": ["Start delay", "Atraso de entrada", "Retard de d\xE9part", "Hasierako atzerapena", "\u0417\u0430\u0434\u0435\u0440\u0436\u043A\u0430 \u043D\u0430\u0447\u0430\u043B\u0430", "\u30B9\u30BF\u30FC\u30C8\u30FB\u30C7\u30A3\u30EC\u30A4", "\uC2DC\uC791 \uC9C0\uC5F0", "\u8D77\u59CB\u5EF6\u8FDF", "\u0E2B\u0E19\u0E48\u0E27\u0E07\u0E40\u0E27\u0E25\u0E32\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19"],
+  "Nivel de ataque": ["Attack level", "N\xEDvel de ataque", "Niveau d\u2019attaque", "Eraso-maila", "\u0423\u0440\u043E\u0432\u0435\u043D\u044C \u0430\u0442\u0430\u043A\u0438", "\u30A2\u30BF\u30C3\u30AF\u30FB\u30EC\u30D9\u30EB", "\uC5B4\uD0DD \uB808\uBCA8", "\u8D77\u97F3\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04"],
+  Quiebre: ["Break point", "Ponto de quebra", "Point de rupture", "Haustura-puntua", "\u0422\u043E\u0447\u043A\u0430 \u043F\u0435\u0440\u0435\u0433\u0438\u0431\u0430", "\u30D6\u30EC\u30A4\u30AF\u30FB\u30DD\u30A4\u30F3\u30C8", "\uBE0C\uB808\uC774\uD06C \uD3EC\uC778\uD2B8", "\u65AD\u70B9", "\u0E08\u0E38\u0E14\u0E2B\u0E31\u0E01\u0E40\u0E2B"],
+  Intensidad: ["Intensity", "Intensidade", "Intensit\xE9", "Intentsitatea", "\u0418\u043D\u0442\u0435\u043D\u0441\u0438\u0432\u043D\u043E\u0441\u0442\u044C", "\u30A4\u30F3\u30C6\u30F3\u30B7\u30C6\u30A3", "\uAC15\uB3C4", "\u5F3A\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E02\u0E49\u0E21"],
+  "Nivel inicial": ["Start level", "N\xEDvel inicial", "Niveau initial", "Hasierako maila", "\u041D\u0430\u0447\u0430\u043B\u044C\u043D\u044B\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C", "\u30B9\u30BF\u30FC\u30C8\u30FB\u30EC\u30D9\u30EB", "\uC2DC\uC791 \uB808\uBCA8", "\u8D77\u59CB\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19"],
+  "Nivel final": ["Release level", "N\xEDvel final", "Niveau final", "Amaierako maila", "\u041A\u043E\u043D\u0435\u0447\u043D\u044B\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C", "\u30EA\u30EA\u30FC\u30B9\u30FB\u30EC\u30D9\u30EB", "\uB9B4\uB9AC\uC2A4 \uB808\uBCA8", "\u91CA\u653E\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E2A\u0E38\u0E14\u0E17\u0E49\u0E32\u0E22"],
+  "Ataque del volumen": ["Amp attack", "Ataque do volume", "Attaque du volume", "Bolumenaren erasoa", "\u0410\u0442\u0430\u043A\u0430 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30A2\u30BF\u30C3\u30AF", "\uC570\uD504 \uC5B4\uD0DD", "\u97F3\u91CF\u8D77\u97F3", "\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Nivel de ataque del volumen": ["Amp attack level", "N\xEDvel de ataque do volume", "Niveau d\u2019attaque du volume", "Bolumenaren eraso-maila", "\u0423\u0440\u043E\u0432\u0435\u043D\u044C \u0430\u0442\u0430\u043A\u0438 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30A2\u30BF\u30C3\u30AF\u30FB\u30EC\u30D9\u30EB", "\uC570\uD504 \uC5B4\uD0DD \uB808\uBCA8", "\u97F3\u91CF\u8D77\u97F3\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Decaimiento del volumen": ["Amp decay", "Decaimento do volume", "D\xE9clin du volume", "Bolumenaren beherakada", "\u0421\u043F\u0430\u0434 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30C7\u30A3\u30B1\u30A4", "\uC570\uD504 \uB514\uCF00\uC774", "\u97F3\u91CF\u8870\u51CF", "\u0E14\u0E35\u0E40\u0E04\u0E22\u0E4C\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Quiebre del volumen": ["Amp break point", "Ponto de quebra do volume", "Point de rupture du volume", "Bolumenaren haustura-puntua", "\u0422\u043E\u0447\u043A\u0430 \u043F\u0435\u0440\u0435\u0433\u0438\u0431\u0430 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30D6\u30EC\u30A4\u30AF\u30FB\u30DD\u30A4\u30F3\u30C8", "\uC570\uD504 \uBE0C\uB808\uC774\uD06C \uD3EC\uC778\uD2B8", "\u97F3\u91CF\u65AD\u70B9", "\u0E08\u0E38\u0E14\u0E2B\u0E31\u0E01\u0E40\u0E2B\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Pendiente del volumen": ["Amp slope", "Inclina\xE7\xE3o do volume", "Pente du volume", "Bolumenaren malda", "\u041D\u0430\u043A\u043B\u043E\u043D \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30B9\u30ED\u30FC\u30D7", "\uC570\uD504 \uC2AC\uB85C\uD504", "\u97F3\u91CF\u659C\u7387", "\u0E2A\u0E42\u0E25\u0E1B\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Sostenido del volumen": ["Amp sustain", "Sustenta\xE7\xE3o do volume", "Maintien du volume", "Bolumenaren iraupena", "\u0421\u0443\u0441\u0442\u0435\u0439\u043D \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30B5\u30B9\u30C6\u30A4\u30F3", "\uC570\uD504 \uC11C\uC2A4\uD14C\uC778", "\u97F3\u91CF\u5EF6\u97F3", "\u0E0B\u0E31\u0E2A\u0E40\u0E17\u0E19\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Soltado del volumen": ["Amp release", "Libera\xE7\xE3o do volume", "Rel\xE2chement du volume", "Bolumenaren askatzea", "\u0417\u0430\u0442\u0443\u0445\u0430\u043D\u0438\u0435 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30EA\u30EA\u30FC\u30B9", "\uC570\uD504 \uB9B4\uB9AC\uC2A4", "\u97F3\u91CF\u91CA\u653E", "\u0E23\u0E35\u0E25\u0E35\u0E2A\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Sensibilidad del volumen": ["Amp velocity", "Sensibilidade do volume", "V\xE9locit\xE9 du volume", "Bolumenaren sentikortasuna", "\u0427\u0443\u0432\u0441\u0442\u0432\u0438\u0442\u0435\u043B\u044C\u043D\u043E\u0441\u0442\u044C \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7\u306E\u30D9\u30ED\u30B7\u30C6\u30A3", "\uC570\uD504 \uBCA8\uB85C\uC2DC\uD2F0", "\u97F3\u91CF\u529B\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E44\u0E27\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Tiempos del volumen por intensidad": ["Amp EG time by velocity", "Tempos do volume pela intensidade", "Temps du volume selon la v\xE9locit\xE9", "Bolumenaren denborak indarraren arabera", "\u0412\u0440\u0435\u043C\u044F \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 \u043E\u0442 \u0441\u0438\u043B\u044B \u043D\u0430\u0436\u0430\u0442\u0438\u044F", "\u30A2\u30F3\u30D7EG\u30BF\u30A4\u30E0(\u30D9\u30ED\u30B7\u30C6\u30A3)", "\uBCA8\uB85C\uC2DC\uD2F0\uC5D0 \uB530\uB978 \uC570\uD504 EG \uD0C0\uC784", "\u529B\u5EA6\u63A7\u5236\u97F3\u91CF\u5305\u7EDC\u65F6\u95F4", "\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E15\u0E32\u0E21\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07"],
+  "Tiempos del volumen por tecla": ["Amp EG time by key", "Tempos do volume pela tecla", "Temps du volume selon la touche", "Bolumenaren denborak teklaren arabera", "\u0412\u0440\u0435\u043C\u044F \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 \u043E\u0442 \u043A\u043B\u0430\u0432\u0438\u0448\u0438", "\u30A2\u30F3\u30D7EG\u30BF\u30A4\u30E0(\u30AD\u30FC)", "\uAC74\uBC18\uC5D0 \uB530\uB978 \uC570\uD504 EG \uD0C0\uC784", "\u7434\u952E\u63A7\u5236\u97F3\u91CF\u5305\u7EDC\u65F6\u95F4", "\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E40\u0E2A\u0E35\u0E22\u0E07\u0E15\u0E32\u0E21\u0E04\u0E35\u0E22\u0E4C"],
+  "Tipo de filtro": ["Filter type", "Tipo de filtro", "Type de filtre", "Iragazki mota", "\u0422\u0438\u043F \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u30FB\u30BF\u30A4\u30D7", "\uD544\uD130 \uD0C0\uC785", "\u6EE4\u6CE2\u5668\u7C7B\u578B", "\u0E0A\u0E19\u0E34\u0E14\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Intensidad del filtro": ["Filter EG intensity", "Intensidade do filtro", "Intensit\xE9 du filtre", "Iragazkiaren intentsitatea", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430 \u043E\u0433\u0438\u0431\u0430\u044E\u0449\u0435\u0439 \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FCEG\u30A4\u30F3\u30C6\u30F3\u30B7\u30C6\u30A3", "\uD544\uD130 EG \uAC15\uB3C4", "\u6EE4\u6CE2\u5668\u5305\u7EDC\u5F3A\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E02\u0E49\u0E21\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Nivel inicial del filtro": ["Filter start level", "N\xEDvel inicial do filtro", "Niveau initial du filtre", "Iragazkiaren hasierako maila", "\u041D\u0430\u0447\u0430\u043B\u044C\u043D\u044B\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30B9\u30BF\u30FC\u30C8\u30FB\u30EC\u30D9\u30EB", "\uD544\uD130 \uC2DC\uC791 \uB808\uBCA8", "\u6EE4\u6CE2\u5668\u8D77\u59CB\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Nivel de ataque del filtro": ["Filter attack level", "N\xEDvel de ataque do filtro", "Niveau d\u2019attaque du filtre", "Iragazkiaren eraso-maila", "\u0423\u0440\u043E\u0432\u0435\u043D\u044C \u0430\u0442\u0430\u043A\u0438 \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30A2\u30BF\u30C3\u30AF\u30FB\u30EC\u30D9\u30EB", "\uD544\uD130 \uC5B4\uD0DD \uB808\uBCA8", "\u6EE4\u6CE2\u5668\u8D77\u97F3\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Decaimiento del filtro": ["Filter decay", "Decaimento do filtro", "D\xE9clin du filtre", "Iragazkiaren beherakada", "\u0421\u043F\u0430\u0434 \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30C7\u30A3\u30B1\u30A4", "\uD544\uD130 \uB514\uCF00\uC774", "\u6EE4\u6CE2\u5668\u8870\u51CF", "\u0E14\u0E35\u0E40\u0E04\u0E22\u0E4C\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Quiebre del filtro": ["Filter break point", "Ponto de quebra do filtro", "Point de rupture du filtre", "Iragazkiaren haustura-puntua", "\u0422\u043E\u0447\u043A\u0430 \u043F\u0435\u0440\u0435\u0433\u0438\u0431\u0430 \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30D6\u30EC\u30A4\u30AF\u30FB\u30DD\u30A4\u30F3\u30C8", "\uD544\uD130 \uBE0C\uB808\uC774\uD06C \uD3EC\uC778\uD2B8", "\u6EE4\u6CE2\u5668\u65AD\u70B9", "\u0E08\u0E38\u0E14\u0E2B\u0E31\u0E01\u0E40\u0E2B\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Pendiente del filtro": ["Filter slope", "Inclina\xE7\xE3o do filtro", "Pente du filtre", "Iragazkiaren malda", "\u041D\u0430\u043A\u043B\u043E\u043D \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30B9\u30ED\u30FC\u30D7", "\uD544\uD130 \uC2AC\uB85C\uD504", "\u6EE4\u6CE2\u5668\u659C\u7387", "\u0E2A\u0E42\u0E25\u0E1B\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Sostenido del filtro": ["Filter sustain", "Sustenta\xE7\xE3o do filtro", "Maintien du filtre", "Iragazkiaren iraupena", "\u0421\u0443\u0441\u0442\u0435\u0439\u043D \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30B5\u30B9\u30C6\u30A4\u30F3", "\uD544\uD130 \uC11C\uC2A4\uD14C\uC778", "\u6EE4\u6CE2\u5668\u5EF6\u97F3", "\u0E0B\u0E31\u0E2A\u0E40\u0E17\u0E19\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Soltado del filtro": ["Filter release", "Libera\xE7\xE3o do filtro", "Rel\xE2chement du filtre", "Iragazkiaren askatzea", "\u0417\u0430\u0442\u0443\u0445\u0430\u043D\u0438\u0435 \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30EA\u30EA\u30FC\u30B9", "\uD544\uD130 \uB9B4\uB9AC\uC2A4", "\u6EE4\u6CE2\u5668\u91CA\u653E", "\u0E23\u0E35\u0E25\u0E35\u0E2A\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Nivel final del filtro": ["Filter release level", "N\xEDvel final do filtro", "Niveau final du filtre", "Iragazkiaren amaierako maila", "\u041A\u043E\u043D\u0435\u0447\u043D\u044B\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FC\u306E\u30EA\u30EA\u30FC\u30B9\u30FB\u30EC\u30D9\u30EB", "\uD544\uD130 \uB9B4\uB9AC\uC2A4 \uB808\uBCA8", "\u6EE4\u6CE2\u5668\u91CA\u653E\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E2A\u0E38\u0E14\u0E17\u0E49\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Intensidad del filtro por intensidad": ["Filter EG intensity by velocity", "Intensidade do filtro pela intensidade", "Intensit\xE9 du filtre selon la v\xE9locit\xE9", "Iragazkiaren intentsitatea indarraren arabera", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430 \u0444\u0438\u043B\u044C\u0442\u0440\u0430 \u043E\u0442 \u0441\u0438\u043B\u044B \u043D\u0430\u0436\u0430\u0442\u0438\u044F", "\u30D5\u30A3\u30EB\u30BF\u30FCEG\u30A4\u30F3\u30C6\u30F3\u30B7\u30C6\u30A3(\u30D9\u30ED\u30B7\u30C6\u30A3)", "\uBCA8\uB85C\uC2DC\uD2F0\uC5D0 \uB530\uB978 \uD544\uD130 EG \uAC15\uB3C4", "\u529B\u5EA6\u63A7\u5236\u6EE4\u6CE2\u5668\u5305\u7EDC\u5F3A\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E02\u0E49\u0E21\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C\u0E15\u0E32\u0E21\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07"],
+  "Tiempos del filtro por intensidad": ["Filter EG time by velocity", "Tempos do filtro pela intensidade", "Temps du filtre selon la v\xE9locit\xE9", "Iragazkiaren denborak indarraren arabera", "\u0412\u0440\u0435\u043C\u044F \u0444\u0438\u043B\u044C\u0442\u0440\u0430 \u043E\u0442 \u0441\u0438\u043B\u044B \u043D\u0430\u0436\u0430\u0442\u0438\u044F", "\u30D5\u30A3\u30EB\u30BF\u30FCEG\u30BF\u30A4\u30E0(\u30D9\u30ED\u30B7\u30C6\u30A3)", "\uBCA8\uB85C\uC2DC\uD2F0\uC5D0 \uB530\uB978 \uD544\uD130 EG \uD0C0\uC784", "\u529B\u5EA6\u63A7\u5236\u6EE4\u6CE2\u5668\u5305\u7EDC\u65F6\u95F4", "\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C\u0E15\u0E32\u0E21\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07"],
+  "Corte por tecla": ["Cutoff key tracking", "Corte pela tecla", "Coupure selon la touche", "Ebaketa teklaren arabera", "\u0421\u0440\u0435\u0437 \u043E\u0442 \u043A\u043B\u0430\u0432\u0438\u0448\u0438", "\u30AB\u30C3\u30C8\u30AA\u30D5\u30FB\u30AD\u30FC\u30C8\u30E9\u30C3\u30AF", "\uCEF7\uC624\uD504 \uD0A4 \uD2B8\uB798\uD0B9", "\u622A\u6B62\u9891\u7387\u952E\u76D8\u8DDF\u968F", "\u0E04\u0E31\u0E15\u0E2D\u0E2D\u0E1F\u0E15\u0E32\u0E21\u0E04\u0E35\u0E22\u0E4C"],
+  "Tiempos del filtro por tecla": ["Filter EG time by key", "Tempos do filtro pela tecla", "Temps du filtre selon la touche", "Iragazkiaren denborak teklaren arabera", "\u0412\u0440\u0435\u043C\u044F \u0444\u0438\u043B\u044C\u0442\u0440\u0430 \u043E\u0442 \u043A\u043B\u0430\u0432\u0438\u0448\u0438", "\u30D5\u30A3\u30EB\u30BF\u30FCEG\u30BF\u30A4\u30E0(\u30AD\u30FC)", "\uAC74\uBC18\uC5D0 \uB530\uB978 \uD544\uD130 EG \uD0C0\uC784", "\u7434\u952E\u63A7\u5236\u6EE4\u6CE2\u5668\u5305\u7EDC\u65F6\u95F4", "\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C\u0E15\u0E32\u0E21\u0E04\u0E35\u0E22\u0E4C"],
+  "Intensidad de la altura": ["Pitch EG intensity", "Intensidade da altura", "Intensit\xE9 de la hauteur", "Altueraren intentsitatea", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430 \u043E\u0433\u0438\u0431\u0430\u044E\u0449\u0435\u0439 \u0432\u044B\u0441\u043E\u0442\u044B", "\u30D4\u30C3\u30C1EG\u30A4\u30F3\u30C6\u30F3\u30B7\u30C6\u30A3", "\uD53C\uCE58 EG \uAC15\uB3C4", "\u97F3\u9AD8\u5305\u7EDC\u5F3A\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E02\u0E49\u0E21\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Nivel inicial de la altura": ["Pitch start level", "N\xEDvel inicial da altura", "Niveau initial de la hauteur", "Altueraren hasierako maila", "\u041D\u0430\u0447\u0430\u043B\u044C\u043D\u044B\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C \u0432\u044B\u0441\u043E\u0442\u044B", "\u30D4\u30C3\u30C1\u306E\u30B9\u30BF\u30FC\u30C8\u30FB\u30EC\u30D9\u30EB", "\uD53C\uCE58 \uC2DC\uC791 \uB808\uBCA8", "\u97F3\u9AD8\u8D77\u59CB\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Ataque de la altura": ["Pitch attack", "Ataque da altura", "Attaque de la hauteur", "Altueraren erasoa", "\u0410\u0442\u0430\u043A\u0430 \u0432\u044B\u0441\u043E\u0442\u044B", "\u30D4\u30C3\u30C1\u306E\u30A2\u30BF\u30C3\u30AF", "\uD53C\uCE58 \uC5B4\uD0DD", "\u97F3\u9AD8\u8D77\u97F3", "\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04\u0E02\u0E2D\u0E07\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E40\u0E2A\u0E35\u0E22\u0E07 (\u0E1E\u0E34\u0E17\u0E0A\u0E4C)"],
+  "Nivel de ataque de la altura": ["Pitch attack level", "N\xEDvel de ataque da altura", "Niveau d\u2019attaque de la hauteur", "Altueraren eraso-maila", "\u0423\u0440\u043E\u0432\u0435\u043D\u044C \u0430\u0442\u0430\u043A\u0438 \u0432\u044B\u0441\u043E\u0442\u044B", "\u30D4\u30C3\u30C1\u306E\u30A2\u30BF\u30C3\u30AF\u30FB\u30EC\u30D9\u30EB", "\uD53C\uCE58 \uC5B4\uD0DD \uB808\uBCA8", "\u97F3\u9AD8\u8D77\u97F3\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04\u0E02\u0E2D\u0E07\u0E1E\u0E34\u0E17\u0E0A\u0E4C"],
+  "Decaimiento de la altura": ["Pitch decay", "Decaimento da altura", "D\xE9clin de la hauteur", "Altueraren beherakada", "\u0421\u043F\u0430\u0434 \u0432\u044B\u0441\u043E\u0442\u044B", "\u30D4\u30C3\u30C1\u306E\u30C7\u30A3\u30B1\u30A4", "\uD53C\uCE58 \uB514\uCF00\uC774", "\u97F3\u9AD8\u8870\u51CF", "\u0E14\u0E35\u0E40\u0E04\u0E22\u0E4C\u0E02\u0E2D\u0E07\u0E1E\u0E34\u0E17\u0E0A\u0E4C"],
+  "Soltado de la altura": ["Pitch release", "Libera\xE7\xE3o da altura", "Rel\xE2chement de la hauteur", "Altueraren askatzea", "\u0417\u0430\u0442\u0443\u0445\u0430\u043D\u0438\u0435 \u0432\u044B\u0441\u043E\u0442\u044B", "\u30D4\u30C3\u30C1\u306E\u30EA\u30EA\u30FC\u30B9", "\uD53C\uCE58 \uB9B4\uB9AC\uC2A4", "\u97F3\u9AD8\u91CA\u653E", "\u0E23\u0E35\u0E25\u0E35\u0E2A\u0E02\u0E2D\u0E07\u0E1E\u0E34\u0E17\u0E0A\u0E4C"],
+  "Nivel final de la altura": ["Pitch release level", "N\xEDvel final da altura", "Niveau final de la hauteur", "Altueraren amaierako maila", "\u041A\u043E\u043D\u0435\u0447\u043D\u044B\u0439 \u0443\u0440\u043E\u0432\u0435\u043D\u044C \u0432\u044B\u0441\u043E\u0442\u044B", "\u30D4\u30C3\u30C1\u306E\u30EA\u30EA\u30FC\u30B9\u30FB\u30EC\u30D9\u30EB", "\uD53C\uCE58 \uB9B4\uB9AC\uC2A4 \uB808\uBCA8", "\u97F3\u9AD8\u91CA\u653E\u7535\u5E73", "\u0E23\u0E30\u0E14\u0E31\u0E1A\u0E2A\u0E38\u0E14\u0E17\u0E49\u0E32\u0E22\u0E02\u0E2D\u0E07\u0E1E\u0E34\u0E17\u0E0A\u0E4C"],
+  "Intensidad de la altura por intensidad": ["Pitch EG intensity by velocity", "Intensidade da altura pela intensidade", "Intensit\xE9 de la hauteur selon la v\xE9locit\xE9", "Altueraren intentsitatea indarraren arabera", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430 \u0432\u044B\u0441\u043E\u0442\u044B \u043E\u0442 \u0441\u0438\u043B\u044B \u043D\u0430\u0436\u0430\u0442\u0438\u044F", "\u30D4\u30C3\u30C1EG\u30A4\u30F3\u30C6\u30F3\u30B7\u30C6\u30A3(\u30D9\u30ED\u30B7\u30C6\u30A3)", "\uBCA8\uB85C\uC2DC\uD2F0\uC5D0 \uB530\uB978 \uD53C\uCE58 EG \uAC15\uB3C4", "\u529B\u5EA6\u63A7\u5236\u97F3\u9AD8\u5305\u7EDC\u5F3A\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E40\u0E02\u0E49\u0E21\u0E1E\u0E34\u0E17\u0E0A\u0E4C\u0E15\u0E32\u0E21\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07"],
+  "Tiempos de la altura por intensidad": ["Pitch EG time by velocity", "Tempos da altura pela intensidade", "Temps de la hauteur selon la v\xE9locit\xE9", "Altueraren denborak indarraren arabera", "\u0412\u0440\u0435\u043C\u044F \u0432\u044B\u0441\u043E\u0442\u044B \u043E\u0442 \u0441\u0438\u043B\u044B \u043D\u0430\u0436\u0430\u0442\u0438\u044F", "\u30D4\u30C3\u30C1EG\u30BF\u30A4\u30E0(\u30D9\u30ED\u30B7\u30C6\u30A3)", "\uBCA8\uB85C\uC2DC\uD2F0\uC5D0 \uB530\uB978 \uD53C\uCE58 EG \uD0C0\uC784", "\u529B\u5EA6\u63A7\u5236\u97F3\u9AD8\u5305\u7EDC\u65F6\u95F4", "\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E1E\u0E34\u0E17\u0E0A\u0E4C\u0E15\u0E32\u0E21\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07"],
+  "Ataque general": ["Global attack", "Ataque geral", "Attaque g\xE9n\xE9rale", "Eraso orokorra", "\u041E\u0431\u0449\u0430\u044F \u0430\u0442\u0430\u043A\u0430", "\u5168\u4F53\u30A2\u30BF\u30C3\u30AF", "\uC804\uCCB4 \uC5B4\uD0DD", "\u603B\u8D77\u97F3", "\u0E41\u0E2D\u0E17\u0E41\u0E17\u0E04\u0E23\u0E27\u0E21"],
+  "Decaimiento general": ["Global decay", "Decaimento geral", "D\xE9clin g\xE9n\xE9ral", "Beherakada orokorra", "\u041E\u0431\u0449\u0438\u0439 \u0441\u043F\u0430\u0434", "\u5168\u4F53\u30C7\u30A3\u30B1\u30A4", "\uC804\uCCB4 \uB514\uCF00\uC774", "\u603B\u8870\u51CF", "\u0E14\u0E35\u0E40\u0E04\u0E22\u0E4C\u0E23\u0E27\u0E21"],
+  "Soltado general": ["Global release", "Libera\xE7\xE3o geral", "Rel\xE2chement g\xE9n\xE9ral", "Askatze orokorra", "\u041E\u0431\u0449\u0435\u0435 \u0437\u0430\u0442\u0443\u0445\u0430\u043D\u0438\u0435", "\u5168\u4F53\u30EA\u30EA\u30FC\u30B9", "\uC804\uCCB4 \uB9B4\uB9AC\uC2A4", "\u603B\u91CA\u653E", "\u0E23\u0E35\u0E25\u0E35\u0E2A\u0E23\u0E27\u0E21"],
+  "Intensidad en los tiempos del volumen": ["Velocity on amp EG times", "Intensidade nos tempos do volume", "V\xE9locit\xE9 sur les temps du volume", "Indarra bolumenaren denboretan", "\u0421\u0438\u043B\u0430 \u043D\u0430\u0436\u0430\u0442\u0438\u044F \u043D\u0430 \u0432\u0440\u0435\u043C\u044F \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7EG\u30BF\u30A4\u30E0\u3078\u306E\u30D9\u30ED\u30B7\u30C6\u30A3", "\uC570\uD504 EG \uD0C0\uC784\uC5D0 \uB300\uD55C \uBCA8\uB85C\uC2DC\uD2F0", "\u529B\u5EA6\u5BF9\u97F3\u91CF\u5305\u7EDC\u65F6\u95F4", "\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07\u0E15\u0E48\u0E2D\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Tecla en los tiempos del volumen": ["Key on amp EG times", "Tecla nos tempos do volume", "Touche sur les temps du volume", "Tekla bolumenaren denboretan", "\u041A\u043B\u0430\u0432\u0438\u0448\u0430 \u043D\u0430 \u0432\u0440\u0435\u043C\u044F \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438", "\u30A2\u30F3\u30D7EG\u30BF\u30A4\u30E0\u3078\u306E\u30AD\u30FC", "\uC570\uD504 EG \uD0C0\uC784\uC5D0 \uB300\uD55C \uAC74\uBC18", "\u7434\u952E\u5BF9\u97F3\u91CF\u5305\u7EDC\u65F6\u95F4", "\u0E04\u0E35\u0E22\u0E4C\u0E15\u0E48\u0E2D\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  "Intensidad en los tiempos del filtro": ["Velocity on filter EG times", "Intensidade nos tempos do filtro", "V\xE9locit\xE9 sur les temps du filtre", "Indarra iragazkiaren denboretan", "\u0421\u0438\u043B\u0430 \u043D\u0430\u0436\u0430\u0442\u0438\u044F \u043D\u0430 \u0432\u0440\u0435\u043C\u044F \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FCEG\u30BF\u30A4\u30E0\u3078\u306E\u30D9\u30ED\u30B7\u30C6\u30A3", "\uD544\uD130 EG \uD0C0\uC784\uC5D0 \uB300\uD55C \uBCA8\uB85C\uC2DC\uD2F0", "\u529B\u5EA6\u5BF9\u6EE4\u6CE2\u5668\u5305\u7EDC\u65F6\u95F4", "\u0E04\u0E27\u0E32\u0E21\u0E41\u0E23\u0E07\u0E15\u0E48\u0E2D\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  "Tecla en los tiempos del filtro": ["Key on filter EG times", "Tecla nos tempos do filtro", "Touche sur les temps du filtre", "Tekla iragazkiaren denboretan", "\u041A\u043B\u0430\u0432\u0438\u0448\u0430 \u043D\u0430 \u0432\u0440\u0435\u043C\u044F \u0444\u0438\u043B\u044C\u0442\u0440\u0430", "\u30D5\u30A3\u30EB\u30BF\u30FCEG\u30BF\u30A4\u30E0\u3078\u306E\u30AD\u30FC", "\uD544\uD130 EG \uD0C0\uC784\uC5D0 \uB300\uD55C \uAC74\uBC18", "\u7434\u952E\u5BF9\u6EE4\u6CE2\u5668\u5305\u7EDC\u65F6\u95F4", "\u0E04\u0E35\u0E22\u0E4C\u0E15\u0E48\u0E2D\u0E40\u0E27\u0E25\u0E32\u0E40\u0E2D\u0E19\u0E40\u0E27\u0E42\u0E25\u0E1B\u0E1F\u0E34\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  A: ["A", "A", "A", "A", "A", "A", "A", "A", "A"],
+  D: ["D", "D", "D", "D", "D", "D", "D", "D", "D"],
+  S: ["S", "S", "S", "S", "S", "S", "S", "S", "S"],
+  R: ["R", "R", "R", "R", "R", "R", "R", "R", "R"],
+  x: ["x", "x", "x", "x", "x", "x", "x", "x", "x"],
+  Inicio: ["Start", "In\xEDcio", "D\xE9but", "Hasiera", "\u041D\u0430\u0447\u0430\u043B\u043E", "\u30B9\u30BF\u30FC\u30C8", "\uC2DC\uC791", "\u8D77\u59CB", "\u0E40\u0E23\u0E34\u0E48\u0E21\u0E15\u0E49\u0E19"],
+  Cima: ["Peak", "Pico", "Sommet", "Gailurra", "\u041F\u0438\u043A", "\u30D4\u30FC\u30AF", "\uD53C\uD06C", "\u5CF0\u503C", "\u0E08\u0E38\u0E14\u0E2A\u0E39\u0E07\u0E2A\u0E38\u0E14"],
+  Final: ["End", "Final", "Fin", "Amaiera", "\u041A\u043E\u043D\u0435\u0446", "\u30A8\u30F3\u30C9", "\uB05D", "\u7ED3\u675F", "\u0E2A\u0E38\u0E14\u0E17\u0E49\u0E32\u0E22"],
   Tajadas: ["Slices", "Fatias", "Tranches", "Xerrak", "\u041D\u0430\u0440\u0435\u0437\u043A\u0430", "\u30B9\u30E9\u30A4\u30B9", "\uC2AC\uB77C\uC774\uC2A4", "\u5207\u7247", "\u0E2A\u0E44\u0E25\u0E0B\u0E4C"],
   "Nueva zona de tajadas": ["New slice zone", "Nova zona de fatias", "Nouvelle zone de tranches", "Xerra-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u043D\u0430\u0440\u0435\u0437\u043A\u0438", "\u65B0\u3057\u3044\u30B9\u30E9\u30A4\u30B9\u30BE\u30FC\u30F3", "\uC0C8 \uC2AC\uB77C\uC774\uC2A4 \uC874", "\u65B0\u5EFA\u5207\u7247\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E2A\u0E44\u0E25\u0E0B\u0E4C\u0E43\u0E2B\u0E21\u0E48"],
   Detectar: ["Detect", "Detectar", "D\xE9tecter", "Detektatu", "\u041D\u0430\u0439\u0442\u0438", "\u691C\u51FA", "\uAC10\uC9C0", "\u68C0\u6D4B", "\u0E15\u0E23\u0E27\u0E08\u0E2B\u0E32"],
@@ -2664,9 +2920,10 @@ function t(texto, cual = idioma()) {
 }
 function tEtiqueta(texto, cual = idioma()) {
   if (TEXTOS[texto]) return t(texto, cual);
-  const m = /^Banda (\d+)(?:: (.+))?$/.exec(String(texto));
+  const m = /^(Banda|Capa) (\d+)(?:: (.+))?$/.exec(String(texto));
   if (!m) return texto;
-  return `${t("Banda", cual)} ${m[1]}${m[2] ? `: ${t(m[2], cual)}` : ""}`;
+  const resto = m[3] ? m[3].split(": ").map((x) => t(x, cual)).join(": ") : "";
+  return `${t(m[1], cual)} ${m[2]}${resto ? `: ${resto}` : ""}`;
 }
 function traducirInfo(info, cual = idioma()) {
   if (!info || cual === "ES") return info;
@@ -2735,6 +2992,265 @@ function golpes(en, sens = 50) {
   return out;
 }
 var parejos = (dur, n) => Array.from({ length: Math.max(1, n) }, (_, i) => i * dur / Math.max(1, n));
+
+// sampler/moldear.js
+var W = 536;
+var H = 130;
+var MESETA = 64;
+var X0 = 8;
+var anchoDe = (ms) => 4 + 106 * Math.log10(1 + Math.max(0, ms)) / 4;
+var tiempoDe = (ancho) => Math.max(0.5, Math.min(1e4, Math.pow(10, (Math.max(4, ancho) - 4) * 4 / 106) - 1));
+var PUNTOS = {
+  vol: [{ fijo: 0 }, { t: "vat", l: "val" }, { t: "vdt", l: "vbp" }, { t: "vst", l: "vsl" }, { t: "vrt", fijo: 0, meseta: true }],
+  fil: [{ l: "fl0" }, { t: "fat", l: "fal" }, { t: "fdt", l: "fbp" }, { t: "fst", l: "fsl" }, { t: "frt", l: "frl", meseta: true }],
+  alt: [{ l: "pl0" }, { t: "pat", l: "pal" }, { t: "pdt", fijo: 0 }, { t: "prt", l: "prl", meseta: true }]
+};
+var BIPOLAR = { vol: false, fil: true, alt: true };
+var ROTULOS = { vat: "A", vdt: "D", vst: "S", vrt: "R", fat: "A", fdt: "D", fst: "S", frt: "R", pat: "A", pdt: "D", prt: "R" };
+var FILAS = [
+  ["capa", ""],
+  ["env", ""],
+  ["vel", "Intensidad de la nota"],
+  ["tec", "Tecla"]
+];
+function crearMoldeado(nodo, N2, colores) {
+  let capa = 1;
+  let hoja = "vol";
+  const valores = {};
+  for (const p of N2.PARAMS) valores[p.id] = p.defecto;
+  const controles = {};
+  let tomado = -1;
+  const caja = el("div", `border-bottom:1px solid ${v("borde")};padding:4px 10px 8px;`);
+  const barra = el("div", "display:flex;align-items:center;gap:4px;margin-bottom:4px;");
+  const titulo = el("span", "font-weight:bold;margin-right:8px;");
+  const boton2 = (texto, alClic) => {
+    const b = el("button", `font:inherit;font-size:11px;color:${v("tinta")};background:${v("pantalla")};border:1px solid ${v("borde")};padding:1px 6px;cursor:pointer;`, texto);
+    b.type = "button";
+    b.addEventListener("click", alClic);
+    return b;
+  };
+  const botones = {
+    vol: boton2(t("Volumen"), () => ponerHoja("vol")),
+    fil: boton2(t("Filtro"), () => ponerHoja("fil")),
+    alt: boton2(t("Altura"), () => ponerHoja("alt"))
+  };
+  barra.append(titulo, botones.vol, botones.fil, botones.alt);
+  const dibujo = lienzo(W, H);
+  dibujo.c.style.cursor = "grab";
+  const cuerpo = el("div", "");
+  caja.append(barra, dibujo.c, cuerpo);
+  const id = (corto) => `c${capa}${corto}`;
+  const leer = (corto) => Number(valores[id(corto)]);
+  const mandar = (corto, x) => {
+    valores[id(corto)] = x;
+    void nodo.setParameterValues({ [id(corto)]: { id: id(corto), value: x, normalized: false } });
+  };
+  const paramDe = (corto) => N2.PARAMS.find((p) => p.id === `c1${corto}`);
+  const textoDe = (p, x) => `${numero(x, p.dec !== void 0 ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ""}`;
+  const armar = () => {
+    cuerpo.textContent = "";
+    for (const k of Object.keys(controles)) delete controles[k];
+    const ps = N2.PARAMS.filter((p) => p.grupo === `c1${hoja}`);
+    for (const [sub, rotulo] of FILAS) {
+      const deFila = ps.filter((p) => p.sub === sub);
+      if (!deFila.length) continue;
+      const fila = el("div", "display:flex;align-items:flex-start;gap:6px;margin-top:6px;");
+      if (rotulo) fila.append(el("div", `width:70px;flex:none;color:${v("tinta2")};font-size:11px;padding-top:14px;`, t(rotulo)));
+      const lugares = deFila.reduce((n, p) => n + (p.tipo === "choice" && !p.angosto ? 2 : 1), 0);
+      const grilla = el("div", `flex:1;display:grid;grid-template-columns:repeat(${Math.max(lugares, rotulo ? 6 : 7)},minmax(0,1fr));gap:4px;align-items:start;`);
+      for (const p of deFila) {
+        const corto = p.id.slice(2);
+        const nombre = t(p.corto || p.nombre.replace(/^Capa \d+: /, ""));
+        if (p.tipo === "choice") {
+          const c = elegidor({ nombre, opciones: p.opciones.map((x) => t(x)), alCambiar: (i) => mandar(corto, i) });
+          const celda = el("div", `display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;${p.angosto ? "" : "grid-column:span 2;"}`);
+          celda.append(el("div", `color:${v("tinta2")};font-size:11px;white-space:nowrap;`, nombre), c.el);
+          controles[corto] = { ...c, poner: (x) => c.poner(Math.round(x)) };
+          grilla.append(celda);
+        } else {
+          const c = perilla({
+            nombre,
+            min: p.min,
+            max: p.max,
+            paso: p.paso || 1,
+            log: !!p.log,
+            porDefecto: p.defecto,
+            formato: (x) => textoDe(p, x),
+            alCambiar: (x) => {
+              mandar(corto, x);
+              pintar();
+            }
+          });
+          controles[corto] = c;
+          grilla.append(c.el);
+        }
+      }
+      fila.append(grilla);
+      cuerpo.append(fila);
+    }
+    refrescar();
+  };
+  const refrescar = () => {
+    for (const [corto, c] of Object.entries(controles)) if (!c.agarrada()) c.poner(leer(corto));
+    pintar();
+  };
+  const yDe = (nivel) => {
+    const bip = BIPOLAR[hoja];
+    const arriba = 10;
+    const abajo = H - 14;
+    return bip ? arriba + (1 - nivel) / 2 * (abajo - arriba) : abajo - nivel * (abajo - arriba);
+  };
+  const nivelDe = (y) => {
+    const bip = BIPOLAR[hoja];
+    const arriba = 10;
+    const abajo = H - 14;
+    const r = (y - arriba) / (abajo - arriba);
+    return Math.max(bip ? -1 : 0, Math.min(1, bip ? 1 - 2 * r : 1 - r));
+  };
+  const posiciones = () => {
+    const out = [];
+    let x = X0;
+    for (const pt of PUNTOS[hoja]) {
+      if (pt.meseta) x += MESETA;
+      if (pt.t) x += anchoDe(leer(pt.t));
+      const nivel = pt.l ? leer(pt.l) / 100 : pt.fijo;
+      out.push({ x, y: yDe(nivel), pt });
+    }
+    return out;
+  };
+  const pintar = () => {
+    const C = colores();
+    const g = dibujo.g;
+    g.fillStyle = C.pantalla;
+    g.fillRect(0, 0, W, H);
+    g.strokeStyle = C.borde;
+    g.strokeRect(0.5, 0.5, W - 1, H - 1);
+    g.strokeStyle = C.borde;
+    g.setLineDash([3, 3]);
+    g.beginPath();
+    g.moveTo(0, Math.round(yDe(0)) + 0.5);
+    g.lineTo(W, Math.round(yDe(0)) + 0.5);
+    g.stroke();
+    g.setLineDash([]);
+    const ps = posiciones();
+    const im = PUNTOS[hoja].findIndex((p) => p.meseta);
+    if (im > 0) {
+      g.fillStyle = C.acento;
+      g.globalAlpha = 0.12;
+      g.fillRect(ps[im - 1].x, 1, MESETA, H - 2);
+      g.globalAlpha = 1;
+    }
+    g.strokeStyle = C.acento;
+    g.lineWidth = 2;
+    g.beginPath();
+    ps.forEach((q, i) => {
+      if (i === 0) g.moveTo(q.x, q.y);
+      else {
+        if (q.pt.meseta) g.lineTo(ps[i - 1].x + MESETA, ps[i - 1].y);
+        g.lineTo(q.x, q.y);
+      }
+    });
+    g.stroke();
+    g.lineWidth = 1;
+    g.font = "10px system-ui, sans-serif";
+    g.textAlign = "center";
+    ps.forEach((q, i) => {
+      const movible = !!(q.pt.t || q.pt.l);
+      g.fillStyle = i === tomado ? C.tinta : movible ? C.fondo : C.borde;
+      g.strokeStyle = C.tinta;
+      g.beginPath();
+      g.arc(q.x, q.y, movible ? 5 : 3, 0, 2 * Math.PI);
+      g.fill();
+      g.stroke();
+      if (q.pt.t) {
+        const xa = q.pt.meseta ? ps[i - 1].x + MESETA : ps[i - 1].x;
+        g.fillStyle = C.tinta2;
+        g.fillText(ROTULOS[q.pt.t] || "", (xa + q.x) / 2, H - 3);
+      }
+    });
+    if (im > 0) {
+      g.fillStyle = C.tinta2;
+      g.fillText(t("Sostenido"), ps[im - 1].x + MESETA / 2, 12);
+    }
+  };
+  const local = (ev) => {
+    const r = dibujo.c.getBoundingClientRect();
+    return { x: (ev.clientX - r.left) * W / r.width, y: (ev.clientY - r.top) * H / r.height };
+  };
+  dibujo.c.addEventListener("pointerdown", (ev) => {
+    const { x, y } = local(ev);
+    const ps = posiciones();
+    let mejor = -1;
+    let dist = 12;
+    ps.forEach((q, i) => {
+      if (!q.pt.t && !q.pt.l) return;
+      const d = Math.hypot(q.x - x, q.y - y);
+      if (d < dist) {
+        dist = d;
+        mejor = i;
+      }
+    });
+    if (mejor < 0) return;
+    tomado = mejor;
+    dibujo.c.style.cursor = "grabbing";
+    try {
+      dibujo.c.setPointerCapture(ev.pointerId);
+    } catch (e) {
+    }
+    pintar();
+  });
+  dibujo.c.addEventListener("pointermove", (ev) => {
+    if (tomado < 0) return;
+    const { x, y } = local(ev);
+    const ps = posiciones();
+    const q = ps[tomado];
+    if (q.pt.t) {
+      const antes = tomado > 0 ? ps[tomado - 1].x + (q.pt.meseta ? MESETA : 0) : X0;
+      const ms = tiempoDe(x - antes);
+      const p = paramDe(q.pt.t);
+      mandar(q.pt.t, Math.max(p.min, Math.min(p.max, Math.round(ms * 10) / 10)));
+    }
+    if (q.pt.l) mandar(q.pt.l, Math.round(nivelDe(y) * 100));
+    refrescar();
+  });
+  const soltarPunto = () => {
+    if (tomado < 0) return;
+    tomado = -1;
+    dibujo.c.style.cursor = "grab";
+    pintar();
+  };
+  dibujo.c.addEventListener("pointerup", soltarPunto);
+  dibujo.c.addEventListener("pointercancel", soltarPunto);
+  const ponerHoja = (h) => {
+    hoja = h;
+    for (const [k, b] of Object.entries(botones)) {
+      b.style.fontWeight = k === hoja ? "bold" : "";
+      b.style.background = k === hoja ? v("acento") : v("pantalla");
+    }
+    armar();
+  };
+  ponerHoja("vol");
+  return {
+    el: caja,
+    // La capa elegida arriba (1…3).
+    ponerCapa(k) {
+      if (k === capa) return;
+      capa = k;
+      titulo.textContent = `${t("Moldear")} \xB7 ${t("Capa")} ${capa}`;
+      refrescar();
+    },
+    // Lo que el plugin dice ahora (cada medio segundo): no pisa lo que se está tocando.
+    ponerValores(vals) {
+      for (const p of N2.PARAMS) if (vals[p.id] && vals[p.id].value !== void 0 && !(tomado >= 0 && p.id.startsWith(`c${capa}`))) valores[p.id] = Number(vals[p.id].value);
+      if (tomado < 0) refrescar();
+    },
+    pintar,
+    iniciar() {
+      titulo.textContent = `${t("Moldear")} \xB7 ${t("Capa")} ${capa}`;
+      refrescar();
+    }
+  };
+}
 
 // sampler/caratula.js
 var N = nucleoSampler();
@@ -3195,9 +3711,10 @@ function crearCaratula(nodo) {
     }),
     el("span", `margin-left:auto;color:${v("tinta2")};font-size:11px;`, t("Clic: o\xEDr la tajada \xB7 doble clic: agregar o quitar un corte"))
   );
+  const moldeado = crearMoldeado(nodo, N, () => coloresDe(caja));
+  moldeado.iniciar();
   const GRUPOS = [
     ["general", "General"],
-    ["filtro", "Filtro"],
     ["color", "Color"],
     ["v1", "Vaiv\xE9n 1"],
     ["v2", "Vaiv\xE9n 2"]
@@ -3255,7 +3772,7 @@ function crearCaratula(nodo) {
     }
   };
   pintarPestanas();
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaPestanas, filaGeneral);
+  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, moldeado.el, filaPestanas, filaGeneral);
   let C = coloresDe(caja);
   const pintarTeclado = () => {
     const g = tec.g;
@@ -3474,6 +3991,7 @@ function crearCaratula(nodo) {
     pintarTeclado();
     pintarOnda();
     pintarEstirar();
+    moldeado.ponerCapa(cSel + 1);
   };
   pintarTodo();
   const quitar = nodo.alCambiar(() => {
@@ -3489,13 +4007,20 @@ function crearCaratula(nodo) {
   let vigente = true;
   const reloj = setInterval(() => {
     if (!vigente) return;
+    const antes = JSON.stringify(C);
     C = coloresDe(caja);
+    if (JSON.stringify(C) !== antes) {
+      pintarTeclado();
+      pintarOnda();
+      moldeado.pintar();
+    }
     void nodo.getParameterValues(false).then((vals) => {
       if (!vals || !vigente) return;
       for (const p of N.PARAMS) {
         const c = generales[p.id];
-        if (vals[p.id] && !c.agarrada()) c.poner(Number(vals[p.id].value));
+        if (c && vals[p.id] && !c.agarrada()) c.poner(Number(vals[p.id].value));
       }
+      moldeado.ponerValores(vals);
     });
     if (!caja.isConnected && visto) soltar();
     if (caja.isConnected) visto = true;
