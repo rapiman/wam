@@ -62,12 +62,34 @@
 //   - Nivel, afinación y retardo de entrada de la capa.
 // Lo general: volumen y afinación, y un ataque, decaimiento y soltado que se suman a los de todas
 // las envolventes (como los del M1), el color y los dos vaivenes.
+//
+// EL SOPLO (2026-11-25, JP, tomando la manera del Yamaha VL70-m como una parte del moldeado y no
+// como otro instrumento: «esas desafinaciones como de flauta cuando entre más aire, muy tarka o
+// pifilkas o trutrucas o trompetas»). Una CAPA puede ser, en vez de un audio o un oscilador, un
+// modelo físico (`mod: {}`): un tubo (una línea de retardo con sus pérdidas) excitado por
+//   - un BISEL (el chorro de aire contra un filo: tarka, quena, pifilka, flautas): con más aire la
+//     nota sube y, pasado el «salto», brinca al armónico de arriba; extremo abierto o cerrado;
+//     DOBLE FONDO: un segundo tubo más hondo que entra con la fuerza (la pifilka);
+//   - LABIOS (trutruka, trompeta): el tubo sigue la nota (trompeta, pistones) o queda FIJO y los
+//     labios —la tecla, la embocadura y el aire— eligen el armónico (trutruka, cuerno);
+//   - una CAÑA con tubo recto (clarinete) o cónico (saxo).
+// Los modelos son los de la Synthesis ToolKit de Perry Cook y Gary Scavone (flauta, metal,
+// clarinete, saxofón), retocados: la saturación de los labios es suave para que no se ahogue.
+// La envolvente de volumen de la capa es el SOPLO (la presión): el sonido no se multiplica por ella,
+// sale del tubo. El aire es «Aire» × la intensidad de la nota × (si se elige) la rueda, el
+// controlador de aliento, la expresión o el aftertouch.
+// MODIFICADORES por capa, para cualquier fuente (como los del VL): realce de armónicos (el sonido
+// modula en fase un seno a una razón de la nota), resonador (un retardo realimentado afinado a la
+// nota) y cuerpo (tres resonancias de madera, campana o caja).
 
 export function nucleoSampler() {
   const TIPOS_FILTRO = ['Apagado', 'Pasa bajos', 'Pasa altos', 'Pasa banda'];
   const FORMAS = ['Seno', 'Triángulo', 'Cuadrada', 'Sierra', 'Azar'];
   const DESTINOS = ['Altura', 'Volumen', 'Filtro', 'Distorsión', 'Paneo'];
   const POLARIDAD = ['+', 'x', '−'];
+  const MODELOS = ['Bisel', 'Labios', 'Caña'];
+  const FUENTES_AIRE = ['Intensidad', 'Rueda', 'Aliento', 'Expresión', 'Aftertouch'];
+  const CUERPOS = ['Madera', 'Campana', 'Caja'];
   const TRAMOS = [
     ['A', 'Ataque'],
     ['D', 'Decaimiento'],
@@ -158,6 +180,43 @@ export function nucleoSampler() {
         ],
         'alt',
       ),
+      ...P(
+        [
+          { id: 'smt', nombre: 'Modelo', sub: 'sop1', tipo: 'choice', opciones: MODELOS, defecto: 0, min: 0, max: 2 },
+          { id: 'sex', nombre: 'Extremo del tubo', corto: 'Extremo', sub: 'sop1', tipo: 'choice', opciones: ['Abierto', 'Cerrado'], defecto: 0, min: 0, max: 1 },
+          { id: 'sfo', nombre: 'Tubo de la caña', corto: 'Tubo de la caña', sub: 'sop1', tipo: 'choice', opciones: ['Recto', 'Cónico'], defecto: 0, min: 0, max: 1 },
+          { id: 'stb', nombre: 'Largo del tubo', corto: 'Largo', sub: 'sop1', tipo: 'choice', opciones: ['Sigue la nota', 'Fijo'], defecto: 0, min: 0, max: 1 },
+          { id: 'stn', nombre: 'Nota del tubo', sub: 'sop1', min: 24, max: 96, defecto: 36, paso: 1 },
+          { id: 'sai', nombre: 'Aire', sub: 'sop2', min: 0, max: 100, defecto: 60, unidad: '%', paso: 1 },
+          { id: 'sem', nombre: 'Embocadura', sub: 'sop2', min: 0, max: 100, defecto: 50, unidad: '%', paso: 1 },
+          { id: 'sru', nombre: 'Ruido de aliento', corto: 'Aliento', sub: 'sop2', min: 0, max: 100, defecto: 15, unidad: '%', paso: 1 },
+          { id: 'ssu', nombre: 'Subida con el aire', corto: 'Subida', sub: 'sop2', min: 0, max: 100, defecto: 20, unidad: 'ct', paso: 1 },
+          { id: 'ssa', nombre: 'Salto', sub: 'sop2', min: 0, max: 100, defecto: 70, unidad: '%', paso: 1 },
+          { id: 'sas', nombre: 'Aspereza', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'sgr', nombre: 'Gruñido', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'sgi', nombre: 'Grito', sub: 'sop3', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'sap', nombre: 'Apagado', sub: 'sop3', min: 0, max: 100, defecto: 30, unidad: '%', paso: 1 },
+          { id: 'sca', nombre: 'Campana', sub: 'sop3', min: 0, max: 100, defecto: 30, unidad: '%', paso: 1 },
+          { id: 'sdf', nombre: 'Doble fondo', sub: 'sop3', min: 0, max: 1200, defecto: 0, unidad: 'ct', paso: 1 },
+          { id: 'sde', nombre: 'Entrada del fondo', corto: 'Entrada', sub: 'sop3', min: 0, max: 100, defecto: 50, unidad: '%', paso: 1 },
+          { id: 'sfa', nombre: 'Fuente del aire', corto: 'Aire desde', sub: 'sop3', tipo: 'choice', opciones: FUENTES_AIRE, defecto: 0, min: 0, max: FUENTES_AIRE.length - 1 },
+        ],
+        'sop',
+      ),
+      ...P(
+        [
+          { id: 'mhm', nombre: 'Realce de armónicos', corto: 'Realce', sub: 'mdf1', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'mhi', nombre: 'Índice del realce', corto: 'Índice', sub: 'mdf1', min: 0, max: 100, defecto: 30, unidad: '%', paso: 1 },
+          { id: 'mhz', nombre: 'Razón del realce', corto: 'Razón', sub: 'mdf1', min: 0.5, max: 8, defecto: 2, paso: 0.01, dec: 2 },
+          { id: 'mrm', nombre: 'Resonador', sub: 'mdf2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'mrf', nombre: 'Realimentación del resonador', corto: 'Realimentación', sub: 'mdf2', min: 0, max: 99, defecto: 70, unidad: '%', paso: 1 },
+          { id: 'mrz', nombre: 'Razón del resonador', corto: 'Razón', sub: 'mdf2', min: 0.25, max: 4, defecto: 1, paso: 0.01, dec: 2 },
+          { id: 'mcm', nombre: 'Cuerpo', sub: 'mdf3', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'mct', nombre: 'Tamaño del cuerpo', corto: 'Tamaño', sub: 'mdf3', min: 0.5, max: 2, defecto: 1, paso: 0.01, dec: 2 },
+          { id: 'mcy', nombre: 'Tipo de cuerpo', corto: 'Tipo', sub: 'mdf3', tipo: 'choice', opciones: CUERPOS, defecto: 0, min: 0, max: CUERPOS.length - 1 },
+        ],
+        'mdf',
+      ),
     ];
   };
   const PARAMS = [
@@ -216,6 +275,16 @@ export function nucleoSampler() {
     // con la altura), esa.
     const prepararCapa = (c0, tajada = -1, nota = -1) => {
       const c = tajada < 0 && c0.var && c0.var[nota] ? { ...c0, ...c0.var[nota] } : c0;
+      if (c.mod && typeof c.mod === 'object') {
+        const pan = Math.max(-1, Math.min(1, Number(c.pan) || 0));
+        const ang = ((pan + 1) * Math.PI) / 4;
+        return {
+          mod: true,
+          gL: dB(Number(c.gan) || 0) * Math.cos(ang),
+          gR: dB(Number(c.gan) || 0) * Math.sin(ang),
+          afinar: Number(c.afinar) || 0,
+        };
+      }
       if (c.osc && typeof c.osc === 'object') {
         const pan = Math.max(-1, Math.min(1, Number(c.pan) || 0));
         const ang = ((pan + 1) * Math.PI) / 4;
@@ -308,6 +377,213 @@ export function nucleoSampler() {
     };
     const parteDe = (c, pos) => (pos < c.lIni ? 0 : pos < c.lFin ? 1 : 2);
 
+    // --- el soplo: líneas de retardo, el estado de cada tubo y los controles en vivo
+    const MAXL = 8192;
+    const lineaS = () => ({ b: new Float32Array(MAXL), i: 0 });
+    const leerS = (l, d) => {
+      let q = l.i - Math.max(1, Math.min(MAXL - 2, d));
+      if (q < 0) q += MAXL;
+      const i0 = q | 0;
+      const f = q - i0;
+      return l.b[i0] * (1 - f) + l.b[(i0 + 1) & (MAXL - 1)] * f;
+    };
+    const ponerS = (l, x) => {
+      l.b[l.i] = x;
+      l.i = (l.i + 1) & (MAXL - 1);
+    };
+    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0 });
+    // la afinación de cada modelo (medida: cada uno suena un poco alto por sus filtros)
+    const CAL = [1.0195, 1.055, 1.009, 1.0];
+    const CONTROL_DE = [null, 'rueda', 'aliento', 'expresion', 'presion'];
+    const vivo = {};
+    const suave = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+    // Una muestra del tubo. `M`: lo que se recalcula cada CADA muestras; `p`: la presión de ahora.
+    const soplar = (st, M, p) => {
+      if (M.gru > 0) {
+        st.gfase += 28 / fm;
+        if (st.gfase >= 1) st.gfase -= 1;
+        p *= 1 + M.gru * 0.5 * Math.sin(2 * Math.PI * st.gfase);
+      }
+      const rn = azar();
+      p += rn * (M.ruido * 0.12 + M.asp * 0.25) * p;
+      let y;
+      if (M.tipo === 0) {
+        st.lpA = (1 - M.ap) * leerS(st.a, M.N) + M.ap * st.lpA;
+        let t = -st.lpA;
+        if (M.w2 > 0) {
+          st.lpB = (1 - M.ap) * leerS(st.b, M.N2) + M.ap * st.lpB;
+          t = (t - st.lpB * M.w2) / (1 + M.w2);
+        }
+        const z = t - st.dx + 0.995 * st.dy;
+        st.dx = t;
+        st.dy = z;
+        let pd = p - 0.5 * z;
+        ponerS(st.j, pd);
+        pd = leerS(st.j, M.J) * (1 + M.gri * 2);
+        let x = pd * (pd * pd - 1);
+        if (x > 1) x = 1;
+        else if (x < -1) x = -1;
+        x += 0.5 * z;
+        ponerS(st.a, x);
+        if (M.w2 > 0) ponerS(st.b, x);
+        y = 0.3 * x;
+        // un tubo CERRADO da solo los armónicos impares: se le restan los pares con lo que sonó
+        // medio período antes (así el modelo queda estable también en lo muy agudo, la pifilka)
+        if (M.cerrado) {
+          ponerS(st.k, y);
+          y = 0.7 * (y - leerS(st.k, M.medio));
+        }
+      } else if (M.tipo === 1) {
+        const boca = 0.3 * p;
+        st.lpA = (1 - M.ap * 0.5) * leerS(st.a, M.N) + M.ap * 0.5 * st.lpA;
+        const tubo = 0.85 * st.lpA;
+        let dd = boca - tubo;
+        const yy = M.b0 * dd - M.a1 * st.y1 - M.a2 * st.y2;
+        st.y2 = st.y1;
+        st.y1 = yy;
+        dd = yy * yy * (1 + M.gri * 3);
+        dd = dd / (1 + dd);
+        const q = dd * boca + (1 - dd) * tubo;
+        const z = q - st.dx + 0.995 * st.dy;
+        st.dx = q;
+        st.dy = z;
+        ponerS(st.a, z);
+        // la campana deja salir más agudo
+        st.cx = 0.9 * st.cx + 0.1 * z;
+        y = 1.5 * (z - M.camp * 0.8 * st.cx);
+      } else if (!M.conico) {
+        const x = leerS(st.a, M.N);
+        const lp = 0.5 * (x + st.z1);
+        st.z1 = x;
+        st.lpA = (1 - M.ap * 0.5) * lp + M.ap * 0.5 * st.lpA;
+        const pd = -0.95 * st.lpA - p;
+        let caña = 0.7 + M.pend * pd;
+        if (caña > 1) caña = 1;
+        else if (caña < -1) caña = -1;
+        const q = p + pd * caña;
+        ponerS(st.a, q);
+        const z = q - st.dx + 0.995 * st.dy;
+        st.dx = q;
+        st.dy = z;
+        y = 0.8 * z;
+      } else {
+        st.lpA = (1 - M.ap * 0.5) * leerS(st.a, M.N) + M.ap * 0.5 * st.lpA;
+        const temp = -0.95 * st.lpA;
+        const ultimo = temp - leerS(st.b, M.N2);
+        const pd = p - ultimo;
+        let caña = 0.7 + 0.3 * (1 + M.gri) * pd;
+        if (caña > 1) caña = 1;
+        else if (caña < -1) caña = -1;
+        ponerS(st.b, temp);
+        ponerS(st.a, p - pd * caña - temp);
+        const z = ultimo - st.dx + 0.995 * st.dy;
+        st.dx = ultimo;
+        st.dy = z;
+        y = 0.5 * z;
+      }
+      return y + rn * M.ruido * 0.04 * M.env;
+    };
+    // Lo del tubo que depende de la nota y de los parámetros, cada CADA muestras.
+    const prepararSoplo = (cap, g, v, st, nivel) => {
+      const M = cap.M || (cap.M = {});
+      const nombre = CONTROL_DE[Math.round(g.sfa)];
+      const ctl = nombre && vivo[nombre] !== undefined ? vivo[nombre] : 1;
+      const sens = Math.max(0, Math.min(1, g.vvs / 100));
+      const a = Math.max(0, Math.min(1.5, (g.sai / 100) * (1 - sens + (sens * v.vel) / 127) * ctl));
+      const emb = g.sem / 100;
+      const salto = g.ssa / 100;
+      // la nota, con la subida que da el aire (en centésimas)
+      const stN = v.nota - 69 + cap.c.afinar + st + (g.ssu * a) / 100;
+      const fN = 440 * Math.pow(2, stN / 12);
+      cap.fN = fN;
+      M.tipo = Math.round(g.smt);
+      M.env = nivel;
+      M.ap = 0.05 + 0.85 * (g.sap / 100);
+      M.ruido = g.sru / 100;
+      M.asp = g.sas / 100;
+      M.gru = g.sgr / 100;
+      M.gri = g.sgi / 100;
+      M.camp = g.sca / 100;
+      if (M.tipo === 0) {
+        M.cerrado = g.sex >= 0.5;
+        const f = fN / CAL[0];
+        let N = (1.5 * fm) / f - 2;
+        // el chorro: más corto con más aire (sube y, sin «salto», brinca al armónico)
+        const jr = (0.42 - 0.12 * emb) * (1 - (1 - salto) * 0.55 * Math.max(0, a - 0.3));
+        M.N = N;
+        M.medio = (0.5 * fm) / fN;
+        M.J = N * jr * (1 + M.asp * 0.08 * azar());
+        M.N2 = g.sdf > 0 ? N * Math.pow(2, g.sdf / 1200) : 0;
+        M.w2 = g.sdf > 0 ? suave((a - g.sde / 100) / 0.15 + 0.5) : 0;
+        M.pb = 0.6 + 0.8 * Math.min(1, a);
+      } else if (M.tipo === 1) {
+        // los labios a la nota (con la embocadura y, sin «salto», subiendo con el aire)
+        let fL = (fN / CAL[1]) * Math.pow(2, ((emb - 0.5) * 6 + (1 - salto) * 4 * Math.max(0, a - 0.5)) / 12);
+        fL = Math.min(0.2 * fm, fL);
+        // tubo fijo: sus resonancias en la nota del tubo × 1, 2, 3…; los labios eligen cuál
+        M.N = g.stb >= 0.5 ? fm / ((440 * Math.pow(2, (g.stn - 69 + st) / 12)) / CAL[1]) + 3 : (2 * fm) / (fN / CAL[1]) + 3;
+        const w = (2 * Math.PI * fL) / fm;
+        const r = 1 - (Math.PI * (g.stb >= 0.5 ? 0.25 : 0.15) * fL) / fm;
+        M.a1 = -2 * r * Math.cos(w);
+        M.a2 = r * r;
+        M.b0 = 25 * (1 - r) * 2 * Math.sin(w);
+        M.pb = 0.4 + 0.8 * Math.min(1, a);
+      } else {
+        M.conico = g.sfo >= 0.5;
+        if (!M.conico) {
+          M.N = (0.5 * fm) / (fN / CAL[2]) - 1.5;
+          M.pend = -(0.26 + 0.18 * emb) * (1 + M.gri * 1.5);
+        } else {
+          const total = fm / (fN / CAL[3]) - 3;
+          const pos = 0.2 + 0.3 * emb;
+          M.N = (1 - pos) * total;
+          M.N2 = pos * total;
+        }
+        M.pb = 0.5 + 0.4 * Math.min(1, a);
+      }
+      // sin aire, sin sonido (y no un tubo que igual suena con lo mínimo)
+      M.pb *= suave(a / 0.15);
+      return M;
+    };
+    // --- los modificadores de la capa
+    const CUERPO_F = [
+      [280, 1100, 2700],
+      [500, 1500, 3500],
+      [180, 650, 2200],
+    ];
+    const nuevoMod = () => ({ fase: 0, ef: 0, rL: lineaS(), rR: lineaS(), bq: new Float64Array(24), co: new Float64Array(15), clave: '' });
+    const coefCuerpo = (m, tipo, tam) => {
+      const clave = `${tipo}|${tam}`;
+      if (m.clave === clave) return;
+      m.clave = clave;
+      const F = CUERPO_F[Math.max(0, Math.min(2, tipo))];
+      for (let k = 0; k < 3; k++) {
+        const f = Math.min(0.45 * fm, F[k] / tam);
+        const w = (2 * Math.PI * f) / fm;
+        const al = Math.sin(w) / (2 * 4);
+        const a0 = 1 + al;
+        m.co[5 * k] = al / a0;
+        m.co[5 * k + 1] = 0;
+        m.co[5 * k + 2] = -al / a0;
+        m.co[5 * k + 3] = (-2 * Math.cos(w)) / a0;
+        m.co[5 * k + 4] = (1 - al) / a0;
+      }
+    };
+    const cuerpo = (m, x, canal) => {
+      let s = 0;
+      for (let k = 0; k < 3; k++) {
+        const e = canal * 12 + k * 4;
+        const c = 5 * k;
+        const y = m.co[c] * x + m.co[c + 1] * m.bq[e] + m.co[c + 2] * m.bq[e + 1] - m.co[c + 3] * m.bq[e + 2] - m.co[c + 4] * m.bq[e + 3];
+        m.bq[e + 1] = m.bq[e];
+        m.bq[e] = x;
+        m.bq[e + 3] = m.bq[e + 2];
+        m.bq[e + 2] = y;
+        s += y;
+      }
+      return s * 2;
+    };
+
     const zonaDe = (nota) => {
       for (const z of zonas) if (nota >= z.baja && nota <= z.alta) return z;
       return null;
@@ -375,6 +651,9 @@ export function nucleoSampler() {
           fK: 1,
           cuenta: 0,
           r: [0, 0, 0],
+          s: pc.mod ? nuevoSoplo() : null,
+          m: null,
+          cola: 0,
           lv: 0,
           dlv: 0,
           fin: false,
@@ -448,7 +727,7 @@ export function nucleoSampler() {
 
     // Lo de cada capa (1, 2, 3) que dicen los parámetros, leído una vez por bloque. Los nombres
     // (`c1vat`…) se arman una sola vez: armarlos en cada bloque costaba más que el sonido.
-    const CLAVES = ['niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
+    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
     for (const pre of ['vvp', 'vkp', 'fvp', 'fkp']) for (const L of 'ADSR') CLAVES.push(pre + L);
     const DEFECTO = {};
     for (const q of PARAMS) if (q.id.startsWith('c1')) DEFECTO[q.id.slice(2)] = q.defecto;
@@ -508,7 +787,8 @@ export function nucleoSampler() {
       V.L[1] = g.val / 100;
       V.L[2] = g.vbp / 100;
       // un golpe con oscilador cae a cero (si no, sonaría para siempre)
-      V.L[3] = v.golpe && cap.c.osc ? 0 : g.vsl / 100;
+      V.L[3] = v.golpe && (cap.c.osc || cap.c.mod) ? 0 : g.vsl / 100;
+      d.g = g;
       const F = d.fil;
       F.T[0] = ms(g.fat) * fa * d.tf[0];
       F.T[1] = ms(g.fdt) * fd * d.tf[1];
@@ -643,18 +923,27 @@ export function nucleoSampler() {
               const lp = paso(cap.eP, d.alt, CADA);
               // la envolvente de volumen llegó al final (o a un sostenido en cero): la capa calla
               // cuando el volumen termina de llegar
-              if (cap.eV.fase === 5 || (cap.eV.fase === 3 && d.vol.L[3] <= 0)) cap.fin = true;
+              if (c.mod) {
+                // el tubo sigue sonando un poco después del soplo: calla un cuarto de segundo después
+                if (cap.eV.fase === 5 || (cap.eV.fase === 3 && d.vol.L[3] <= 0)) {
+                  cap.cola += CADA;
+                  if (cap.cola > 0.25 * fm) cap.muerta = true;
+                } else cap.cola = 0;
+              } else if (cap.eV.fase === 5 || (cap.eV.fase === 3 && d.vol.L[3] <= 0)) cap.fin = true;
               else if (cap.fin) cap.fin = false;
               // la altura: la de la nota, la afinación, el vaivén y la envolvente de altura
               const st = afinar + altSt + d.afi + d.alt.int * lp;
-              if (c.osc) {
+              if (c.mod) prepararSoplo(cap, d.g, v, st, meta);
+              else if (c.osc) {
                 const f = (440 * Math.pow(2, (v.nota - 69 + c.afinar + st) / 12)) / fm;
                 cap.r[0] = cap.r[1] = cap.r[2] = f;
+                cap.fN = f * fm;
               } else {
                 const base = c.mu.fm / fm;
                 const conNota = Math.pow(2, (v.nota - v.raiz + c.afinar + st) / 12);
                 const sinNota = Math.pow(2, (c.afinar + st) / 12);
                 for (let w = 0; w < 3; w++) cap.r[w] = base * (c.alt[w] ? conNota : sinNota);
+                cap.fN = 440 * Math.pow(2, (v.nota - 69 + c.afinar + st) / 12);
               }
               if (d.ftipo > 0) {
                 const f = Math.min(0.45 * fm, Math.max(20, d.corte * Math.pow(2, d.fil.int * lf + mFil[j])));
@@ -664,7 +953,11 @@ export function nucleoSampler() {
             }
             let xL = 0;
             let xR = 0;
-            if (c.osc) {
+            if (c.mod) {
+              const y = soplar(cap.s, cap.M, (cap.lv + cap.dlv) * cap.M.pb);
+              xL = y * c.gL;
+              xR = y * c.gR;
+            } else if (c.osc) {
               const pa = cap.r[0] * dA;
               const pb = cap.r[0] * dB2;
               xL = onda(c, cap.pos, pa) * c.gL;
@@ -705,6 +998,39 @@ export function nucleoSampler() {
                 if (v.subFase >= 1) v.subFase -= 1;
               }
             }
+            // los modificadores de la capa
+            const g = d.g;
+            if (g.mhm > 0 || g.mrm > 0 || g.mcm > 0) {
+              const m = cap.m || (cap.m = nuevoMod());
+              const fN = cap.fN || 440;
+              if (g.mhm > 0) {
+                const x = 0.5 * (xL + xR);
+                m.ef = 0.995 * m.ef + 0.005 * Math.abs(x);
+                m.fase += (fN * g.mhz) / fm;
+                if (m.fase >= 1) m.fase -= Math.floor(m.fase);
+                const y = Math.sin(2 * Math.PI * m.fase + (g.mhi / 100) * 4 * x) * m.ef * 2;
+                const k = g.mhm / 100;
+                xL = xL * (1 - k) + y * k;
+                xR = xR * (1 - k) + y * k;
+              }
+              if (g.mrm > 0) {
+                const dl = fm / Math.max(20, fN * g.mrz);
+                const fb = g.mrf / 100;
+                const yL = xL + fb * leerS(m.rL, dl);
+                const yR = xR + fb * leerS(m.rR, dl);
+                ponerS(m.rL, yL);
+                ponerS(m.rR, yR);
+                const k = g.mrm / 100;
+                xL = xL * (1 - k) + yL * k * (1 - fb);
+                xR = xR * (1 - k) + yR * k * (1 - fb);
+              }
+              if (g.mcm > 0) {
+                coefCuerpo(m, Math.round(g.mcy), g.mct);
+                const k = g.mcm / 100;
+                xL = xL * (1 - k) + cuerpo(m, xL, 0) * k;
+                xR = xR * (1 - k) + cuerpo(m, xR, 1) * k;
+              }
+            }
             // el filtro de la capa
             if (d.ftipo > 0) {
               const gg = cap.fG;
@@ -726,7 +1052,8 @@ export function nucleoSampler() {
               }
             }
             cap.lv += cap.dlv;
-            const gc = cap.lv * d.gan;
+            // (el soplo ya trae su envolvente: la presión)
+            const gc = c.mod ? d.gan : cap.lv * d.gan;
             oL += xL * gc;
             oR += xR * gc;
             if (cap.fin && cap.cuenta === 0) cap.muerta = true;
@@ -777,10 +1104,14 @@ export function nucleoSampler() {
       notaOn,
       notaOff,
       callar,
+      // Un control en vivo para el aire: 'rueda', 'aliento', 'expresion' o 'presion', de 0 a 1.
+      controlar(nombre, valor) {
+        vivo[nombre] = Math.max(0, Math.min(1, Number(valor) || 0));
+      },
       procesar,
       cuantasVoces: () => voces.length,
     };
   }
 
-  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, POLARIDAD, crear };
+  return { PARAMS, TIPOS_FILTRO, FORMAS, DESTINOS, POLARIDAD, MODELOS, crear };
 }

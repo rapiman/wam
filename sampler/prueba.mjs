@@ -278,6 +278,85 @@ function dB24() {
   a.mayorQue('soltado general +50: el soltado de 50 ms dura mucho más (pico a los 0,4 s)', pico2(G, 0.38, 0.42), 0.1);
 }
 
+// --- el soplo: bisel, labios y caña
+{
+  // la frecuencia por autocorrelación (los tubos tienen muchos armónicos)
+  const frecAC = (x, a, b) => {
+    const s = x.subarray(...tramo(a, b));
+    let mejor = 0;
+    let lag = 0;
+    for (let L = 20; L < 2400; L++) {
+      let c = 0;
+      for (let i = 0; i < s.length - L; i += 2) c += s[i] * s[i + L];
+      if (c > mejor) {
+        mejor = c;
+        lag = L;
+      }
+    }
+    return lag ? FM / lag : 0;
+  };
+  const sop = (o) => {
+    const r = { vvs: 0, vat: 20, ...o };
+    const out = {};
+    for (const [k, x] of Object.entries(r)) out[`c1${k}`] = x;
+    return porDefecto(N, out);
+  };
+  const zs = [{ baja: 0, alta: 127, raiz: 60, capas: [{ mod: {} }] }];
+  const tocar = (nota, o, seg = 0.8, ev) => correr(nuevo(zs, []), seg, ev || [[0, 'on', nota]], sop(o)).L;
+  const sano = (x) => x.every((y) => Number.isFinite(y) && Math.abs(y) < 4);
+
+  const b = tocar(69, { smt: 0, ssa: 100 });
+  a.ver('bisel: suena en su nota (440 Hz, ±3 %)', frecAC(b, 0.4, 0.7), 440, 13);
+  a.mayorQue('… y suena (pico)', pico2(b, 0.4, 0.7), 0.1);
+  const suave = frecAC(tocar(69, { smt: 0, ssa: 100, sai: 35, ssu: 40 }), 0.4, 0.7);
+  const fuerte = frecAC(tocar(69, { smt: 0, ssa: 100, sai: 100, ssu: 40 }), 0.4, 0.7);
+  a.mayorQue('bisel: con más aire sube (Hz de más)', fuerte - suave, 3);
+  const brinco = frecAC(tocar(69, { smt: 0, ssa: 0, sai: 130 }), 0.4, 0.7);
+  a.mayorQue('bisel sin salto y mucho aire: brinca hacia arriba (razón)', brinco / 440, 1.4);
+  const pif = tocar(81, { smt: 0, sex: 1, sdf: 40, sde: 30, sai: 90, sas: 30 });
+  a.ver('pifilka (cerrado, doble fondo, aspereza): suena y no se dispara', sano(pif) && pico2(pif, 0.4, 0.7) > 0.05 ? 1 : 0, 1, 0);
+
+  const t = tocar(57, { smt: 1, sai: 70 });
+  a.ver('labios: suenan en su nota (220 Hz, ±4 %)', frecAC(t, 0.4, 0.7), 220, 9);
+  // trutruka: tubo fijo en Do 2 (65,4 Hz); los labios eligen el armónico del tubo
+  const ftr = (nota) => frecAC(tocar(nota, { smt: 1, stb: 1, stn: 36, sai: 70 }), 0.4, 0.7) / 65.41;
+  a.menorQue('trutruka (tubo fijo): Sol 3 cae en el armónico 3 del tubo', Math.abs(ftr(55) - 3), 0.1);
+  a.menorQue('… y Mi 4, en el 5', Math.abs(ftr(64) - 5), 0.15);
+
+  const c = tocar(57, { smt: 2, sai: 70 });
+  a.ver('caña recta: suena en su nota (220 Hz, ±3 %)', frecAC(c, 0.4, 0.7), 220, 7);
+  const sx = tocar(57, { smt: 2, sfo: 1, sai: 70 });
+  a.ver('caña cónica: suena y no se dispara', sano(sx) && pico2(sx, 0.4, 0.7) > 0.05 ? 1 : 0, 1, 0);
+
+  // al soltar, el tubo se apaga y la voz se libera
+  const s = nuevo(zs, []);
+  const { L: Ls } = correr(s, 1.5, [[0, 'on', 69], [0.5, 'off', 69]], sop({ smt: 0, vrt: 50 }));
+  a.menorQue('soplo: después de soltar, silencio (pico)', pico2(Ls, 1.1, 1.5), 1e-3);
+  a.ver('… y la voz se libera', s.cuantasVoces(), 0, 0);
+  // el aire desde la rueda de modulación: en cero, callado
+  const s2 = nuevo(zs, []);
+  s2.controlar('rueda', 0);
+  const { L: Lr } = correr(s2, 0.6, [[0, 'on', 69]], sop({ smt: 0, sfa: 1 }));
+  a.menorQue('aire desde la rueda: con la rueda abajo, casi nada (pico)', pico2(Lr, 0.3, 0.55), 0.05);
+}
+
+// --- los modificadores de la capa
+{
+  const mod = (o) => {
+    const out = { c1vvs: 0, c1vat: 0.5 };
+    for (const [k, x] of Object.entries(o)) out[`c1${k}`] = x;
+    return porDefecto(N, out);
+  };
+  const base = correr(nuevo(unaZona(), [['la', la, FM]]), 0.5, [[0, 'on', 69]], mod({})).L;
+  const conRealce = correr(nuevo(unaZona(), [['la', la, FM]]), 0.5, [[0, 'on', 69]], mod({ mhm: 100, mhi: 80, mhz: 3 })).L;
+  let dif = 0;
+  for (let i = tramo(0.2, 0)[0]; i < tramo(0.45, 0)[0]; i++) dif = Math.max(dif, Math.abs(conRealce[i] - base[i]));
+  a.mayorQue('realce de armónicos: cambia el sonido', dif, 0.05);
+  const res = correr(nuevo(unaZona(), [['la', la, FM]]), 0.5, [[0, 'on', 69]], mod({ mrm: 100, mrf: 90 })).L;
+  const cue = correr(nuevo(unaZona(), [['la', la, FM]]), 0.5, [[0, 'on', 69]], mod({ mcm: 100, mcy: 1 })).L;
+  a.ver('resonador y cuerpo: suenan sin dispararse', [res, cue].every((x) => x.every((y) => Number.isFinite(y) && Math.abs(y) < 4)) && pico2(res, 0.2, 0.45) > 0.05 && pico2(cue, 0.2, 0.45) > 0.01 ? 1 : 0, 1, 0);
+}
+
 // --- paso 4: estirar por espectro, por tramos
 {
   const x = tono(0.5, 440, 1);

@@ -1,7 +1,8 @@
 // EL PROCESADOR DEL SAMPLER (hilo de audio). Va como texto con `mandarConFunciones` junto con
 // `nucleoSampler`: tiene que bastarse solo.
 //
-// Recibe: las notas por MIDI (`wam-midi`: 0x90 encender, 0x80 apagar, CC 120/123 callar todo) y,
+// Recibe: las notas por MIDI (`wam-midi`: 0x90 encender, 0x80 apagar, CC 120/123 callar todo; CC 1,
+// 2 y 11 y el aftertouch, para el aire del soplo) y,
 // por el puerto, lo que manda el nodo: { pz: 'muestra', m, canales, fm } (los canales ya
 // decodificados), { pz: 'quitar', m }, { pz: 'inst', inst } (las zonas) y { pz: 'callar' }.
 export function procesadorSampler(moduleId, nucleo) {
@@ -63,6 +64,12 @@ export function procesadorSampler(moduleId, nucleo) {
       if (tipo === 0x90 && b[2] > 0) this._s.notaOn(b[1], b[2], this._p);
       else if (tipo === 0x80 || (tipo === 0x90 && b[2] === 0)) this._s.notaOff(b[1]);
       else if (tipo === 0xb0 && (b[1] === 120 || b[1] === 123)) this._s.callar();
+      // el aire en vivo para el soplo: rueda (CC 1), aliento (CC 2), expresión (CC 11), aftertouch
+      else if (tipo === 0xb0 && b[1] === 1) this._s.controlar('rueda', b[2] / 127);
+      else if (tipo === 0xb0 && b[1] === 2) this._s.controlar('aliento', b[2] / 127);
+      else if (tipo === 0xb0 && b[1] === 11) this._s.controlar('expresion', b[2] / 127);
+      else if (tipo === 0xd0) this._s.controlar('presion', b[1] / 127);
+      else if (tipo === 0xa0) this._s.controlar('presion', b[2] / 127);
     }
 
     _process(desde, hasta, inputs, outputs) {

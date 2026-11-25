@@ -200,12 +200,15 @@ export function crearCaratula(nodo) {
   // La fuente de la capa: un audio o un oscilador (paso 5).
   const selFuente = elegidor({
     nombre: t('Fuente'),
-    opciones: [t('Audio'), t('Oscilador')],
+    opciones: [t('Audio'), t('Oscilador'), t('Soplo')],
     alCambiar: (i) => {
       const c = capa();
       if (!c) return;
       if (i === 1) c.osc = c.osc || { forma: 2, ancho: 50 };
       else delete c.osc;
+      // el soplo (modelo físico): sus ajustes van en la carpeta Soplo
+      if (i === 2) c.mod = c.mod || {};
+      else delete c.mod;
       guardar();
       pintarTodo();
     },
@@ -258,7 +261,7 @@ export function crearCaratula(nodo) {
   let tomada = null;
   const durDe = () => {
     const c = capa();
-    if (c && c.osc) return 0;
+    if (c && (c.osc || c.mod)) return 0;
     const mu = c && nodo.muestras[c.m];
     return mu && mu.estado === 'lista' ? mu.dur : 0;
   };
@@ -466,7 +469,7 @@ export function crearCaratula(nodo) {
   const pintarEstirar = () => {
     const c = capa();
     titEstirar.textContent = `${t('Estirar al tempo')} (${numero(nodo.bpm, 0)} bpm):`;
-    filaEstirar.style.display = c && c.osc ? 'none' : 'flex';
+    filaEstirar.style.display = c && (c.osc || c.mod) ? 'none' : 'flex';
     filaEstirar.style.opacity = c && durDe() ? '' : '0.4';
     const partes = !c || enTajadas() || !c.loop ? 1 : 3;
     estiradores.forEach((x, k) => {
@@ -574,11 +577,12 @@ export function crearCaratula(nodo) {
   const CARPETAS = [
     ['facil', 'Fácil', () => [marco(hojas.general, titulo(t('Filtro')), moldeado.crearGrupo(['ft', 'fc', 'fr', 'fi']))]],
     ['fuente', 'Fuente', () => [ayuda, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaCapaFuente]],
+    ['soplo', 'Soplo', () => [marco(el('div', `color:${v('tinta2')};font-size:11px;`, t('Para una capa con la fuente «Soplo»: el modelo del tubo y cómo se toca. La envolvente de Volumen es el soplo.')), titulo(t('Tubo')), moldeado.crearGrupo(['smt', 'sex', 'sfo', 'stb', 'stn']), titulo(t('Interpretación')), moldeado.crearGrupo(['sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr']), moldeado.crearGrupo(['sgi', 'sap', 'sca', 'sdf', 'sde', 'sfa']))]],
     ['filtro', 'Filtro', () => (moldeado.ponerHoja('fil'), [moldeado.el])],
     ['volumen', 'Volumen', () => (moldeado.ponerHoja('vol'), [moldeado.el])],
     ['altura', 'Altura', () => (moldeado.ponerHoja('alt'), [moldeado.el])],
     ['control', 'Control', () => [marco(titulo(t('Vaivén 1')), hojas.v1, titulo(t('Vaivén 2')), hojas.v2)]],
-    ['efectos', 'Efectos', () => [marco(hojas.color)]],
+    ['efectos', 'Efectos', () => [marco(hojas.color, titulo(`${t('Capa')}: ${t('Realce de armónicos')}`), moldeado.crearGrupo(['mhm', 'mhi', 'mhz']), titulo(`${t('Capa')}: ${t('Resonador')}`), moldeado.crearGrupo(['mrm', 'mrf', 'mrz']), titulo(`${t('Capa')}: ${t('Cuerpo')}`), moldeado.crearGrupo(['mcm', 'mct', 'mcy']))]],
   ];
   // (las de Fácil se arman una sola vez: crearGrupo anota sus controles)
   const contenidos = {};
@@ -654,6 +658,37 @@ export function crearCaratula(nodo) {
     g.textAlign = 'center';
     if (!zona()) {
       g.fillText(t('Sin zonas: crear una de piano o de batería'), 268, 58);
+      return;
+    }
+    if (c && c.mod) {
+      // el soplo: un tubo con su boquilla, y el modelo de la carpeta Soplo
+      const k = cSel + 1;
+      const val = (corto, d) => {
+        const p = N.PARAMS.find((q) => q.id === `c${k}${corto}`);
+        const x = moldeado.valor(`c${k}${corto}`);
+        return x !== undefined ? x : p ? p.defecto : d;
+      };
+      const modelo = Math.round(val('smt', 0));
+      g.strokeStyle = C.tinta;
+      g.lineWidth = 2;
+      g.strokeRect(70, 45, 380, 22);
+      g.fillStyle = C.acento;
+      if (modelo === 1) {
+        // la campana
+        g.beginPath();
+        g.moveTo(450, 45);
+        g.lineTo(500, 20);
+        g.moveTo(450, 67);
+        g.lineTo(500, 92);
+        g.stroke();
+      } else if (val('sex', 0) >= 0.5 && modelo === 0) g.fillRect(446, 45, 6, 22);
+      // la boquilla
+      g.fillRect(48, 49, 22, 14);
+      g.lineWidth = 1;
+      g.fillStyle = C.tinta2;
+      g.font = '11px system-ui, sans-serif';
+      g.textAlign = 'center';
+      g.fillText(`${t('Soplo')}: ${t(N.MODELOS[modelo] || '')}`, 268, 104);
       return;
     }
     if (c && c.osc) {
@@ -812,15 +847,16 @@ export function crearCaratula(nodo) {
     const c = capa();
     const mu = c && nodo.muestras[c.m];
     const esOsc = !!(c && c.osc);
-    nombreAudio.textContent = esOsc ? '' : mu ? `${mu.nombre}${mu.url ? '' : ` (${t('no queda guardado')})`}` : '';
-    selFuente.poner(esOsc ? 1 : 0);
+    const esSoplo = !!(c && c.mod);
+    nombreAudio.textContent = esOsc || esSoplo ? '' : mu ? `${mu.nombre}${mu.url ? '' : ` (${t('no queda guardado')})`}` : '';
+    selFuente.poner(esSoplo ? 2 : esOsc ? 1 : 0);
     selFuente.el.style.display = c ? '' : 'none';
-    botonAbrir.style.display = esOsc ? 'none' : '';
-    if (elegirDeAnfitrion) botonPz.style.display = esOsc ? 'none' : '';
-    filaDir.style.display = esOsc ? 'none' : 'flex';
+    botonAbrir.style.display = esOsc || esSoplo ? 'none' : '';
+    if (elegirDeAnfitrion) botonPz.style.display = esOsc || esSoplo ? 'none' : '';
+    filaDir.style.display = esOsc || esSoplo ? 'none' : 'flex';
     oscCaja.style.display = esOsc ? 'inline-flex' : 'none';
     // (vuelven a 'inline-flex', no a '': así conservan su separación)
-    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? 'none' : 'inline-flex';
+    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc || esSoplo ? 'none' : 'inline-flex';
     if (esOsc) {
       selForma.poner(Math.round(Number(c.osc.forma) || 0));
       pAncho.poner(Number(c.osc.ancho) || 50);

@@ -262,6 +262,8 @@ export function crearMoldeado(nodo, N, colores) {
     },
     // 'vol' | 'fil' | 'alt'
     ponerHoja,
+    // Lo que vale ahora un parámetro (el id entero), según lo último que dijo el plugin.
+    valor: (id) => valores[id],
     // Controles de la capa elegida para otra carpeta: una fila con estos parámetros (cortos).
     crearGrupo(cortos) {
       const mapa = {};

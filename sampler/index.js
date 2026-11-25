@@ -150,7 +150,7 @@ export class NodoSampler extends WamNode {
     return { m: x.id, ini: 0, lIni: undefined, lFin: undefined, fin: s(1) };
   }
   _estirarCapa(z, c, necesarias, pedidos) {
-    const au = c && !c.osc && this._audios[c.m];
+    const au = c && !c.osc && !c.mod && this._audios[c.m];
     if (!au || !Array.isArray(c.est)) return c;
     const fm = au.fm;
     const partes = this._partes(z, c, au.canales[0].length / fm);
