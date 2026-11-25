@@ -821,14 +821,14 @@ var getWamParameterInterpolator = (moduleId) => {
         let e = Math.abs(skew);
         e = Math.pow(3 - e, e * (e + 2));
         const linear = e === 1;
-        const N2 = this._N;
-        const table = new Float32Array(N2 + 1);
+        const N3 = this._N;
+        const table = new Float32Array(N3 + 1);
         if (linear)
-          for (let n = 0; n <= N2; ++n)
-            table[n] = n / N2;
+          for (let n = 0; n <= N3; ++n)
+            table[n] = n / N3;
         else
-          for (let n = 0; n <= N2; ++n)
-            table[n] = (n / N2) ** e;
+          for (let n = 0; n <= N3; ++n)
+            table[n] = (n / N3) ** e;
         WamParameterInterpolator._tables[newKey] = table;
         WamParameterInterpolator._tableReferences[newKey] = [id];
       }
@@ -1650,6 +1650,18 @@ function nucleoSampler() {
     let mDis = new Float32Array(128);
     let mPan = new Float32Array(128);
     const prepararCapa = (c, tajada = -1) => {
+      if (c.osc && typeof c.osc === "object") {
+        const pan2 = Math.max(-1, Math.min(1, Number(c.pan) || 0));
+        const ang2 = (pan2 + 1) * Math.PI / 4;
+        return {
+          osc: true,
+          forma: Math.max(0, Math.min(3, Math.round(Number(c.osc.forma) || 0))),
+          ancho: Math.max(0.05, Math.min(0.95, (Number(c.osc.ancho) || 50) / 100)),
+          gL: 0.5 * dB(Number(c.gan) || 0) * Math.cos(ang2),
+          gR: 0.5 * dB(Number(c.gan) || 0) * Math.sin(ang2),
+          afinar: Number(c.afinar) || 0
+        };
+      }
       const mu = muestras.get(c.m);
       if (!mu || !mu.c.length || !mu.c[0].length) return null;
       const largo = mu.c[0].length;
@@ -1740,7 +1752,7 @@ function nucleoSampler() {
       const capas = [];
       for (const c of (z.capas || []).slice(0, 3)) {
         const pc = prepararCapa(c, tajadas ? nota - z.baja : -1);
-        if (pc) capas.push({ c: pc, pos: pc.ini, pos2: pc.ini, viva: true, viva2: true });
+        if (pc) capas.push({ c: pc, pos: pc.osc ? 0 : pc.ini, pos2: pc.osc ? 0 : pc.ini, viva: true, viva2: true });
       }
       if (!capas.length) return;
       if (voces.length >= VOCES) {
@@ -1755,6 +1767,8 @@ function nucleoSampler() {
         raiz: tajadas ? nota : Number(z.raiz) || 60,
         golpe,
         capas,
+        // con un oscilador, un golpe cae a cero (si no, sonaría para siempre)
+        conOsc: capas.some((x) => x.c.osc),
         gan: 1 - sens + sens * Math.max(0, Math.min(127, vel)) / 127,
         // la envolvente: fase 0 ataque, 1 decaimiento, 2 sostenido, 3 soltado
         fase: 0,
@@ -1778,6 +1792,26 @@ function nucleoSampler() {
     function callar() {
       for (const v2 of voces) v2.ahogo = v2.ahogo || AHOGO_S * fm;
     }
+    const blep = (t2, dt) => {
+      if (t2 < dt) {
+        const x = t2 / dt;
+        return x + x - x * x - 1;
+      }
+      if (t2 > 1 - dt) {
+        const x = (t2 - 1) / dt;
+        return x * x + x + x + 1;
+      }
+      return 0;
+    };
+    const onda = (c, t2, dt) => {
+      if (c.forma === 0) return Math.sin(2 * Math.PI * t2);
+      if (c.forma === 1) return 1 - 4 * Math.abs(t2 - 0.5);
+      if (c.forma === 2) return 2 * t2 - 1 - blep(t2, dt);
+      const w = c.ancho;
+      let t22 = t2 + 1 - w;
+      if (t22 >= 1) t22 -= 1;
+      return (t2 < w ? 1 : -1) + blep(t2, dt) - blep(t22, dt);
+    };
     const forma = (k, ph, l) => {
       if (k === 0) return Math.sin(2 * Math.PI * ph);
       if (k === 1) return 1 - 4 * Math.abs(ph - 0.5);
@@ -1848,6 +1882,10 @@ function nucleoSampler() {
         const dA = Math.pow(2, -desaf / 2400);
         const dB2 = Math.pow(2, desaf / 2400);
         const rates = v2.capas.map(({ c }) => {
+          if (c.osc) {
+            const f = 440 * Math.pow(2, (v2.nota - 69 + c.afinar + afinar + altSt) / 12) / fm;
+            return [f, f, f];
+          }
           const base = c.mu.fm / fm;
           const conNota = Math.pow(2, (v2.nota - v2.raiz + c.afinar + afinar + altSt) / 12);
           const sinNota = Math.pow(2, (c.afinar + afinar + altSt) / 12);
@@ -1877,13 +1915,18 @@ function nucleoSampler() {
             v2.env += 1 / atq;
             if (v2.env >= 1) {
               v2.env = 1;
-              v2.fase = v2.golpe ? 2 : 1;
+              v2.fase = v2.golpe && !v2.conOsc ? 2 : 1;
             }
           } else if (v2.fase === 1) {
-            v2.env -= (1 - sos) / dec;
-            if (v2.env <= sos) {
-              v2.env = sos;
+            const piso = v2.golpe ? 0 : sos;
+            v2.env -= (1 - piso) / dec;
+            if (v2.env <= piso) {
+              v2.env = piso;
               v2.fase = 2;
+              if (v2.golpe) {
+                terminada = true;
+                break;
+              }
             }
           }
           let xL = 0;
@@ -1892,6 +1935,18 @@ function nucleoSampler() {
           for (let q = 0; q < v2.capas.length; q++) {
             const cap = v2.capas[q];
             const c = cap.c;
+            if (c.osc) {
+              const pa = rates[q][0] * dA;
+              const pb = rates[q][0] * dB2;
+              xL += onda(c, cap.pos, pa) * c.gL;
+              xR += onda(c, cap.pos2, pb) * c.gR;
+              cap.pos += pa;
+              if (cap.pos >= 1) cap.pos -= 1;
+              cap.pos2 += pb;
+              if (cap.pos2 >= 1) cap.pos2 -= 1;
+              vivas++;
+              continue;
+            }
             const enLoop = c.loop && !v2.golpe && !v2.soltada;
             const L = c.mu.c[0];
             const R = c.mu.c[1] || L;
@@ -2008,19 +2063,19 @@ function nucleoSampler() {
 function procesadorSampler(moduleId, nucleo) {
   const ambito = globalThis.webAudioModules.getModuleScope(moduleId);
   const { WamProcessor, WamParameterInfo } = ambito;
-  const N2 = nucleo();
-  const ids = N2.PARAMS.map((p) => p.id);
+  const N3 = nucleo();
+  const ids = N3.PARAMS.map((p) => p.id);
   class ProcesadorSampler extends WamProcessor {
     constructor(options) {
       super(options);
-      this._s = N2.crear(sampleRate);
+      this._s = N3.crear(sampleRate);
       this._p = {};
-      for (const p of N2.PARAMS) this._p[p.id] = p.defecto;
+      for (const p of N3.PARAMS) this._p[p.id] = p.defecto;
       this._tmpR = new Float32Array(128);
     }
     _generateWamParameterInfo() {
       const info = {};
-      for (const p of N2.PARAMS) {
+      for (const p of N3.PARAMS) {
         info[p.id] = new WamParameterInfo(p.id, {
           type: p.tipo || "float",
           label: p.nombre,
@@ -2043,6 +2098,14 @@ function procesadorSampler(moduleId, nucleo) {
         return;
       }
       return super._onMessage(message);
+    }
+    // El tempo del anfitrión (`wam-transport`): se le pasa al nodo, que es el que estira.
+    _onTransport(datos) {
+      const bpm = datos && Number(datos.tempo);
+      if (bpm > 0 && bpm !== this._bpm) {
+        this._bpm = bpm;
+        this.port.postMessage({ pz: "tempo", bpm });
+      }
     }
     _onMidi(midi) {
       const b = midi && midi.bytes;
@@ -2498,6 +2561,13 @@ var TEXTOS = {
   "Profundidad del vaiv\xE9n 2": ["LFO 2 depth", "Profundidade do LFO 2", "Profondeur du LFO 2", "LFO 2aren sakonera", "\u0413\u043B\u0443\u0431\u0438\u043D\u0430 LFO 2", "LFO 2\u306E\u6DF1\u3055", "LFO 2 \uAE4A\uC774", "LFO 2 \u6DF1\u5EA6", "\u0E04\u0E27\u0E32\u0E21\u0E25\u0E36\u0E01\u0E02\u0E2D\u0E07 LFO 2"],
   "Destino del vaiv\xE9n 1": ["LFO 1 target", "Destino do LFO 1", "Cible du LFO 1", "LFO 1aren helburua", "\u0426\u0435\u043B\u044C LFO 1", "LFO 1\u306E\u9001\u308A\u5148", "LFO 1 \uB300\uC0C1", "LFO 1 \u76EE\u6807", "\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07\u0E02\u0E2D\u0E07 LFO 1"],
   "Destino del vaiv\xE9n 2": ["LFO 2 target", "Destino do LFO 2", "Cible du LFO 2", "LFO 2aren helburua", "\u0426\u0435\u043B\u044C LFO 2", "LFO 2\u306E\u9001\u308A\u5148", "LFO 2 \uB300\uC0C1", "LFO 2 \u76EE\u6807", "\u0E1B\u0E25\u0E32\u0E22\u0E17\u0E32\u0E07\u0E02\u0E2D\u0E07 LFO 2"],
+  "Estirar al tempo": ["Stretch to tempo", "Esticar ao tempo", "\xC9tirer au tempo", "Tempora luzatu", "\u0420\u0430\u0441\u0442\u044F\u043D\u0443\u0442\u044C \u043F\u043E\u0434 \u0442\u0435\u043C\u043F", "\u30C6\u30F3\u30DD\u306B\u5408\u308F\u305B\u3066\u4F38\u7E2E", "\uD15C\uD3EC\uC5D0 \uB9DE\uCDB0 \uB298\uC774\uAE30", "\u6309\u901F\u5EA6\u4F38\u7F29", "\u0E22\u0E37\u0E14\u0E15\u0E32\u0E21\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E30"],
+  "Sin estirar": ["No stretch", "Sem esticar", "Sans \xE9tirer", "Luzatu gabe", "\u0411\u0435\u0437 \u0440\u0430\u0441\u0442\u044F\u0436\u0435\u043D\u0438\u044F", "\u4F38\u7E2E\u306A\u3057", "\uB298\uC774\uC9C0 \uC54A\uC74C", "\u4E0D\u4F38\u7F29", "\u0E44\u0E21\u0E48\u0E22\u0E37\u0E14"],
+  Tiempos: ["Beats", "Tempos", "Temps", "Taupadak", "\u0414\u043E\u043B\u0438", "\u62CD", "\uBC15", "\u62CD", "\u0E08\u0E31\u0E07\u0E2B\u0E27\u0E30"],
+  Fuente: ["Source", "Fonte", "Source", "Iturria", "\u0418\u0441\u0442\u043E\u0447\u043D\u0438\u043A", "\u30BD\u30FC\u30B9", "\uC18C\uC2A4", "\u6765\u6E90", "\u0E41\u0E2B\u0E25\u0E48\u0E07\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  Audio: ["Audio", "\xC1udio", "Audio", "Audioa", "\u0410\u0443\u0434\u0438\u043E", "\u30AA\u30FC\u30C7\u30A3\u30AA", "\uC624\uB514\uC624", "\u97F3\u9891", "\u0E40\u0E2A\u0E35\u0E22\u0E07"],
+  Oscilador: ["Oscillator", "Oscilador", "Oscillateur", "Osziladorea", "\u041E\u0441\u0446\u0438\u043B\u043B\u044F\u0442\u043E\u0440", "\u30AA\u30B7\u30EC\u30FC\u30BF\u30FC", "\uC624\uC2E4\uB808\uC774\uD130", "\u632F\u8361\u5668", "\u0E2D\u0E2D\u0E2A\u0E0B\u0E34\u0E25\u0E40\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
+  Milisegundos: ["Milliseconds", "Milissegundos", "Millisecondes", "Milisegundoak", "\u041C\u0438\u043B\u043B\u0438\u0441\u0435\u043A\u0443\u043D\u0434\u044B", "\u30DF\u30EA\u79D2", "\uBC00\uB9AC\uCD08", "\u6BEB\u79D2", "\u0E21\u0E34\u0E25\u0E25\u0E34\u0E27\u0E34\u0E19\u0E32\u0E17\u0E35"],
   Tajadas: ["Slices", "Fatias", "Tranches", "Xerrak", "\u041D\u0430\u0440\u0435\u0437\u043A\u0430", "\u30B9\u30E9\u30A4\u30B9", "\uC2AC\uB77C\uC774\uC2A4", "\u5207\u7247", "\u0E2A\u0E44\u0E25\u0E0B\u0E4C"],
   "Nueva zona de tajadas": ["New slice zone", "Nova zona de fatias", "Nouvelle zone de tranches", "Xerra-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u043D\u0430\u0440\u0435\u0437\u043A\u0438", "\u65B0\u3057\u3044\u30B9\u30E9\u30A4\u30B9\u30BE\u30FC\u30F3", "\uC0C8 \uC2AC\uB77C\uC774\uC2A4 \uC874", "\u65B0\u5EFA\u5207\u7247\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E2A\u0E44\u0E25\u0E0B\u0E4C\u0E43\u0E2B\u0E21\u0E48"],
   Detectar: ["Detect", "Detectar", "D\xE9tecter", "Detektatu", "\u041D\u0430\u0439\u0442\u0438", "\u691C\u51FA", "\uAC10\uC9C0", "\u68C0\u6D4B", "\u0E15\u0E23\u0E27\u0E08\u0E2B\u0E32"],
@@ -2836,7 +2906,20 @@ function crearCaratula(nodo) {
     guardar();
     pintarTodo();
   };
-  filaCapas.append(...botonesCapa, nombreAudio, boton(t("Abrir archivo"), () => archivo.click()), archivo, boton("\xD7", quitarCapa, t("Quitar capa")));
+  const selFuente = elegidor({
+    nombre: t("Fuente"),
+    opciones: [t("Audio"), t("Oscilador")],
+    alCambiar: (i) => {
+      const c = capa();
+      if (!c) return;
+      if (i === 1) c.osc = c.osc || { forma: 2, ancho: 50 };
+      else delete c.osc;
+      guardar();
+      pintarTodo();
+    }
+  });
+  const botonAbrir = boton(t("Abrir archivo"), () => archivo.click());
+  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonAbrir, archivo, boton("\xD7", quitarCapa, t("Quitar capa")));
   const filaDir = el("div", "display:flex;align-items:center;gap:6px;padding:2px 10px 4px;");
   const dir = el("input", `flex:1;min-width:0;font:inherit;font-size:11px;color:${v("tinta")};background:${v("pantalla")};border:1px solid ${v("borde")};padding:1px 4px;`);
   dir.placeholder = t("Direcci\xF3n web del audio");
@@ -2868,6 +2951,7 @@ function crearCaratula(nodo) {
   let tomada = null;
   const durDe = () => {
     const c = capa();
+    if (c && c.osc) return 0;
     const mu = c && nodo.muestras[c.m];
     return mu && mu.estado === "lista" ? mu.dur : 0;
   };
@@ -2970,13 +3054,14 @@ function crearCaratula(nodo) {
   };
   onda.c.addEventListener("pointerup", soltarMarca);
   onda.c.addEventListener("pointercancel", soltarMarca);
-  const filaCapa = el("div", `display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:2px 10px 8px;border-bottom:1px solid ${v("borde")};`);
+  const filaCapa = el("div", "display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:2px 10px 6px;");
   const ponerCapa = (campos) => {
     const c = capa();
     if (!c) return;
     Object.assign(c, campos);
     guardar();
     pintarOnda();
+    pintarEstirar();
   };
   const iLoop = interruptor({ nombre: t("Loop"), porDefecto: false, alCambiar: (si) => ponerCapa({ loop: si }) });
   const altura = (k) => interruptor({
@@ -2998,7 +3083,80 @@ function crearCaratula(nodo) {
   altCaja.append(el("span", `color:${v("tinta2")};`, t("Con la altura de la nota:")), ...iAlt.map((x) => x.el));
   const perillasCapa = el("span", "display:inline-flex;gap:10px;margin-left:auto;");
   perillasCapa.append(pGan.el, pPan.el, pAfin.el);
-  filaCapa.append(iLoop.el, altCaja, perillasCapa);
+  const ponerOsc = (campos) => {
+    const c = capa();
+    if (!c || !c.osc) return;
+    c.osc = { ...c.osc, ...campos };
+    guardar();
+    pintarTodo();
+  };
+  const selForma = elegidor({ nombre: t("Forma"), opciones: [t("Seno"), t("Tri\xE1ngulo"), t("Sierra"), t("Cuadrada")], alCambiar: (i) => ponerOsc({ forma: i }) });
+  const pAncho = perilla({ nombre: t("Ancho"), min: 5, max: 95, paso: 1, porDefecto: 50, formato: (x) => `${Math.round(x)} %`, alCambiar: (x) => ponerOsc({ ancho: Math.round(x) }) });
+  const oscCaja = el("span", "display:inline-flex;align-items:center;gap:10px;");
+  const formaCaja = el("span", "display:inline-flex;align-items:center;gap:4px;");
+  formaCaja.append(el("span", `color:${v("tinta2")};`, t("Forma")), selForma.el);
+  oscCaja.append(formaCaja, pAncho.el);
+  filaCapa.append(iLoop.el, altCaja, oscCaja, perillasCapa);
+  const filaEstirar = el("div", `display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:0 10px 8px;border-bottom:1px solid ${v("borde")};`);
+  const titEstirar = el("span", `color:${v("tinta2")};`);
+  const largoParte = (c, k) => {
+    const dur = durDe();
+    if (!c || !dur) return 0;
+    if (enTajadas()) {
+      const cs = cortesDe(c);
+      return marcaDe(c, "fin", dur) - (cs.length ? cs[0] : 0);
+    }
+    if (!c.loop) return marcaDe(c, "fin", dur) - marcaDe(c, "ini", dur);
+    const m = ["ini", "lIni", "lFin", "fin"].map((x) => marcaDe(c, x, dur));
+    return m[k + 1] - m[k];
+  };
+  const ponerEst = (k, e) => {
+    const c = capa();
+    if (!c) return;
+    const est = Array.isArray(c.est) ? c.est.slice(0, 3) : [];
+    while (est.length < 3) est.push(null);
+    est[k] = e;
+    c.est = est;
+    guardar();
+  };
+  const estiradores = [0, 1, 2].map((k) => {
+    const caja2 = el("span", "display:inline-flex;align-items:center;gap:4px;");
+    const rotulo = el("span", `color:${v("tinta2")};`, [t("Entrada"), t("Loop"), t("Release")][k]);
+    const cMs = casilla({ nombre: t("Milisegundos"), min: 1, max: 2e4, paso: 1, porDefecto: 500, formato: (x) => `${Math.round(x)} ms`, alCambiar: (x) => ponerEst(k, { u: "ms", v: Math.round(x) }) });
+    const cT = casilla({ nombre: t("Tiempos"), min: 0.25, max: 64, paso: 0.25, porDefecto: 1, formato: (x) => `${numero(x, 2)} \u2669`, alCambiar: (x) => ponerEst(k, { u: "t", v: Math.round(x * 4) / 4 }) });
+    const sel = elegidor({
+      nombre: t("Estirar al tempo"),
+      opciones: [t("Sin estirar"), t("Milisegundos"), t("Tiempos")],
+      alCambiar: (i) => {
+        const s = largoParte(capa(), k);
+        if (i === 0) ponerEst(k, null);
+        else if (i === 1) ponerEst(k, { u: "ms", v: Math.max(1, Math.round(s * 1e3)) });
+        else ponerEst(k, { u: "t", v: Math.max(0.25, Math.round(s * nodo.bpm / 60 * 4) / 4) });
+        pintarEstirar();
+      }
+    });
+    caja2.append(rotulo, sel.el, cMs.el, cT.el);
+    return { el: caja2, rotulo, sel, cMs, cT };
+  });
+  filaEstirar.append(titEstirar, ...estiradores.map((x) => x.el));
+  const pintarEstirar = () => {
+    const c = capa();
+    titEstirar.textContent = `${t("Estirar al tempo")} (${numero(nodo.bpm, 0)} bpm):`;
+    filaEstirar.style.display = c && c.osc ? "none" : "flex";
+    filaEstirar.style.opacity = c && durDe() ? "" : "0.4";
+    const partes2 = !c || enTajadas() || !c.loop ? 1 : 3;
+    estiradores.forEach((x, k) => {
+      x.el.style.display = k < partes2 ? "inline-flex" : "none";
+      x.rotulo.style.display = partes2 > 1 ? "" : "none";
+      const e = c && Array.isArray(c.est) ? c.est[k] : null;
+      const i = e && Number(e.v) > 0 ? e.u === "t" ? 2 : 1 : 0;
+      x.sel.poner(i);
+      x.cMs.el.style.display = i === 1 ? "" : "none";
+      x.cT.el.style.display = i === 2 ? "" : "none";
+      if (i === 1) x.cMs.poner(Number(e.v));
+      if (i === 2) x.cT.poner(Number(e.v));
+    });
+  };
   const filaTajadas = el("div", "display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:2px 10px 6px;");
   const pSens = perilla({
     nombre: t("Sensibilidad"),
@@ -3086,7 +3244,7 @@ function crearCaratula(nodo) {
     }
   };
   pintarPestanas();
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaPestanas, filaGeneral);
+  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaPestanas, filaGeneral);
   let C = coloresDe(caja);
   const pintarTeclado = () => {
     const g = tec.g;
@@ -3127,6 +3285,23 @@ function crearCaratula(nodo) {
     g.textAlign = "center";
     if (!zona()) {
       g.fillText(t("Sin zonas: crear una de piano o de bater\xEDa"), 268, 58);
+      return;
+    }
+    if (c && c.osc) {
+      const forma = Math.round(Number(c.osc.forma) || 0);
+      const w = (Number(c.osc.ancho) || 50) / 100;
+      const y = (ph) => forma === 0 ? Math.sin(2 * Math.PI * ph) : forma === 1 ? 1 - 4 * Math.abs(ph - 0.5) : forma === 2 ? 2 * ph - 1 : ph < w ? 1 : -1;
+      g.strokeStyle = C.tinta;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      for (let x = 0; x <= 536; x++) {
+        const ph = (x / 268 % 1 + 1) % 1;
+        const yy = 55 - y(ph) * 40;
+        if (x === 0) g.moveTo(x, yy);
+        else g.lineTo(x, yy);
+      }
+      g.stroke();
+      g.lineWidth = 1;
       return;
     }
     if (!mu) {
@@ -3259,7 +3434,19 @@ function crearCaratula(nodo) {
     });
     const c = capa();
     const mu = c && nodo.muestras[c.m];
-    nombreAudio.textContent = mu ? `${mu.nombre}${mu.url ? "" : ` (${t("no queda guardado")})`}` : "";
+    const esOsc = !!(c && c.osc);
+    nombreAudio.textContent = esOsc ? "" : mu ? `${mu.nombre}${mu.url ? "" : ` (${t("no queda guardado")})`}` : "";
+    selFuente.poner(esOsc ? 1 : 0);
+    selFuente.el.style.display = c ? "" : "none";
+    botonAbrir.style.display = esOsc ? "none" : "";
+    filaDir.style.display = esOsc ? "none" : "flex";
+    oscCaja.style.display = esOsc ? "inline-flex" : "none";
+    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? "none" : "";
+    if (esOsc) {
+      selForma.poner(Math.round(Number(c.osc.forma) || 0));
+      pAncho.poner(Number(c.osc.ancho) || 50);
+      pAncho.el.style.opacity = Math.round(Number(c.osc.forma) || 0) === 3 ? "" : "0.4";
+    }
     if (c) {
       iLoop.poner(!!c.loop);
       const alt = Array.isArray(c.alt) ? c.alt : [true, true, true];
@@ -3270,6 +3457,7 @@ function crearCaratula(nodo) {
     }
     pintarTeclado();
     pintarOnda();
+    pintarEstirar();
   };
   pintarTodo();
   const quitar = nodo.alCambiar(() => {
@@ -3307,6 +3495,151 @@ function crearCaratula(nodo) {
   return caja;
 }
 
+// sampler/estirar.js
+var N2 = 2048;
+var HS = 512;
+function fft(re, im, inv) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let b = n >> 1;
+    for (; j & b; b >>= 1) j ^= b;
+    j ^= b;
+    if (i < j) {
+      let t2 = re[i];
+      re[i] = re[j];
+      re[j] = t2;
+      t2 = im[i];
+      im[i] = im[j];
+      im[j] = t2;
+    }
+  }
+  for (let largo = 2; largo <= n; largo <<= 1) {
+    const ang = (inv ? 2 : -2) * Math.PI / largo;
+    const wr = Math.cos(ang);
+    const wi = Math.sin(ang);
+    const mitad = largo >> 1;
+    for (let i = 0; i < n; i += largo) {
+      let cr = 1;
+      let ci = 0;
+      for (let k = 0; k < mitad; k++) {
+        const a = i + k;
+        const b = a + mitad;
+        const tr = re[b] * cr - im[b] * ci;
+        const ti = re[b] * ci + im[b] * cr;
+        re[b] = re[a] - tr;
+        im[b] = im[a] - ti;
+        re[a] += tr;
+        im[a] += ti;
+        const nr = cr * wr - ci * wi;
+        ci = cr * wi + ci * wr;
+        cr = nr;
+      }
+    }
+  }
+}
+var envolver = (x) => x - 2 * Math.PI * Math.round(x / (2 * Math.PI));
+function estirarTramos(canales, tramos) {
+  const ts = tramos.map((t2) => ({ a: t2.a, b: Math.max(t2.a, t2.b), f: Math.max(0.25, Math.min(4, Number(t2.f) || 1)) }));
+  const bordes = [0];
+  for (const t2 of ts) bordes.push(bordes[bordes.length - 1] + (t2.b - t2.a) * t2.f);
+  const largo = Math.max(1, Math.round(bordes[bordes.length - 1]));
+  if (!ts.length) return { canales: canales.map(() => new Float32Array(1)), bordes: [0] };
+  const original = (s) => {
+    for (let i = 0; i < ts.length; i++) if (s < bordes[i + 1] || i === ts.length - 1) return ts[i].a + Math.min(ts[i].b - ts[i].a, (s - bordes[i]) / ts[i].f);
+    return ts[ts.length - 1].b;
+  };
+  const ventana = new Float64Array(N2);
+  for (let i = 0; i < N2; i++) ventana[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N2);
+  const B = N2 / 2 + 1;
+  const omega = new Float64Array(B);
+  for (let k = 0; k < B; k++) omega[k] = 2 * Math.PI * k / N2;
+  const cuadros = Math.ceil((largo + N2) / HS) + 1;
+  const sal = canales.map(() => new Float32Array(largo + N2));
+  const peso = new Float64Array(largo + N2);
+  for (let q = 0; q < cuadros; q++) {
+    const t2 = q * HS - N2 / 2;
+    for (let i = 0; i < N2; i++) {
+      const j = t2 + i;
+      if (j >= 0 && j < peso.length) peso[j] += ventana[i] * ventana[i];
+    }
+  }
+  const re = new Float64Array(N2);
+  const im = new Float64Array(N2);
+  const mag = new Float64Array(B);
+  const fase = new Float64Array(B);
+  const faseAntes = new Float64Array(B);
+  const faseSal = new Float64Array(B);
+  const pico = new Int32Array(B);
+  for (let c = 0; c < canales.length; c++) {
+    const x = canales[c];
+    const o = sal[c];
+    let posAntes = 0;
+    for (let q = 0; q < cuadros; q++) {
+      const t2 = q * HS - N2 / 2;
+      const centro = original(Math.max(0, Math.min(largo, t2 + N2 / 2)));
+      const pos = Math.round(centro - N2 / 2);
+      for (let i = 0; i < N2; i++) {
+        const j = pos + i;
+        re[i] = (j >= 0 && j < x.length ? x[j] : 0) * ventana[i];
+        im[i] = 0;
+      }
+      fft(re, im, false);
+      for (let k = 0; k < B; k++) {
+        mag[k] = Math.hypot(re[k], im[k]);
+        fase[k] = Math.atan2(im[k], re[k]);
+      }
+      if (q === 0) {
+        for (let k = 0; k < B; k++) faseSal[k] = fase[k];
+      } else {
+        const ha = pos - posAntes;
+        const esPico = [];
+        for (let k = 0; k < B; k++) {
+          const m = mag[k];
+          if ((k < 1 || m > mag[k - 1]) && (k < 2 || m > mag[k - 2]) && (k + 1 >= B || m >= mag[k + 1]) && (k + 2 >= B || m >= mag[k + 2])) esPico.push(k);
+        }
+        if (!esPico.length) esPico.push(0);
+        let p = 0;
+        for (let k = 0; k < B; k++) {
+          while (p + 1 < esPico.length && Math.abs(esPico[p + 1] - k) < Math.abs(esPico[p] - k)) p++;
+          pico[k] = esPico[p];
+        }
+        const avance = new Float64Array(B);
+        for (const k of esPico) {
+          const d = ha > 0 ? envolver(fase[k] - faseAntes[k] - omega[k] * ha) : 0;
+          const frec = omega[k] + (ha > 0 ? d / ha : 0);
+          avance[k] = faseSal[k] + frec * HS;
+        }
+        for (let k = 0; k < B; k++) {
+          const pk = pico[k];
+          faseSal[k] = avance[pk] + (fase[k] - fase[pk]);
+        }
+      }
+      for (let k = 0; k < B; k++) faseAntes[k] = fase[k];
+      posAntes = pos;
+      for (let k = 0; k < B; k++) {
+        re[k] = mag[k] * Math.cos(faseSal[k]);
+        im[k] = mag[k] * Math.sin(faseSal[k]);
+      }
+      for (let k = B; k < N2; k++) {
+        re[k] = re[N2 - k];
+        im[k] = -im[N2 - k];
+      }
+      fft(re, im, true);
+      for (let i = 0; i < N2; i++) {
+        const j = t2 + i;
+        if (j >= 0 && j < o.length) o[j] += re[i] / N2 * ventana[i];
+      }
+    }
+    for (let j = 0; j < o.length; j++) o[j] = peso[j] > 1e-3 ? o[j] / peso[j] : 0;
+  }
+  return { canales: sal.map((o) => o.slice(0, largo)), bordes: bordes.map((b) => Math.round(b)) };
+}
+function segundosDe(est, bpm) {
+  if (!est || !(Number(est.v) > 0)) return 0;
+  if (est.u === "t") return Number(est.v) * 60 / Math.max(1, Number(bpm) || 120);
+  return Number(est.v) / 1e3;
+}
+
 // sampler/index.js
 var mandados = /* @__PURE__ */ new WeakMap();
 var PICOS = 1500;
@@ -3337,6 +3670,21 @@ var NodoSampler = class extends WamNode {
     this.inst = { zonas: [] };
     this.muestras = {};
     this._oyentes = /* @__PURE__ */ new Set();
+    this._audios = {};
+    this.bpm = 120;
+    this._estirados = /* @__PURE__ */ new Map();
+    this._reloj = 0;
+  }
+  // Lo que manda el hilo de audio: el tempo del anfitrión.
+  _onMessage(message) {
+    const d = message && message.data;
+    if (d && d.pz === "tempo") {
+      this.bpm = Number(d.bpm) || 120;
+      this._mandarInst(true);
+      this._avisar();
+      return;
+    }
+    return super._onMessage(message);
   }
   // Quien dibuja se entera de los cambios (el instrumento, una muestra que terminó de bajar).
   alCambiar(f) {
@@ -3353,8 +3701,90 @@ var NodoSampler = class extends WamNode {
   }
   ponerInstrumento(inst) {
     this.inst = inst && Array.isArray(inst.zonas) ? inst : { zonas: [] };
-    if (!this._destroyed) this.port.postMessage({ pz: "inst", inst: this.inst });
+    this._mandarInst(true);
     this._avisar();
+  }
+  // EL INSTRUMENTO QUE SUENA: el mismo, pero con cada capa que se estira al tempo cambiada por su
+  // muestra estirada (y sus marcas, a lo estirado). Estirar pesa: con algo nuevo que estirar se
+  // espera un poco (mientras se arrastra una perilla) y suena lo de antes.
+  _mandarInst(conEspera) {
+    clearTimeout(this._reloj);
+    const listo = this._resolver(false);
+    if (listo || !conEspera) {
+      this._enviarInst(this._resolver(true));
+      return;
+    }
+    this._reloj = setTimeout(() => this._enviarInst(this._resolver(true)), 150);
+  }
+  _enviarInst(inst) {
+    if (this._destroyed) return;
+    this.port.postMessage({ pz: "inst", inst });
+    for (const [llave, x] of this._estirados) {
+      if (x.usada) continue;
+      this._estirados.delete(llave);
+      this.port.postMessage({ pz: "quitar", m: x.id });
+    }
+  }
+  // `estirar`: false solo mira si está todo estirado ya (sin calcular nada).
+  _resolver(estirar) {
+    for (const x of this._estirados.values()) x.usada = false;
+    let completo = true;
+    const zonas = this.inst.zonas.map((z) => ({
+      ...z,
+      capas: (z.capas || []).map((c) => {
+        const r = this._estirarCapa(z, c, estirar);
+        if (r === false) {
+          completo = false;
+          return c;
+        }
+        return r || c;
+      })
+    }));
+    return estirar ? { zonas } : completo;
+  }
+  // La capa estirada; null si no se estira; false si falta calcularla y `estirar` es false.
+  _estirarCapa(z, c, estirar) {
+    const au = c && this._audios[c.m];
+    if (!au || !Array.isArray(c.est)) return null;
+    const fm = au.fm;
+    const dur = au.canales[0].length / fm;
+    const num = (x2, d) => x2 === void 0 || x2 === null ? d : Math.max(0, Math.min(dur, Number(x2) || 0));
+    const fin = num(c.fin, dur);
+    let partes;
+    if (z.tajadas) {
+      const cs = Array.isArray(c.cortes) && c.cortes.length ? c.cortes : [0];
+      partes = [[cs[0], fin, c.est[0]]];
+    } else {
+      const ini = num(c.ini, 0);
+      if (c.loop) {
+        const lIni = Math.max(ini, num(c.lIni, ini));
+        const lFin = Math.min(fin, Math.max(lIni, num(c.lFin, fin)));
+        partes = [[ini, lIni, c.est[0]], [lIni, lFin, c.est[1]], [lFin, fin, c.est[2]]];
+      } else partes = [[ini, fin, c.est[0]]];
+    }
+    const tramos = partes.map(([a, b, e]) => {
+      const s2 = segundosDe(e, this.bpm);
+      return { a: Math.round(a * fm), b: Math.round(b * fm), f: s2 > 0 && b > a ? Math.round(s2 / (b - a) * 1e4) / 1e4 : 1 };
+    });
+    if (tramos.every((t2) => t2.f === 1)) return null;
+    const llave = `${c.m}|${tramos.map((t2) => `${t2.a},${t2.b},${t2.f}`).join("|")}`;
+    let x = this._estirados.get(llave);
+    if (!x) {
+      if (!estirar) return false;
+      const r = estirarTramos(au.canales, tramos);
+      x = { id: `${c.m}~${(cuenta++).toString(36)}`, bordes: r.bordes, usada: false };
+      this._estirados.set(llave, x);
+      if (!this._destroyed) this.port.postMessage({ pz: "muestra", m: x.id, canales: r.canales, fm }, r.canales.map((k) => k.buffer));
+    }
+    x.usada = true;
+    const s = (k) => x.bordes[k] / fm;
+    const a0 = partes[0][0];
+    if (z.tajadas) {
+      const f = tramos[0].f;
+      return { ...c, m: x.id, cortes: (c.cortes && c.cortes.length ? c.cortes : [0]).map((k) => Math.max(0, (k - a0) * f)), fin: s(1) };
+    }
+    if (c.loop) return { ...c, m: x.id, ini: 0, lIni: s(1), lFin: s(2), fin: s(3) };
+    return { ...c, m: x.id, ini: 0, lIni: void 0, lFin: void 0, fin: s(1) };
   }
   // Una muestra desde una dirección web (queda en el estado) o desde un archivo (no queda).
   async cargarDireccion(url, nombre, m = nuevoId()) {
@@ -3404,7 +3834,10 @@ var NodoSampler = class extends WamNode {
     }
     const en = energias(canales, b.sampleRate);
     Object.assign(this.muestras[m], { estado: "lista", dur: b.duration, picos, en });
-    if (!this._destroyed) this.port.postMessage({ pz: "muestra", m, canales, fm: b.sampleRate }, canales.map((c) => c.buffer));
+    this._audios[m] = { canales, fm: b.sampleRate };
+    const copia2 = canales.map((c) => c.slice());
+    if (!this._destroyed) this.port.postMessage({ pz: "muestra", m, canales: copia2, fm: b.sampleRate }, copia2.map((c) => c.buffer));
+    this._mandarInst(true);
     this._avisar();
   }
   // Dónde empiezan los golpes de una muestra (segundos); `sens` 0…100.
@@ -3419,6 +3852,7 @@ var NodoSampler = class extends WamNode {
   }
   quitarMuestra(m) {
     delete this.muestras[m];
+    delete this._audios[m];
     if (!this._destroyed) this.port.postMessage({ pz: "quitar", m });
     this._avisar();
   }

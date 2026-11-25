@@ -47,6 +47,15 @@ export function procesadorSampler(moduleId, nucleo) {
       return super._onMessage(message);
     }
 
+    // El tempo del anfitrión (`wam-transport`): se le pasa al nodo, que es el que estira.
+    _onTransport(datos) {
+      const bpm = datos && Number(datos.tempo);
+      if (bpm > 0 && bpm !== this._bpm) {
+        this._bpm = bpm;
+        this.port.postMessage({ pz: 'tempo', bpm });
+      }
+    }
+
     _onMidi(midi) {
       const b = midi && midi.bytes;
       if (!b) return;

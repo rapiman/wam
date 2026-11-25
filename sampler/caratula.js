@@ -196,7 +196,21 @@ export function crearCaratula(nodo) {
     guardar();
     pintarTodo();
   };
-  filaCapas.append(...botonesCapa, nombreAudio, boton(t('Abrir archivo'), () => archivo.click()), archivo, boton('×', quitarCapa, t('Quitar capa')));
+  // La fuente de la capa: un audio o un oscilador (paso 5).
+  const selFuente = elegidor({
+    nombre: t('Fuente'),
+    opciones: [t('Audio'), t('Oscilador')],
+    alCambiar: (i) => {
+      const c = capa();
+      if (!c) return;
+      if (i === 1) c.osc = c.osc || { forma: 2, ancho: 50 };
+      else delete c.osc;
+      guardar();
+      pintarTodo();
+    },
+  });
+  const botonAbrir = boton(t('Abrir archivo'), () => archivo.click());
+  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonAbrir, archivo, boton('×', quitarCapa, t('Quitar capa')));
   const filaDir = el('div', 'display:flex;align-items:center;gap:6px;padding:2px 10px 4px;');
   const dir = el('input', `flex:1;min-width:0;font:inherit;font-size:11px;color:${v('tinta')};background:${v('pantalla')};border:1px solid ${v('borde')};padding:1px 4px;`);
   dir.placeholder = t('Dirección web del audio');
@@ -231,6 +245,7 @@ export function crearCaratula(nodo) {
   let tomada = null;
   const durDe = () => {
     const c = capa();
+    if (c && c.osc) return 0;
     const mu = c && nodo.muestras[c.m];
     return mu && mu.estado === 'lista' ? mu.dur : 0;
   };
@@ -345,13 +360,14 @@ export function crearCaratula(nodo) {
   onda.c.addEventListener('pointercancel', soltarMarca);
 
   // --- lo de la capa: loop, altura por parte, volumen, paneo y afinación
-  const filaCapa = el('div', `display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:2px 10px 8px;border-bottom:1px solid ${v('borde')};`);
+  const filaCapa = el('div', 'display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:2px 10px 6px;');
   const ponerCapa = (campos) => {
     const c = capa();
     if (!c) return;
     Object.assign(c, campos);
     guardar();
     pintarOnda();
+    pintarEstirar();
   };
   const iLoop = interruptor({ nombre: t('Loop'), porDefecto: false, alCambiar: (si) => ponerCapa({ loop: si }) });
   const altura = (k) =>
@@ -374,7 +390,84 @@ export function crearCaratula(nodo) {
   altCaja.append(el('span', `color:${v('tinta2')};`, t('Con la altura de la nota:')), ...iAlt.map((x) => x.el));
   const perillasCapa = el('span', 'display:inline-flex;gap:10px;margin-left:auto;');
   perillasCapa.append(pGan.el, pPan.el, pAfin.el);
-  filaCapa.append(iLoop.el, altCaja, perillasCapa);
+  const ponerOsc = (campos) => {
+    const c = capa();
+    if (!c || !c.osc) return;
+    c.osc = { ...c.osc, ...campos };
+    guardar();
+    pintarTodo();
+  };
+  const selForma = elegidor({ nombre: t('Forma'), opciones: [t('Seno'), t('Triángulo'), t('Sierra'), t('Cuadrada')], alCambiar: (i) => ponerOsc({ forma: i }) });
+  const pAncho = perilla({ nombre: t('Ancho'), min: 5, max: 95, paso: 1, porDefecto: 50, formato: (x) => `${Math.round(x)} %`, alCambiar: (x) => ponerOsc({ ancho: Math.round(x) }) });
+  const oscCaja = el('span', 'display:inline-flex;align-items:center;gap:10px;');
+  const formaCaja = el('span', 'display:inline-flex;align-items:center;gap:4px;');
+  formaCaja.append(el('span', `color:${v('tinta2')};`, t('Forma')), selForma.el);
+  oscCaja.append(formaCaja, pAncho.el);
+  filaCapa.append(iLoop.el, altCaja, oscCaja, perillasCapa);
+
+  // --- estirar al tempo: cada parte a un largo en milisegundos o en tiempos (negras). Sin loop,
+  // la nota entera es una sola parte (la 0); en tajadas, todo lo cortado junto.
+  const filaEstirar = el('div', `display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:0 10px 8px;border-bottom:1px solid ${v('borde')};`);
+  const titEstirar = el('span', `color:${v('tinta2')};`);
+  // los segundos de una parte de la capa elegida, tal como está ahora
+  const largoParte = (c, k) => {
+    const dur = durDe();
+    if (!c || !dur) return 0;
+    if (enTajadas()) {
+      const cs = cortesDe(c);
+      return marcaDe(c, 'fin', dur) - (cs.length ? cs[0] : 0);
+    }
+    if (!c.loop) return marcaDe(c, 'fin', dur) - marcaDe(c, 'ini', dur);
+    const m = ['ini', 'lIni', 'lFin', 'fin'].map((x) => marcaDe(c, x, dur));
+    return m[k + 1] - m[k];
+  };
+  const ponerEst = (k, e) => {
+    const c = capa();
+    if (!c) return;
+    const est = Array.isArray(c.est) ? c.est.slice(0, 3) : [];
+    while (est.length < 3) est.push(null);
+    est[k] = e;
+    c.est = est;
+    guardar();
+  };
+  const estiradores = [0, 1, 2].map((k) => {
+    const caja2 = el('span', 'display:inline-flex;align-items:center;gap:4px;');
+    const rotulo = el('span', `color:${v('tinta2')};`, [t('Entrada'), t('Loop'), t('Release')][k]);
+    const cMs = casilla({ nombre: t('Milisegundos'), min: 1, max: 20000, paso: 1, porDefecto: 500, formato: (x) => `${Math.round(x)} ms`, alCambiar: (x) => ponerEst(k, { u: 'ms', v: Math.round(x) }) });
+    const cT = casilla({ nombre: t('Tiempos'), min: 0.25, max: 64, paso: 0.25, porDefecto: 1, formato: (x) => `${numero(x, 2)} ♩`, alCambiar: (x) => ponerEst(k, { u: 't', v: Math.round(x * 4) / 4 }) });
+    const sel = elegidor({
+      nombre: t('Estirar al tempo'),
+      opciones: [t('Sin estirar'), t('Milisegundos'), t('Tiempos')],
+      alCambiar: (i) => {
+        const s = largoParte(capa(), k);
+        if (i === 0) ponerEst(k, null);
+        else if (i === 1) ponerEst(k, { u: 'ms', v: Math.max(1, Math.round(s * 1000)) });
+        else ponerEst(k, { u: 't', v: Math.max(0.25, Math.round(((s * nodo.bpm) / 60) * 4) / 4) });
+        pintarEstirar();
+      },
+    });
+    caja2.append(rotulo, sel.el, cMs.el, cT.el);
+    return { el: caja2, rotulo, sel, cMs, cT };
+  });
+  filaEstirar.append(titEstirar, ...estiradores.map((x) => x.el));
+  const pintarEstirar = () => {
+    const c = capa();
+    titEstirar.textContent = `${t('Estirar al tempo')} (${numero(nodo.bpm, 0)} bpm):`;
+    filaEstirar.style.display = c && c.osc ? 'none' : 'flex';
+    filaEstirar.style.opacity = c && durDe() ? '' : '0.4';
+    const partes = !c || enTajadas() || !c.loop ? 1 : 3;
+    estiradores.forEach((x, k) => {
+      x.el.style.display = k < partes ? 'inline-flex' : 'none';
+      x.rotulo.style.display = partes > 1 ? '' : 'none';
+      const e = c && Array.isArray(c.est) ? c.est[k] : null;
+      const i = e && Number(e.v) > 0 ? (e.u === 't' ? 2 : 1) : 0;
+      x.sel.poner(i);
+      x.cMs.el.style.display = i === 1 ? '' : 'none';
+      x.cT.el.style.display = i === 2 ? '' : 'none';
+      if (i === 1) x.cMs.poner(Number(e.v));
+      if (i === 2) x.cT.poner(Number(e.v));
+    });
+  };
 
   // --- en tajadas: detectar los golpes o partir en partes iguales
   const filaTajadas = el('div', 'display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;padding:2px 10px 6px;');
@@ -469,7 +562,7 @@ export function crearCaratula(nodo) {
   };
   pintarPestanas();
 
-  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaPestanas, filaGeneral);
+  caja.append(cabecera, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaPestanas, filaGeneral);
 
   // --- dibujar
   let C = coloresDe(caja);
@@ -514,6 +607,24 @@ export function crearCaratula(nodo) {
     g.textAlign = 'center';
     if (!zona()) {
       g.fillText(t('Sin zonas: crear una de piano o de batería'), 268, 58);
+      return;
+    }
+    if (c && c.osc) {
+      // dos vueltas de la forma
+      const forma = Math.round(Number(c.osc.forma) || 0);
+      const w = (Number(c.osc.ancho) || 50) / 100;
+      const y = (ph) => (forma === 0 ? Math.sin(2 * Math.PI * ph) : forma === 1 ? 1 - 4 * Math.abs(ph - 0.5) : forma === 2 ? 2 * ph - 1 : ph < w ? 1 : -1);
+      g.strokeStyle = C.tinta;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      for (let x = 0; x <= 536; x++) {
+        const ph = ((x / 268) % 1 + 1) % 1;
+        const yy = 55 - y(ph) * 40;
+        if (x === 0) g.moveTo(x, yy);
+        else g.lineTo(x, yy);
+      }
+      g.stroke();
+      g.lineWidth = 1;
       return;
     }
     if (!mu) {
@@ -653,7 +764,19 @@ export function crearCaratula(nodo) {
     });
     const c = capa();
     const mu = c && nodo.muestras[c.m];
-    nombreAudio.textContent = mu ? `${mu.nombre}${mu.url ? '' : ` (${t('no queda guardado')})`}` : '';
+    const esOsc = !!(c && c.osc);
+    nombreAudio.textContent = esOsc ? '' : mu ? `${mu.nombre}${mu.url ? '' : ` (${t('no queda guardado')})`}` : '';
+    selFuente.poner(esOsc ? 1 : 0);
+    selFuente.el.style.display = c ? '' : 'none';
+    botonAbrir.style.display = esOsc ? 'none' : '';
+    filaDir.style.display = esOsc ? 'none' : 'flex';
+    oscCaja.style.display = esOsc ? 'inline-flex' : 'none';
+    for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? 'none' : '';
+    if (esOsc) {
+      selForma.poner(Math.round(Number(c.osc.forma) || 0));
+      pAncho.poner(Number(c.osc.ancho) || 50);
+      pAncho.el.style.opacity = Math.round(Number(c.osc.forma) || 0) === 3 ? '' : '0.4';
+    }
     if (c) {
       iLoop.poner(!!c.loop);
       const alt = Array.isArray(c.alt) ? c.alt : [true, true, true];
@@ -664,6 +787,7 @@ export function crearCaratula(nodo) {
     }
     pintarTeclado();
     pintarOnda();
+    pintarEstirar();
   };
   pintarTodo();
 

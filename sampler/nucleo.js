@@ -33,6 +33,12 @@
 //   - La DISTORSIÓN (tanh) va al final, sobre todo lo que suena, con su mezcla.
 //   - Dos VAIVENES (osciladores lentos: seno, triángulo, cuadrada, sierra o azar) que van a la
 //     altura, al volumen, al corte del filtro, a la distorsión o al paneo.
+//
+// OSCILADORES (paso 5; JP: «formas clásicas y samplers»): una CAPA puede ser, en vez de un audio,
+// un oscilador: `osc: { forma, ancho }` (forma 0 seno, 1 triángulo, 2 sierra, 3 cuadrada; `ancho`
+// del pulso de la cuadrada, 5…95 %). Siempre sigue la altura de la nota; sierra y cuadrada sin
+// el zumbido de lo que se dobla (polyBLEP). Suena mientras dure la envolvente; en una zona de golpe
+// cae a cero en el «decaimiento» (si no, no se apagaría nunca).
 
 export function nucleoSampler() {
   const TIPOS_FILTRO = ['Apagado', 'Pasa bajos', 'Pasa altos', 'Pasa banda'];
@@ -100,6 +106,18 @@ export function nucleoSampler() {
 
     // `tajada`: el número de tajada que toca (en una zona de tajadas), o −1.
     const prepararCapa = (c, tajada = -1) => {
+      if (c.osc && typeof c.osc === 'object') {
+        const pan = Math.max(-1, Math.min(1, Number(c.pan) || 0));
+        const ang = ((pan + 1) * Math.PI) / 4;
+        return {
+          osc: true,
+          forma: Math.max(0, Math.min(3, Math.round(Number(c.osc.forma) || 0))),
+          ancho: Math.max(0.05, Math.min(0.95, (Number(c.osc.ancho) || 50) / 100)),
+          gL: 0.5 * dB(Number(c.gan) || 0) * Math.cos(ang),
+          gR: 0.5 * dB(Number(c.gan) || 0) * Math.sin(ang),
+          afinar: Number(c.afinar) || 0,
+        };
+      }
       const mu = muestras.get(c.m);
       if (!mu || !mu.c.length || !mu.c[0].length) return null;
       const largo = mu.c[0].length;
@@ -195,7 +213,7 @@ export function nucleoSampler() {
       const capas = [];
       for (const c of (z.capas || []).slice(0, 3)) {
         const pc = prepararCapa(c, tajadas ? nota - z.baja : -1);
-        if (pc) capas.push({ c: pc, pos: pc.ini, pos2: pc.ini, viva: true, viva2: true });
+        if (pc) capas.push({ c: pc, pos: pc.osc ? 0 : pc.ini, pos2: pc.osc ? 0 : pc.ini, viva: true, viva2: true });
       }
       if (!capas.length) return;
       // Sin lugar: se roba la más vieja.
@@ -211,6 +229,8 @@ export function nucleoSampler() {
         raiz: tajadas ? nota : Number(z.raiz) || 60,
         golpe,
         capas,
+        // con un oscilador, un golpe cae a cero (si no, sonaría para siempre)
+        conOsc: capas.some((x) => x.c.osc),
         gan: 1 - sens + (sens * Math.max(0, Math.min(127, vel))) / 127,
         // la envolvente: fase 0 ataque, 1 decaimiento, 2 sostenido, 3 soltado
         fase: 0,
@@ -236,6 +256,29 @@ export function nucleoSampler() {
     function callar() {
       for (const v of voces) v.ahogo = v.ahogo || AHOGO_S * fm;
     }
+
+    // El escalón suavizado de polyBLEP: lo que se resta cerca de cada salto de la sierra y la
+    // cuadrada para que no aparezcan las frecuencias dobladas.
+    const blep = (t, dt) => {
+      if (t < dt) {
+        const x = t / dt;
+        return x + x - x * x - 1;
+      }
+      if (t > 1 - dt) {
+        const x = (t - 1) / dt;
+        return x * x + x + x + 1;
+      }
+      return 0;
+    };
+    const onda = (c, t, dt) => {
+      if (c.forma === 0) return Math.sin(2 * Math.PI * t);
+      if (c.forma === 1) return 1 - 4 * Math.abs(t - 0.5);
+      if (c.forma === 2) return 2 * t - 1 - blep(t, dt);
+      const w = c.ancho;
+      let t2 = t + 1 - w;
+      if (t2 >= 1) t2 -= 1;
+      return (t < w ? 1 : -1) + blep(t, dt) - blep(t2, dt);
+    };
 
     // Un vaivén en su fase (0…1): de −1 a 1.
     const forma = (k, ph, l) => {
@@ -316,6 +359,11 @@ export function nucleoSampler() {
         const dA = Math.pow(2, -desaf / 2400);
         const dB2 = Math.pow(2, desaf / 2400);
         const rates = v.capas.map(({ c }) => {
+          if (c.osc) {
+            // un oscilador: cuántas vueltas por muestra
+            const f = (440 * Math.pow(2, (v.nota - 69 + c.afinar + afinar + altSt) / 12)) / fm;
+            return [f, f, f];
+          }
           const base = c.mu.fm / fm;
           const conNota = Math.pow(2, (v.nota - v.raiz + c.afinar + afinar + altSt) / 12);
           const sinNota = Math.pow(2, (c.afinar + afinar + altSt) / 12);
@@ -346,13 +394,18 @@ export function nucleoSampler() {
             v.env += 1 / atq;
             if (v.env >= 1) {
               v.env = 1;
-              v.fase = v.golpe ? 2 : 1;
+              v.fase = v.golpe && !v.conOsc ? 2 : 1;
             }
           } else if (v.fase === 1) {
-            v.env -= (1 - sos) / dec;
-            if (v.env <= sos) {
-              v.env = sos;
+            const piso = v.golpe ? 0 : sos;
+            v.env -= (1 - piso) / dec;
+            if (v.env <= piso) {
+              v.env = piso;
               v.fase = 2;
+              if (v.golpe) {
+                terminada = true;
+                break;
+              }
             }
           }
           // las capas, con dos cabezas: la izquierda lee la oreja izquierda y la derecha, la derecha
@@ -362,6 +415,18 @@ export function nucleoSampler() {
           for (let q = 0; q < v.capas.length; q++) {
             const cap = v.capas[q];
             const c = cap.c;
+            if (c.osc) {
+              const pa = rates[q][0] * dA;
+              const pb = rates[q][0] * dB2;
+              xL += onda(c, cap.pos, pa) * c.gL;
+              xR += onda(c, cap.pos2, pb) * c.gR;
+              cap.pos += pa;
+              if (cap.pos >= 1) cap.pos -= 1;
+              cap.pos2 += pb;
+              if (cap.pos2 >= 1) cap.pos2 -= 1;
+              vivas++;
+              continue;
+            }
             const enLoop = c.loop && !v.golpe && !v.soltada;
             const L = c.mu.c[0];
             const R = c.mu.c[1] || L;

@@ -61,6 +61,19 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
    - En la carátula, abajo, en pestañas: General, Filtro, Color, Vaivén 1, Vaivén 2.
    - Costo medido en wedwed (Node): 16 voces × 3 capas ≈ 25 % del tiempo real sin nada, ≈ 38 % con
      todo prendido. Si pesa en la caja, lo primero es achicar el ciclo de cada cabeza.
-4. **Estirar al tempo** cada parte (necesita que la caja y Edit Pro le avisen el tempo).
-5. **Osciladores de síntesis** «al estilo Massive», como capas además de los audios.
+4. **Estirar al tempo** — HECHO (2026-11-25; JP: «por espectro», «puede ser en ms o en notas»):
+   cada parte de una capa (entrada, loop y release; sin loop, la nota entera; en tajadas, todo lo
+   cortado) puede durar unos milisegundos o unos tiempos (negras) al tempo. `estirar.js`: vocoder
+   de fase con las fases amarradas a los picos, por tramos en una sola pasada (sin costuras), de
+   0,25 a 4 veces. Lo estira el nodo (hilo principal), que guarda una copia de cada audio, y le
+   manda al hilo de audio una muestra estirada con sus marcas; se recalcula al cambiar el tempo o
+   el ajuste (espera 150 ms mientras se arrastra). El tempo llega del anfitrión por `wam-transport`
+   (la caja lo manda a sus instrumentos: `avisarTempo` en `audio/wam.ts` de Pizarrita); sin
+   anfitrión que lo diga, 120. La altura de la nota se aplica encima: el largo pedido vale en la
+   raíz; otra nota lo alarga o acorta, como en un sampler clásico. CAPA: `est: [e0, e1, e2]`,
+   cada uno null o `{ u: 'ms' | 't', v }`.
+5. **Osciladores** — HECHO (2026-11-25; JP: «formas clásicas y samplers»): una capa puede ser un
+   audio o un oscilador (seno, triángulo, sierra o cuadrada con ancho de pulso; sierra y cuadrada
+   con polyBLEP). Pasa por todo lo demás: envolvente, filtro, color, vaivenes; el desafinado le
+   da dos fases, una por oreja. En un golpe cae a cero en el decaimiento. CAPA: `osc: { forma, ancho }`.
 6. **La pieza de Pizarrita**: elegir, subir y grabar audios desde la carátula.

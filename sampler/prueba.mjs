@@ -2,6 +2,7 @@
 // de batería, las capas y la envolvente.   node sampler/prueba.mjs
 import { nucleoSampler } from './nucleo.js';
 import { energias, golpes, parejos } from './tajadas.js';
+import { estirarTramos, segundosDe } from './estirar.js';
 import { FM, tono, porDefecto, anotador, pico } from '../comun/probar.mjs';
 
 const N = nucleoSampler();
@@ -222,6 +223,48 @@ function dB24() {
   a.menorQue('… y la mitad abajo, callada (pico)', Math.max(tr[1], tr[3]), 1e-3);
   const { L: L2 } = correr(nuevo(unaZona(), [['la', la, FM]]), 1, [[0, 'on', 69]], porDefecto(N, { atq: 0.5, vel: 0, l2f: 2, l2v: 1, l2p: 100, l2d: 0 }));
   a.ver('vaivén cuadrado a la altura, al 100 %: una octava arriba la primera mitad (Hz)', frecuencia(L2, ...tramo(0.05, 0.45)), 880, 8);
+}
+
+// --- paso 4: estirar por espectro, por tramos
+{
+  const x = tono(0.5, 440, 1);
+  const { canales, bordes } = estirarTramos([x], [{ a: 0, b: FM, f: 2 }]);
+  const y = canales[0];
+  a.ver('al doble: dura el doble (s)', y.length / FM, 2, 0.001);
+  a.ver('… sin cambiar la altura (Hz)', frecuencia(y, ...tramo(0.2, 1.8)), 440, 3);
+  a.ver('… y con el mismo volumen (pico)', pico(y.subarray(...tramo(0.2, 1.8))), 0.5, 0.06);
+  a.ver('el borde final cae al final (muestras)', bordes[1], 2 * FM, 1);
+  const { canales: c2 } = estirarTramos([x], [{ a: 0, b: FM, f: 0.5 }]);
+  a.ver('a la mitad: la mitad de largo (s)', c2[0].length / FM, 0.5, 0.001);
+  a.ver('… sin cambiar la altura (Hz)', frecuencia(c2[0], ...tramo(0.1, 0.4)), 440, 4);
+  // tres tramos con proporciones distintas, en una pasada
+  const t3 = estirarTramos([x], [{ a: 0, b: FM * 0.2, f: 1 }, { a: FM * 0.2, b: FM * 0.6, f: 1.5 }, { a: FM * 0.6, b: FM, f: 0.5 }]);
+  a.ver('por tramos: cada borde donde va (s)', t3.bordes[2] / FM, 0.2 + 0.6, 0.001);
+  a.ver('por tramos: el largo total (s)', t3.canales[0].length / FM, 0.2 + 0.6 + 0.2, 0.001);
+  let salto = 0;
+  const z = t3.canales[0];
+  for (let i = Math.round(0.1 * FM); i < Math.round(0.9 * FM); i++) salto = Math.max(salto, Math.abs(z[i] - z[i - 1]));
+  a.menorQue('por tramos: sin costuras (el mayor salto; la sinusoide da 0,031)', salto, 0.05);
+  a.ver('en tiempos: 2 tiempos a 120 bpm son 1 s', segundosDe({ u: 't', v: 2 }, 120), 1, 1e-9);
+  a.ver('en milisegundos', segundosDe({ u: 'ms', v: 250 }, 90), 0.25, 1e-9);
+}
+
+// --- paso 5: capas que son osciladores
+{
+  const oz = (forma, golpe = false) => [{ baja: 0, alta: 127, raiz: 60, golpe, capas: [{ osc: { forma, ancho: 50 } }] }];
+  const { L } = correr(nuevo(oz(0), []), 0.5, [[0, 'on', 57]], porDefecto(N, { atq: 0.5, vel: 0 }));
+  a.ver('un oscilador seno toca la nota (La 3 = 220 Hz)', frecuencia(L, ...tramo(0.1, 0.45)), 220, 3);
+  a.ver('… con su volumen (0,5 al centro: 0,354)', pico2(L, 0.1, 0.45), 0.5 * Math.SQRT1_2, 0.01);
+  const { L: S } = correr(nuevo(oz(2), []), 0.5, [[0, 'on', 81]], porDefecto(N, { atq: 0.5, vel: 0 }));
+  a.ver('la sierra, a la nota (Hz)', frecuencia(S, ...tramo(0.1, 0.45)), 880, 8);
+  a.menorQue('… sin pasarse de 1 (pico)', pico2(S, 0.1, 0.45), 0.5);
+  const s = nuevo(oz(3), []);
+  const { L: Q } = correr(s, 1, [[0, 'on', 60], [0.4, 'off', 60]], porDefecto(N, { atq: 0.5, vel: 0, sol: 50 }));
+  a.menorQue('al soltar, el oscilador se apaga con el release (pico)', pico2(Q, 0.6, 1), 1e-6);
+  a.ver('… y la voz se libera', s.cuantasVoces(), 0, 0);
+  const g = nuevo(oz(0, true), []);
+  correr(g, 1, [[0, 'on', 60]], porDefecto(N, { atq: 0.5, vel: 0, dec: 200 }));
+  a.ver('en un golpe, el oscilador cae a cero en el decaimiento y la voz se libera', g.cuantasVoces(), 0, 0);
 }
 
 a.cerrar();

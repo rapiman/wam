@@ -14,6 +14,7 @@ import { nucleoSampler } from './nucleo.js';
 import { procesadorSampler } from './procesador.js';
 import { crearCaratula } from './caratula.js';
 import { energias, golpes } from './tajadas.js';
+import { estirarTramos, segundosDe } from './estirar.js';
 import { traducirInfo } from '../comun/idiomas.js';
 
 const mandados = new WeakMap();
@@ -49,6 +50,24 @@ class NodoSampler extends WamNode {
     // m → { url, nombre, estado: 'bajando' | 'lista' | 'error', dur, picos }
     this.muestras = {};
     this._oyentes = new Set();
+    // Para estirar al tempo: el audio de cada muestra (también queda acá), el tempo que avisa el
+    // anfitrión y lo ya estirado (llave → id de la muestra estirada que tiene el hilo de audio).
+    this._audios = {};
+    this.bpm = 120;
+    this._estirados = new Map();
+    this._reloj = 0;
+  }
+
+  // Lo que manda el hilo de audio: el tempo del anfitrión.
+  _onMessage(message) {
+    const d = message && message.data;
+    if (d && d.pz === 'tempo') {
+      this.bpm = Number(d.bpm) || 120;
+      this._mandarInst(true);
+      this._avisar();
+      return;
+    }
+    return super._onMessage(message);
   }
 
   // Quien dibuja se entera de los cambios (el instrumento, una muestra que terminó de bajar).
@@ -68,8 +87,92 @@ class NodoSampler extends WamNode {
 
   ponerInstrumento(inst) {
     this.inst = inst && Array.isArray(inst.zonas) ? inst : { zonas: [] };
-    if (!this._destroyed) this.port.postMessage({ pz: 'inst', inst: this.inst });
+    this._mandarInst(true);
     this._avisar();
+  }
+
+  // EL INSTRUMENTO QUE SUENA: el mismo, pero con cada capa que se estira al tempo cambiada por su
+  // muestra estirada (y sus marcas, a lo estirado). Estirar pesa: con algo nuevo que estirar se
+  // espera un poco (mientras se arrastra una perilla) y suena lo de antes.
+  _mandarInst(conEspera) {
+    clearTimeout(this._reloj);
+    const listo = this._resolver(false);
+    if (listo || !conEspera) {
+      this._enviarInst(this._resolver(true));
+      return;
+    }
+    this._reloj = setTimeout(() => this._enviarInst(this._resolver(true)), 150);
+  }
+  _enviarInst(inst) {
+    if (this._destroyed) return;
+    this.port.postMessage({ pz: 'inst', inst });
+    // lo estirado que ya no se usa, fuera
+    for (const [llave, x] of this._estirados) {
+      if (x.usada) continue;
+      this._estirados.delete(llave);
+      this.port.postMessage({ pz: 'quitar', m: x.id });
+    }
+  }
+  // `estirar`: false solo mira si está todo estirado ya (sin calcular nada).
+  _resolver(estirar) {
+    for (const x of this._estirados.values()) x.usada = false;
+    let completo = true;
+    const zonas = this.inst.zonas.map((z) => ({
+      ...z,
+      capas: (z.capas || []).map((c) => {
+        const r = this._estirarCapa(z, c, estirar);
+        if (r === false) {
+          completo = false;
+          return c;
+        }
+        return r || c;
+      }),
+    }));
+    return estirar ? { zonas } : completo;
+  }
+  // La capa estirada; null si no se estira; false si falta calcularla y `estirar` es false.
+  _estirarCapa(z, c, estirar) {
+    const au = c && this._audios[c.m];
+    if (!au || !Array.isArray(c.est)) return null;
+    const fm = au.fm;
+    const dur = au.canales[0].length / fm;
+    const num = (x, d) => (x === undefined || x === null ? d : Math.max(0, Math.min(dur, Number(x) || 0)));
+    const fin = num(c.fin, dur);
+    let partes;
+    if (z.tajadas) {
+      const cs = Array.isArray(c.cortes) && c.cortes.length ? c.cortes : [0];
+      partes = [[cs[0], fin, c.est[0]]];
+    } else {
+      const ini = num(c.ini, 0);
+      if (c.loop) {
+        const lIni = Math.max(ini, num(c.lIni, ini));
+        const lFin = Math.min(fin, Math.max(lIni, num(c.lFin, fin)));
+        partes = [[ini, lIni, c.est[0]], [lIni, lFin, c.est[1]], [lFin, fin, c.est[2]]];
+      } else partes = [[ini, fin, c.est[0]]];
+    }
+    const tramos = partes.map(([a, b, e]) => {
+      const s = segundosDe(e, this.bpm);
+      return { a: Math.round(a * fm), b: Math.round(b * fm), f: s > 0 && b > a ? Math.round((s / (b - a)) * 1e4) / 1e4 : 1 };
+    });
+    if (tramos.every((t) => t.f === 1)) return null;
+    const llave = `${c.m}|${tramos.map((t) => `${t.a},${t.b},${t.f}`).join('|')}`;
+    let x = this._estirados.get(llave);
+    if (!x) {
+      if (!estirar) return false;
+      const r = estirarTramos(au.canales, tramos);
+      x = { id: `${c.m}~${(cuenta++).toString(36)}`, bordes: r.bordes, usada: false };
+      this._estirados.set(llave, x);
+      if (!this._destroyed) this.port.postMessage({ pz: 'muestra', m: x.id, canales: r.canales, fm }, r.canales.map((k) => k.buffer));
+    }
+    x.usada = true;
+    const s = (k) => x.bordes[k] / fm;
+    const a0 = partes[0][0];
+    if (z.tajadas) {
+      const f = tramos[0].f;
+      return { ...c, m: x.id, cortes: (c.cortes && c.cortes.length ? c.cortes : [0]).map((k) => Math.max(0, (k - a0) * f)), fin: s(1) };
+    }
+    if (c.loop) return { ...c, m: x.id, ini: 0, lIni: s(1), lFin: s(2), fin: s(3) };
+    return { ...c, m: x.id, ini: 0, lIni: undefined, lFin: undefined, fin: s(1) };
   }
 
   // Una muestra desde una dirección web (queda en el estado) o desde un archivo (no queda).
@@ -122,7 +225,11 @@ class NodoSampler extends WamNode {
     // La energía de lo agudo, para detectar los golpes (las tajadas) sin guardar el audio acá.
     const en = energias(canales, b.sampleRate);
     Object.assign(this.muestras[m], { estado: 'lista', dur: b.duration, picos, en });
-    if (!this._destroyed) this.port.postMessage({ pz: 'muestra', m, canales, fm: b.sampleRate }, canales.map((c) => c.buffer));
+    this._audios[m] = { canales, fm: b.sampleRate };
+    const copia = canales.map((c) => c.slice());
+    if (!this._destroyed) this.port.postMessage({ pz: 'muestra', m, canales: copia, fm: b.sampleRate }, copia.map((c) => c.buffer));
+    // si alguna capa de esta muestra se estira, ahora se puede
+    this._mandarInst(true);
     this._avisar();
   }
   // Dónde empiezan los golpes de una muestra (segundos); `sens` 0…100.
@@ -137,6 +244,7 @@ class NodoSampler extends WamNode {
   }
   quitarMuestra(m) {
     delete this.muestras[m];
+    delete this._audios[m];
     if (!this._destroyed) this.port.postMessage({ pz: 'quitar', m });
     this._avisar();
   }
