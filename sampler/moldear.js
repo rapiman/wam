@@ -55,7 +55,8 @@ export function crearMoldeado(nodo, N, colores) {
     void nodo.setParameterValues({ [id(corto)]: { id: id(corto), value: x, normalized: false } });
   };
   const paramDe = (corto) => N.PARAMS.find((p) => p.id === `c1${corto}`);
-  const textoDe = (p, x) => `${numero(x, p.dec !== undefined ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ''}`;
+  const NOMBRES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const textoDe = (p, x) => (p.nota ? `${NOMBRES[Math.round(x) % 12]}${Math.floor(Math.round(x) / 12) - 1}` : `${numero(x, p.dec !== undefined ? p.dec : 0)}${p.unidad ? ` ${p.unidad}` : ''}`);
 
   // Un control para un parámetro de la capa (el corto, sin `cN`), anotado en `mapa`.
   const control = (p, mapa) => {
@@ -65,7 +66,7 @@ export function crearMoldeado(nodo, N, colores) {
       const c = elegidor({ nombre, opciones: p.opciones.map((x) => t(x)), alCambiar: (i) => mandar(corto, i) });
       const celda = el('div', `display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;${p.angosto ? '' : 'grid-column:span 2;'}`);
       celda.append(el('div', `color:${v('tinta2')};font-size:11px;white-space:nowrap;`, nombre), c.el);
-      mapa[corto] = { ...c, poner: (x) => c.poner(Math.round(x)) };
+      mapa[corto] = { ...c, poner: (x) => c.poner(Math.round(x)), p, caja: celda };
       return celda;
     }
     const c = perilla({
@@ -81,7 +82,7 @@ export function crearMoldeado(nodo, N, colores) {
         pintar();
       },
     });
-    mapa[corto] = c;
+    mapa[corto] = { ...c, p, caja: c.el };
     return c.el;
   };
 
@@ -105,7 +106,13 @@ export function crearMoldeado(nodo, N, colores) {
     refrescar();
   };
   const refrescar = () => {
-    for (const mapa of [controles, ...extras]) for (const [corto, c] of Object.entries(mapa)) if (!c.agarrada()) c.poner(leer(corto));
+    // (lo que solo sirve para un modelo del soplo queda tenue con los otros)
+    const modelo = Math.round(leer('smt'));
+    for (const mapa of [controles, ...extras])
+      for (const [corto, c] of Object.entries(mapa)) {
+        if (!c.agarrada()) c.poner(leer(corto));
+        if (c.p && c.p.solo) c.caja.style.opacity = c.p.solo.includes(modelo) ? '' : '0.35';
+      }
     pintar();
   };
 

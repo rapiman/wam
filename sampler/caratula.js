@@ -48,8 +48,8 @@ export function crearCaratula(nodo) {
   // LAS CARPETAS, COMO EN EL KORG M1 VST (2026-11-25, JP: «ordenar mejor, carpetas parecido a
   // korg m1 vst»): arriba los botones de las carpetas y, siempre a la vista, la capa elegida (1–3);
   // abajo, una carpeta a la vez, de alto fijo y con su propia barra si no cabe.
-  const cabecera = el('div', `display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid ${v('borde')};`);
-  cabecera.append(el('span', 'font-weight:bold;font-size:13px;margin-right:6px;', t('Sampler')));
+  const cabecera = el('div', `display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:6px 8px;border-bottom:1px solid ${v('borde')};`);
+  cabecera.append(el('span', 'font-weight:bold;font-size:13px;margin-right:4px;', t('Sampler')));
 
   // --- el teclado con las zonas
   const tec = lienzo(536, 52);
@@ -591,11 +591,13 @@ export function crearCaratula(nodo) {
   const botonesCarpeta = {};
   for (const [k, nombre, armar] of CARPETAS) {
     const b = boton(t(nombre), () => ponerCarpeta(k));
+    b.style.padding = '1px 4px';
     botonesCarpeta[k] = { b, armar };
     cabecera.append(b);
   }
   cabecera.append(el('span', 'flex:1;'), el('span', `color:${v('tinta2')};margin-right:2px;`, t('Capa')), ...botonesCapa);
   for (const b of botonesCapa) b.textContent = b.textContent.replace(/^.* (\d)$/, '$1');
+  for (const b of botonesCapa) b.style.padding = '1px 5px';
   const ponerCarpeta = (k) => {
     carpeta = k;
     const c = botonesCarpeta[k];
@@ -906,6 +908,9 @@ export function crearCaratula(nodo) {
         if (c && vals[p.id] && !c.agarrada()) c.poner(Number(vals[p.id].value));
       }
       moldeado.ponerValores(vals);
+      // el dibujo del tubo sigue al modelo elegido
+      const c = capa();
+      if (c && c.mod) pintarOnda();
     });
     if (!caja.isConnected && visto) soltar();
     if (caja.isConnected) visto = true;
