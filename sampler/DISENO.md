@@ -76,4 +76,4 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
    audio o un oscilador (seno, triángulo, sierra o cuadrada con ancho de pulso; sierra y cuadrada
    con polyBLEP). Pasa por todo lo demás: envolvente, filtro, color, vaivenes; el desafinado le
    da dos fases, una por oreja. En un golpe cae a cero en el decaimiento. CAPA: `osc: { forma, ancho }`.
-6. **La pieza de Pizarrita**: elegir, subir y grabar audios desde la carátula.
+6. **La pieza de Pizarrita** — HECHO ELEGIR (2026-11-25): si el anfitrión le pone al nodo `pz.elegirAudio()` (Pizarrita: `canvas/caja/audioSampler.tsx`, al abrir el panel del instrumento en la caja), la carátula muestra «Desde Pizarrita», que abre la ventana del anfitrión con los audios de las cajas que se pueden ver (primero los de esa caja) y deja la dirección en la capa. FALTA subir y grabar: hay que decidir dónde quedan esos audios (subidos adentro de la caja serían filas).

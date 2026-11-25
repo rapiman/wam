@@ -125,6 +125,7 @@ const TEXTOS = {
   Audio: ['Audio', 'Áudio', 'Audio', 'Audioa', 'Аудио', 'オーディオ', '오디오', '音频', 'เสียง'],
   Oscilador: ['Oscillator', 'Oscilador', 'Oscillateur', 'Osziladorea', 'Осциллятор', 'オシレーター', '오실레이터', '振荡器', 'ออสซิลเลเตอร์'],
   Milisegundos: ['Milliseconds', 'Milissegundos', 'Millisecondes', 'Milisegundoak', 'Миллисекунды', 'ミリ秒', '밀리초', '毫秒', 'มิลลิวินาที'],
+  'Desde Pizarrita': ['From Pizarrita', 'Do Pizarrita', 'Depuis Pizarrita', 'Pizarritatik', 'Из Pizarrita', 'Pizarritaから', 'Pizarrita에서', '从 Pizarrita', 'จาก Pizarrita'],
   Tajadas: ['Slices', 'Fatias', 'Tranches', 'Xerrak', 'Нарезка', 'スライス', '슬라이스', '切片', 'สไลซ์'],
   'Nueva zona de tajadas': ['New slice zone', 'Nova zona de fatias', 'Nouvelle zone de tranches', 'Xerra-eremu berria', 'Новая зона нарезки', '新しいスライスゾーン', '새 슬라이스 존', '新建切片区域', 'โซนสไลซ์ใหม่'],
   Detectar: ['Detect', 'Detectar', 'Détecter', 'Detektatu', 'Найти', '検出', '감지', '检测', 'ตรวจหา'],

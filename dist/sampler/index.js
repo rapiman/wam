@@ -2568,6 +2568,7 @@ var TEXTOS = {
   Audio: ["Audio", "\xC1udio", "Audio", "Audioa", "\u0410\u0443\u0434\u0438\u043E", "\u30AA\u30FC\u30C7\u30A3\u30AA", "\uC624\uB514\uC624", "\u97F3\u9891", "\u0E40\u0E2A\u0E35\u0E22\u0E07"],
   Oscilador: ["Oscillator", "Oscilador", "Oscillateur", "Osziladorea", "\u041E\u0441\u0446\u0438\u043B\u043B\u044F\u0442\u043E\u0440", "\u30AA\u30B7\u30EC\u30FC\u30BF\u30FC", "\uC624\uC2E4\uB808\uC774\uD130", "\u632F\u8361\u5668", "\u0E2D\u0E2D\u0E2A\u0E0B\u0E34\u0E25\u0E40\u0E25\u0E40\u0E15\u0E2D\u0E23\u0E4C"],
   Milisegundos: ["Milliseconds", "Milissegundos", "Millisecondes", "Milisegundoak", "\u041C\u0438\u043B\u043B\u0438\u0441\u0435\u043A\u0443\u043D\u0434\u044B", "\u30DF\u30EA\u79D2", "\uBC00\uB9AC\uCD08", "\u6BEB\u79D2", "\u0E21\u0E34\u0E25\u0E25\u0E34\u0E27\u0E34\u0E19\u0E32\u0E17\u0E35"],
+  "Desde Pizarrita": ["From Pizarrita", "Do Pizarrita", "Depuis Pizarrita", "Pizarritatik", "\u0418\u0437 Pizarrita", "Pizarrita\u304B\u3089", "Pizarrita\uC5D0\uC11C", "\u4ECE Pizarrita", "\u0E08\u0E32\u0E01 Pizarrita"],
   Tajadas: ["Slices", "Fatias", "Tranches", "Xerrak", "\u041D\u0430\u0440\u0435\u0437\u043A\u0430", "\u30B9\u30E9\u30A4\u30B9", "\uC2AC\uB77C\uC774\uC2A4", "\u5207\u7247", "\u0E2A\u0E44\u0E25\u0E0B\u0E4C"],
   "Nueva zona de tajadas": ["New slice zone", "Nova zona de fatias", "Nouvelle zone de tranches", "Xerra-eremu berria", "\u041D\u043E\u0432\u0430\u044F \u0437\u043E\u043D\u0430 \u043D\u0430\u0440\u0435\u0437\u043A\u0438", "\u65B0\u3057\u3044\u30B9\u30E9\u30A4\u30B9\u30BE\u30FC\u30F3", "\uC0C8 \uC2AC\uB77C\uC774\uC2A4 \uC874", "\u65B0\u5EFA\u5207\u7247\u533A\u57DF", "\u0E42\u0E0B\u0E19\u0E2A\u0E44\u0E25\u0E0B\u0E4C\u0E43\u0E2B\u0E21\u0E48"],
   Detectar: ["Detect", "Detectar", "D\xE9tecter", "Detektatu", "\u041D\u0430\u0439\u0442\u0438", "\u691C\u51FA", "\uAC10\uC9C0", "\u68C0\u6D4B", "\u0E15\u0E23\u0E27\u0E08\u0E2B\u0E32"],
@@ -2919,7 +2920,16 @@ function crearCaratula(nodo) {
     }
   });
   const botonAbrir = boton(t("Abrir archivo"), () => archivo.click());
-  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonAbrir, archivo, boton("\xD7", quitarCapa, t("Quitar capa")));
+  const elegirDeAnfitrion = nodo.pz && typeof nodo.pz.elegirAudio === "function" ? nodo.pz.elegirAudio : null;
+  const botonPz = boton(t("Desde Pizarrita"), async () => {
+    if (!capa() || !elegirDeAnfitrion) return;
+    const r = await elegirDeAnfitrion();
+    if (!r || !r.url || !capa()) return;
+    const m = await nodo.cargarDireccion(r.url, r.nombre);
+    ponerAudio(m);
+  });
+  if (!elegirDeAnfitrion) botonPz.style.display = "none";
+  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonPz, botonAbrir, archivo, boton("\xD7", quitarCapa, t("Quitar capa")));
   const filaDir = el("div", "display:flex;align-items:center;gap:6px;padding:2px 10px 4px;");
   const dir = el("input", `flex:1;min-width:0;font:inherit;font-size:11px;color:${v("tinta")};background:${v("pantalla")};border:1px solid ${v("borde")};padding:1px 4px;`);
   dir.placeholder = t("Direcci\xF3n web del audio");
@@ -3439,6 +3449,7 @@ function crearCaratula(nodo) {
     selFuente.poner(esOsc ? 1 : 0);
     selFuente.el.style.display = c ? "" : "none";
     botonAbrir.style.display = esOsc ? "none" : "";
+    if (elegirDeAnfitrion) botonPz.style.display = esOsc ? "none" : "";
     filaDir.style.display = esOsc ? "none" : "flex";
     oscCaja.style.display = esOsc ? "inline-flex" : "none";
     for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? "none" : "";

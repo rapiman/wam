@@ -210,7 +210,19 @@ export function crearCaratula(nodo) {
     },
   });
   const botonAbrir = boton(t('Abrir archivo'), () => archivo.click());
-  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonAbrir, archivo, boton('×', quitarCapa, t('Quitar capa')));
+  // DENTRO DE PIZARRITA (paso 6): el anfitrión le pone al nodo `pz.elegirAudio()`, que abre su
+  // propia ventana con los audios de las pizarritas y devuelve { url, nombre } (o null). Fuera de
+  // Pizarrita no está y el botón no aparece.
+  const elegirDeAnfitrion = nodo.pz && typeof nodo.pz.elegirAudio === 'function' ? nodo.pz.elegirAudio : null;
+  const botonPz = boton(t('Desde Pizarrita'), async () => {
+    if (!capa() || !elegirDeAnfitrion) return;
+    const r = await elegirDeAnfitrion();
+    if (!r || !r.url || !capa()) return;
+    const m = await nodo.cargarDireccion(r.url, r.nombre);
+    ponerAudio(m);
+  });
+  if (!elegirDeAnfitrion) botonPz.style.display = 'none';
+  filaCapas.append(...botonesCapa, selFuente.el, nombreAudio, botonPz, botonAbrir, archivo, boton('×', quitarCapa, t('Quitar capa')));
   const filaDir = el('div', 'display:flex;align-items:center;gap:6px;padding:2px 10px 4px;');
   const dir = el('input', `flex:1;min-width:0;font:inherit;font-size:11px;color:${v('tinta')};background:${v('pantalla')};border:1px solid ${v('borde')};padding:1px 4px;`);
   dir.placeholder = t('Dirección web del audio');
@@ -769,6 +781,7 @@ export function crearCaratula(nodo) {
     selFuente.poner(esOsc ? 1 : 0);
     selFuente.el.style.display = c ? '' : 'none';
     botonAbrir.style.display = esOsc ? 'none' : '';
+    if (elegirDeAnfitrion) botonPz.style.display = esOsc ? 'none' : '';
     filaDir.style.display = esOsc ? 'none' : 'flex';
     oscCaja.style.display = esOsc ? 'inline-flex' : 'none';
     for (const x of [iLoop.el, altCaja]) x.style.display = esOsc ? 'none' : '';
