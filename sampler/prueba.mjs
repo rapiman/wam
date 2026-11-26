@@ -386,6 +386,39 @@ function dB24() {
   a.ver('largo desde la nota: 40 Hz da un tubo recto de unos 4 m (cm)', mn.cm, 425, 40);
   const ml = N.medidaTubo({ ...gm, slm: 1, slc: mn.cm }, FM);
   a.ver('… y ese largo, puesto a mano, da otra vez ≈ 40 Hz', ml.hz, 40, 1.5);
+  // 2026-11-26: ligado, soplo vivo, labio con flujo de aire, boquilla y bramido
+  const sl = nuevo(zs, []);
+  const lig = correr(sl, 1.3, [[0, 'on', 58], [0.5, 'on', 61], [1.0, 'off', 58]], sop({ ...tkm, slg: 1 })).L;
+  a.ver('ligado: la segunda nota no hace otra voz (voces)', sl.cuantasVoces(), 1, 0);
+  a.menorQue('… la primera, en La#3 (ct)', Math.abs(ct(frecAC(lig, 0.3, 0.45), 6 * 40.02)), 15);
+  a.menorQue('… pasa a Do#4 sin cortar el aire (ct)', Math.abs(ct(frecAC(lig, 0.9, 1.1), 7 * 40.02)), 20);
+  a.mayorQue('… y al soltar la de abajo, sigue sonando (pico)', pico2(lig, 1.1, 1.25), 0.05);
+  const pila = correr(nuevo(zs, []), 1.4, [[0, 'on', 58], [0.4, 'on', 61], [0.8, 'off', 61]], sop({ ...tkm, slg: 1, slb: 1 })).L;
+  a.menorQue('ligado con labio de flujo: al soltar la de arriba vuelve a la que sigue apretada (ct)', Math.abs(ct(frecAC(pila, 1.15, 1.35), 6 * 40.02)), 20);
+  const sinL = nuevo(zs, []);
+  correr(sinL, 0.8, [[0, 'on', 58], [0.4, 'on', 61]], sop(tkm));
+  a.ver('sin ligado: dos voces, como antes (voces)', sinL.cuantasVoces(), 2, 0);
+  a.mayorQue('golpe de lengua: el ataque sale más fuerte (razón de picos)', pico2(tocar(58, { ...tkm, sgl: 100 }), 0.02, 0.08) / pico2(tocar(58, tkm), 0.02, 0.08), 1.2);
+  const nivelV = (x) => {
+    const r = [];
+    for (let t0 = 0.4; t0 < 2.9; t0 += 0.1) r.push(pico2(x, t0, t0 + 0.1));
+    return (Math.max(...r) - Math.min(...r)) / Math.max(...r);
+  };
+  a.mayorQue('respiración: el volumen sube y baja en una nota larga (fracción)', nivelV(tocar(58, { ...tkm, srs: 100 }, 3)), 0.1);
+  a.menorQue('… sin respiración, parejo (fracción)', nivelV(tocar(58, tkm, 3)), 0.08);
+  const fl = { ...tkm, slb: 1 };
+  a.menorQue('labio con flujo de aire: La#3 en su nota (ct)', Math.abs(ct(frecAC(tocar(58, fl), 0.4, 0.7), 6 * 40.02)), 20);
+  a.menorQue('… el ñolkin, Mi4 (ct)', Math.abs(ct(frecAC(tocar(64, { ...nkm, slb: 1 }), 0.4, 0.7), 4 * 85.36)), 25);
+  a.menorQue('… aspirado (ct)', Math.abs(ct(frecAC(tocar(64, { ...nkm, slb: 1, ssn: 1 }), 0.4, 0.7), 4 * 85.36)), 40);
+  const agudos = (x) => {
+    const lo = parcial(x, 245, 1);
+    let hi = 0;
+    for (let k = 6; k <= 10; k++) hi += parcial(x, 245, k);
+    return hi / lo;
+  };
+  a.mayorQue('… con bramido, tocado fuerte sale brillante (razón de agudos)', agudos(tocar(58, { ...fl, sbr: 100, sai: 110 })) / agudos(tocar(58, { ...fl, sbr: 100, sai: 40 })), 3);
+  a.menorQue('boquilla: la nota sigue justa (ct)', Math.abs(ct(frecAC(tocar(58, { ...tkm, sbq: 1 }), 0.4, 0.7), 6 * 40.02)), 15);
+  a.mayorQue('bramido: tocado fuerte, más agudos (razón)', agudos(tocar(58, { ...tkm, sai: 110, sbr: 100 })) / agudos(tocar(58, { ...tkm, sai: 110 })), 2);
 
   const c = tocar(57, { smt: 2, sai: 70 });
   a.ver('caña recta: suena en su nota (220 Hz, ±3 %)', frecAC(c, 0.4, 0.7), 220, 7);

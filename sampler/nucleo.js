@@ -197,6 +197,11 @@ export function nucleoSampler() {
           { id: 'sen', nombre: 'Enrollado', sub: 'sop1', solo: [1], tipo: 'choice', opciones: ['Recto', 'Espiral', 'Óvalo'], defecto: 0, min: 0, max: 2 },
           { id: 'svu', nombre: 'Vueltas', sub: 'sop1', solo: [1], min: 1, max: 12, defecto: 3, paso: 1 },
           { id: 'ssn', nombre: 'Sentido del aire', corto: 'Aire', sub: 'sop1', solo: [1], tipo: 'choice', opciones: ['Soplado', 'Aspirado'], defecto: 0, min: 0, max: 1 },
+          { id: 'slb', nombre: 'Labio', sub: 'sop1', solo: [1], tipo: 'choice', opciones: ['Simple', 'Con flujo de aire'], defecto: 0, min: 0, max: 1 },
+          { id: 'sbq', nombre: 'Boquilla', sub: 'sop1', solo: [1], tipo: 'choice', opciones: ['Sin boquilla', 'Con boquilla'], defecto: 0, min: 0, max: 1 },
+          { id: 'sbv', nombre: 'Copa de la boquilla', corto: 'Copa', sub: 'sop1', solo: [1], min: 0.2, max: 4, defecto: 1.5, unidad: 'cm³', paso: 0.1, dec: 1 },
+          { id: 'sbg', nombre: 'Garganta de la boquilla', corto: 'Garganta', sub: 'sop1', solo: [1], min: 2, max: 8, defecto: 3.6, unidad: 'mm', paso: 0.1, dec: 1 },
+          { id: 'sbr', nombre: 'Bramido', sub: 'sop1', solo: [1], min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
           { id: 'stf', nombre: 'Afinación del tubo', corto: 'Afinación', sub: 'sop1', solo: [1], min: -100, max: 100, defecto: 0, unidad: 'ct', paso: 1 },
           { id: 'sai', nombre: 'Aire', sub: 'sop2', min: 0, max: 100, defecto: 60, unidad: '%', paso: 1 },
           { id: 'sem', nombre: 'Embocadura', sub: 'sop2', min: 0, max: 100, defecto: 50, unidad: '%', paso: 1 },
@@ -205,6 +210,11 @@ export function nucleoSampler() {
           { id: 'sds', nombre: 'Desvío al sostener', corto: 'Desvío', sub: 'sop2', min: -100, max: 100, defecto: 0, unidad: 'ct', paso: 1 },
           { id: 'sdt', nombre: 'Tiempo del desvío', corto: 'Tiempo', sub: 'sop2', ...tiempo(300) },
           { id: 'sdx', nombre: 'Desvío al final', corto: 'Al final', sub: 'sop2', min: -200, max: 200, defecto: 0, unidad: 'ct', paso: 1 },
+          { id: 'slg', nombre: 'Ligado', sub: 'sop2', tipo: 'choice', opciones: ['No', 'Sí'], defecto: 0, min: 0, max: 1 },
+          { id: 'slt', nombre: 'Tiempo del ligado', corto: 'Paso', sub: 'sop2', ...tiempo(60) },
+          { id: 'sgl', nombre: 'Golpe de lengua', corto: 'Lengua', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'srs', nombre: 'Respiración', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'svn', nombre: 'Variación entre notas', corto: 'Variación', sub: 'sop2', min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
           { id: 'sin', nombre: 'Inestabilidad', sub: 'sop2', min: 0, max: 50, defecto: 0, unidad: 'ct', paso: 1 },
           { id: 'siv', nombre: 'Velocidad de la inestabilidad', corto: 'Velocidad', sub: 'sop2', min: 0.5, max: 15, defecto: 5, unidad: 'Hz', paso: 0.1, dec: 1 },
           { id: 'ssa', nombre: 'Salto', sub: 'sop2', min: 0, max: 100, defecto: 70, unidad: '%', paso: 1 },
@@ -355,11 +365,35 @@ export function nucleoSampler() {
     while (N < 2) N += Math.PI / th;
     return N;
   };
+  // Con el labio de flujo de aire, lo que igual queda alto o bajo (medido; ver DISENO.md).
+  const RESTO_FLUJO = (k, aspira) => (aspira ? 110 : 0);
+  // LA BOQUILLA: la copa (un volumen) y la garganta (un tubito angosto) son un resonador de
+  // Helmholtz entre el labio y el tubo: realza el sonido cerca de su frecuencia y lo corta arriba.
+  // Se hace con un paso bajo resonante (Q = 2) en la onda que entra al tubo.
+  const boquilla = (g, fm) => {
+    if (!(g.sgm >= 0.5 && g.sbq >= 0.5)) return null;
+    const A = Math.PI * Math.pow(g.sbg / 2000, 2);
+    const f = Math.min(0.4 * fm, (C_AIRE / (2 * Math.PI)) * Math.sqrt(A / (g.sbv * 1e-6 * 0.025)));
+    const w0 = (2 * Math.PI * f) / fm;
+    const al = Math.sin(w0) / 4;
+    const a0 = 1 + al;
+    const co = Math.cos(w0);
+    return { f, b0: (1 - co) / 2 / a0, b1: (1 - co) / a0, b2: (1 - co) / 2 / a0, a1: (-2 * co) / a0, a2: (1 - al) / a0 };
+  };
+  const respBoq = (B, th) => {
+    if (!B) return [1, 0];
+    const nr = B.b0 + B.b1 * Math.cos(th) + B.b2 * Math.cos(2 * th);
+    const ni = -(B.b1 * Math.sin(th) + B.b2 * Math.sin(2 * th));
+    const dr = 1 + B.a1 * Math.cos(th) + B.a2 * Math.cos(2 * th);
+    const di = -(B.a1 * Math.sin(th) + B.a2 * Math.sin(2 * th));
+    const d2 = dr * dr + di * di;
+    return [(nr * dr + ni * di) / d2, (ni * dr - nr * di) / d2];
+  };
   // El tubo recto cortado para que tubo y labio juntos suenen en `meta` (la resonancia `k`,
   // separadas por `paso`; el labio afinado en `fL`): se suma la fase del resonador del labio y lo
   // que igual queda alto (medido: unas 8 centésimas, más en los armónicos bajos; aspirado, con el
   // labio abajo de la nota, unas 65 bajo).
-  const cortarTubo = (G, meta, k, paso, fL, aspira, fm) => {
+  const cortarTubo = (G, meta, k, paso, fL, aspira, fm, B = null, flujo = false) => {
     const N0 = fm / (2 * paso) - G.M;
     const th = (2 * Math.PI * meta) / fm;
     const wL = (2 * Math.PI * Math.min(0.2 * fm, fL)) / fm;
@@ -367,12 +401,13 @@ export function nucleoSampler() {
     const a1 = -2 * rr * Math.cos(wL);
     const a2 = rr * rr;
     const fLab = -Math.atan2(-(a1 * Math.sin(th) + a2 * Math.sin(2 * th)), 1 + a1 * Math.cos(th) + a2 * Math.cos(2 * th));
-    const resto = Math.pow(2, (-(8 + 90 / (k * k)) + (aspira ? 65 : 0)) / 1200);
-    return largoPara(G, meta * resto, N0, fm, -fLab);
+    const resto = Math.pow(2, (flujo ? RESTO_FLUJO(k, aspira) : -(8 + 90 / (k * k)) + (aspira ? 65 : 0)) / 1200);
+    const [hr, hi] = respBoq(B, (2 * Math.PI * meta * resto) / fm);
+    return largoPara(G, meta * resto, N0, fm, -fLab + Math.atan2(hi, hr));
   };
   // Las resonancias del tubo entero (picos de la impedancia en la boquilla), hasta 3 kHz.
-  const resonancias = (G, Nc, fm) => {
-    const clave = Math.round(Nc * 100);
+  const resonancias = (G, Nc, fm, B = null) => {
+    const clave = `${Math.round(Nc * 100)}|${B ? Math.round(B.f) : 0}`;
     let P = G.picos.get(clave);
     if (P) return P;
     const L = perdidas(G, (Nc * C_AIRE) / fm, fm);
@@ -381,6 +416,10 @@ export function nucleoSampler() {
     for (let f = 15; f <= fmax; f += 1) {
       const th = (2 * Math.PI * f) / fm;
       let [Rr, Ri] = respuestaCacho(G, th);
+      if (B) {
+        const [hr, hi] = respBoq(B, th);
+        [Rr, Ri] = [Rr * hr - Ri * hi, Rr * hi + Ri * hr];
+      }
       // por el tubo recto y las pérdidas
       const fase = -2 * th * Nc + fasePerdida(L.p, th);
       const mag = L.g0 * (1 - L.p) / Math.hypot(1 - L.p * Math.cos(th), L.p * Math.sin(th));
@@ -405,9 +444,10 @@ export function nucleoSampler() {
   // «el largo», la nota del tubo (Hz: la distancia entre sus resonancias).
   const medidaTubo = (g, fm = 48000) => {
     const G = geometria(g, fm);
+    const B = boquilla(g, fm);
     if (g.slm >= 0.5) {
       const Nc = ((g.slc / 100) * fm) / C_AIRE;
-      const P = resonancias(G, Nc, fm);
+      const P = resonancias(G, Nc, fm, B);
       // la nota del tubo: lo que suena en su 6.ª resonancia (el labio la sube ≈ un quinto de la
       // distancia entre resonancias), dividido por 6
       if (P.length < 7) return { hz: 0, cm: g.slc };
@@ -415,7 +455,7 @@ export function nucleoSampler() {
       return { hz: (P[5] + 0.21 * paso) / 6, cm: g.slc };
     }
     const fT = 440 * Math.pow(2, (g.stn - 69 + g.stf / 100) / 12);
-    const Nc = cortarTubo(G, 6 * fT, 6, fT, 6 * fT, g.ssn >= 0.5, fm);
+    const Nc = cortarTubo(G, 6 * fT, 6, fT, 6 * fT, g.ssn >= 0.5, fm, B, g.slb >= 0.5);
     return { hz: fT, cm: ((Nc * C_AIRE) / fm) * 100 };
   };
 
@@ -561,7 +601,7 @@ export function nucleoSampler() {
       l.b[l.i] = x;
       l.i = (l.i + 1) & (MAXL - 1);
     };
-    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0, q1: 0, q2: 0, q3: 0, q4: 0 });
+    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0, q1: 0, q2: 0, q3: 0, q4: 0, op: 0, uf: 0, ev: 0, m1: 0, m2: 0, m3: 0, m4: 0, nl: 0, nh: 0 });
     // la afinación de cada modelo (medida: cada uno suena un poco alto por sus filtros)
     const CAL = [1.0195, 1.07, 1.009, 1.025];
     const CONTROL_DE = [null, 'rueda', 'aliento', 'expresion', 'presion'];
@@ -575,7 +615,11 @@ export function nucleoSampler() {
         p *= 1 + M.gru * 0.5 * Math.sin(2 * Math.PI * st.gfase);
       }
       const rn = azar();
+      // la respiración y el golpe de lengua mueven la presión
+      p *= M.resp * (1 + 1.5 * M.gp) * M.dip;
       p += rn * (M.ruido * 0.12 + M.asp * 0.25) * p;
+      // cuánto se abre el paso del aire en esta muestra (el ruido de aliento sale a golpes con él)
+      let pul = 0.5;
       let y;
       if (M.tipo === 0) {
         st.lpA = (1 - M.ap) * leerS(st.a, M.N) + M.ap * st.lpA;
@@ -593,6 +637,7 @@ export function nucleoSampler() {
         let x = pd * (pd * pd - 1);
         if (x > 1) x = 1;
         else if (x < -1) x = -1;
+        pul = Math.min(1, Math.abs(x));
         x += 0.5 * z;
         ponerS(st.a, x);
         if (M.w2 > 0) ponerS(st.b, x);
@@ -607,25 +652,63 @@ export function nucleoSampler() {
         // aspirado: la presión en la boca es al revés (los labios se abren hacia adentro)
         const boca = (M.aspira ? -0.3 : 0.3) * p;
         if (M.med) st.lpA = M.lg * leerS(st.b, M.Nc) + M.lp * st.lpA;
-        else st.lpA = (1 - M.ap * 0.5) * leerS(st.a, M.N) + M.ap * 0.5 * st.lpA;
+        else {
+          // (bramido: lo fuerte llega antes)
+          const x = leerS(st.a, Math.max(2, M.N - M.br * st.ev));
+          st.ev = x;
+          st.lpA = (1 - M.ap * 0.5) * x + M.ap * 0.5 * st.lpA;
+        }
         const tubo = M.med ? st.lpA : 0.85 * st.lpA;
-        let dd = boca - tubo;
-        const yy = M.b0 * dd - M.a1 * st.y1 - M.a2 * st.y2;
-        st.y2 = st.y1;
-        st.y1 = yy;
-        dd = yy * yy * (1 + M.gri * 3);
-        dd = dd / (1 + dd);
-        const q = dd * boca + (1 - dd) * tubo;
-        const z = q - st.dx + 0.995 * st.dy;
+        let q;
+        if (M.flujo) {
+          // el labio con flujo de aire: la presión en la boquilla es lo que llega más lo que sale;
+          // el labio se mueve con la diferencia y deja pasar aire según su abertura y la raíz de la
+          // diferencia (Bernoulli); lo que entra al tubo es lo que llegó más ese aire
+          const dp = boca - (tubo + st.op);
+          const yy = M.b0 * dp - M.a1 * st.y1 - M.a2 * st.y2;
+          st.y2 = st.y1;
+          st.y1 = yy;
+          let h = 0.05 + (M.aspira ? -yy : yy) * (1 + M.gri * 2);
+          if (h < 0) h = 0;
+          if (h > 2) h = 2;
+          // (el aire que pasa no cambia de golpe: la inercia de la columna en el labio; con más aire
+          // el labio se abre y se cierra más rápido y el paso es más brusco: sale más brillante)
+          st.uf += M.ul * (h * Math.sqrt(Math.abs(dp)) * (dp < 0 ? -1 : 1) - st.uf);
+          q = tubo + st.uf;
+          st.op = q;
+          pul = Math.min(1, h);
+        } else {
+          let dd = boca - tubo;
+          const yy = M.b0 * dd - M.a1 * st.y1 - M.a2 * st.y2;
+          st.y2 = st.y1;
+          st.y1 = yy;
+          dd = yy * yy * (1 + M.gri * 3);
+          dd = dd / (1 + dd);
+          q = dd * boca + (1 - dd) * tubo;
+          pul = dd;
+        }
+        let z = q - st.dx + 0.995 * st.dy;
         st.dx = q;
         st.dy = z;
+        if (M.B) {
+          // la boquilla: paso bajo resonante en la onda que entra al tubo
+          const B = M.B;
+          const o = B.b0 * z + B.b1 * st.m1 + B.b2 * st.m2 - B.a1 * st.m3 - B.a2 * st.m4;
+          st.m2 = st.m1;
+          st.m1 = z;
+          st.m4 = st.m3;
+          st.m3 = o;
+          z = o;
+        }
         ponerS(st.a, M.med ? -z : z);
         if (M.med) {
           // el cacho, tajada por tajada; en su boca, lo grave vuelve y lo que sale es lo que se oye
           const G = M.G;
           const hf = st.hf || (st.hf = new Float64Array(MAXH + 1));
           const hb = st.hb || (st.hb = new Float64Array(MAXH + 1));
-          let entra = leerS(st.a, M.Nc);
+          // (bramido: lo fuerte llega antes; la onda va guardada con el signo cambiado)
+          let entra = leerS(st.a, Math.max(2, M.Nc + M.br * st.ev));
+          st.ev = entra;
           let llega;
           if (G.M === 0) llega = entra;
           else {
@@ -670,6 +753,7 @@ export function nucleoSampler() {
         let caña = 0.7 + M.pend * pd;
         if (caña > 1) caña = 1;
         else if (caña < -1) caña = -1;
+        pul = Math.abs(caña);
         const q = p + pd * caña;
         ponerS(st.a, q);
         const z = q - st.dx + 0.995 * st.dy;
@@ -684,6 +768,7 @@ export function nucleoSampler() {
         let caña = 0.7 + 0.3 * (1 + M.gri) * pd;
         if (caña > 1) caña = 1;
         else if (caña < -1) caña = -1;
+        pul = Math.abs(caña);
         ponerS(st.b, temp);
         ponerS(st.a, p - pd * caña - temp);
         const z = ultimo - st.dx + 0.995 * st.dy;
@@ -691,7 +776,11 @@ export function nucleoSampler() {
         st.dy = z;
         y = 0.5 * z;
       }
-      return y + rn * M.ruido * 0.04 * M.env;
+      // el ruido de aliento: filtrado (entre ≈ 500 Hz y 5 kHz, como el soplo de verdad), a golpes
+      // con el paso del aire y más fuerte en el golpe de lengua
+      st.nl += M.nLp * (rn - st.nl);
+      st.nh += M.nHp * (st.nl - st.nh);
+      return y + (st.nl - st.nh) * 2.2 * M.ruido * 0.04 * M.env * (0.3 + 1.4 * pul) * (1 + 3 * M.gp);
     };
     // Lo del tubo que depende de la nota y de los parámetros, cada CADA muestras.
     const prepararSoplo = (cap, g, v, st, nivel) => {
@@ -699,13 +788,33 @@ export function nucleoSampler() {
       const nombre = CONTROL_DE[Math.round(g.sfa)];
       const ctl = nombre && vivo[nombre] !== undefined ? vivo[nombre] : 1;
       const sens = Math.max(0, Math.min(1, g.vvs / 100));
-      const a = Math.max(0, Math.min(1.5, (g.sai / 100) * (1 - sens + (sens * v.vel) / 127) * ctl));
+      // cada nota un poco distinta: afinación (hasta ±15 ct) y aire (hasta ±12 %), sorteados al nacer
+      if (cap.vCt === undefined) {
+        cap.vCt = azar() * 0.15 * g.svn;
+        cap.vA = 1 + azar() * 0.0012 * g.svn;
+      }
+      // la respiración: la presión sube y baja lenta y sin regularidad (≈ 1,2 Hz), hasta ±12 %
+      M.resp = 1;
+      if (g.srs > 0) {
+        const cR = 1 - Math.exp((-2 * Math.PI * 1.2 * CADA) / fm);
+        cap.rr = (cap.rr || 0) + cR * (azar() * 1.732 - (cap.rr || 0));
+        M.resp = Math.max(0.6, Math.min(1.4, 1 + (0.12 * g.srs * cap.rr) / 100 / Math.sqrt(cR / (2 - cR))));
+      }
+      const a = Math.max(0, Math.min(1.5, (g.sai / 100) * (1 - sens + (sens * v.vel) / 127) * ctl * cap.vA * M.resp));
       const emb = g.sem / 100;
       const salto = g.ssa / 100;
       // el desvío de la nota: mientras se sostiene (llega en «Tiempo del desvío») y al final (con
       // el soplo que se va: desde que se suelta hasta que el volumen se apaga)
       cap.tS = (cap.tS || 0) + CADA;
-      let des = g.sds * suave(cap.tS / Math.max(1, (g.sdt / 1000) * fm));
+      // el golpe de lengua: un pulso de presión (y de ruido) al empezar, que se va en ≈ 15 ms
+      M.gp = (g.sgl / 100) * Math.exp(-cap.tS / (0.015 * fm));
+      // ligado: al cambiar de nota, el aire afloja un instante (≈ 15 ms), como el labio que se
+      // reacomoda; sin eso el tubo se queda pegado en la resonancia de antes al bajar
+      if (cap.notaAnt !== undefined && cap.notaAnt !== v.nota) cap.tL = 0;
+      cap.notaAnt = v.nota;
+      if (cap.tL !== undefined) cap.tL += CADA;
+      M.dip = cap.tL !== undefined ? 1 - 0.6 * Math.exp(-cap.tL / (0.015 * fm)) : 1;
+      let des = g.sds * suave(cap.tS / Math.max(1, (g.sdt / 1000) * fm)) + cap.vCt;
       if (v.soltada && g.sdx) {
         if (!cap.n0) cap.n0 = Math.max(1e-4, nivel);
         des += g.sdx * (1 - Math.min(1, nivel / cap.n0));
@@ -730,6 +839,11 @@ export function nucleoSampler() {
       M.gru = g.sgr / 100;
       M.gri = g.sgi / 100;
       M.camp = g.sca / 100;
+      // el bramido: la onda fuerte viaja más rápido y se empina (muestras de adelanto por unidad de
+      // onda; crece con el aire, como en un tubo largo tocado fuerte)
+      M.br = (g.sbr / 100) * 60 * a * a;
+      M.nLp = 1 - Math.exp((-2 * Math.PI * Math.min(5000, 0.4 * fm)) / fm);
+      M.nHp = 1 - Math.exp((-2 * Math.PI * 500) / fm);
       if (M.tipo === 0) {
         M.cerrado = g.sex >= 0.5;
         const f = fN / CAL[0];
@@ -749,6 +863,9 @@ export function nucleoSampler() {
         M.med = g.sgm >= 0.5;
         // (aspirado, solo con el tubo con medidas: ahí está medido)
         M.aspira = M.med && g.ssn >= 0.5;
+        M.flujo = M.med && g.slb >= 0.5;
+        M.ul = 1 - Math.exp((-2 * Math.PI * Math.min(0.45 * fm, 430 * (1 + 15 * Math.pow(Math.max(0, a - 0.4), 2)))) / fm);
+        M.B = boquilla(g, fm);
         if (M.med) {
           // el tubo con medidas: la resonancia que toca la tecla y el largo del tubo recto
           const G = geometria(g, fm);
@@ -760,7 +877,7 @@ export function nucleoSampler() {
             // «Largo desde el largo»: las resonancias que tenga; la tecla va a la más cercana (no a
             // la primera, que no se afirma) y el desvío estira el tubo
             const Nc = (((g.slc / 100) * fm) / C_AIRE) * Math.pow(2, -des / 1200);
-            const P = resonancias(G, Nc / Math.pow(2, -des / 1200), fm);
+            const P = resonancias(G, Nc / Math.pow(2, -des / 1200), fm, M.B);
             // (el labio la sube: suena ≈ un quinto de la distancia entre resonancias más arriba)
             paso = P.length > 3 ? (P[3] - P[1]) / 2 : fTecla / 3;
             let mejor = P.length > 1 ? P[1] : P[0] || fTecla;
@@ -783,12 +900,12 @@ export function nucleoSampler() {
             meta = g.stb >= 0.5 ? k * fT * Math.pow(2, des / 1200) : fN;
             paso = meta / k;
             // el labio corre la nota: el tubo se corta contando con él
-            const fLm = meta * Math.pow(2, (g.ssu * a) / 1200) * labio * (M.aspira ? Math.pow(2, -1 / 12) : 1);
-            const claveM = `${meta}|${fLm}|${paso}|${M.aspira}`;
+            const fLm = meta * Math.pow(2, (g.ssu * a) / 1200) * labio * (M.aspira ? Math.pow(2, -1 / 12) : 1) * (M.flujo ? 1 - ((0.15 + 0.5 * Math.exp(-cap.tS / (0.05 * fm))) * paso) / meta : 1);
+            const claveM = `${meta}|${fLm}|${paso}|${M.aspira}|${M.B ? M.B.f : 0}|${M.flujo}`;
             if (cap.medMeta !== claveM || cap.medG !== G) {
               cap.medMeta = claveM;
               cap.medG = G;
-              cap.medN = cortarTubo(G, meta, k, paso, fLm, M.aspira, fm);
+              cap.medN = cortarTubo(G, meta, k, paso, fLm, M.aspira, fm, M.B, M.flujo);
             }
             M.Nc = cap.medN;
           }
@@ -797,7 +914,7 @@ export function nucleoSampler() {
           M.lp = L.p;
           M.fTx = paso;
           cap.fN = meta;
-          fL = meta * Math.pow(2, (g.ssu * a) / 1200) * labio * (M.aspira ? Math.pow(2, -1 / 12) : 1);
+          fL = meta * Math.pow(2, (g.ssu * a) / 1200) * labio * (M.aspira ? Math.pow(2, -1 / 12) : 1) * (M.flujo ? 1 - ((0.15 + 0.5 * Math.exp(-cap.tS / (0.05 * fm))) * paso) / meta : 1);
         } else if (g.stb >= 0.5) {
           // tubo fijo: sus resonancias en la nota del tubo × 1, 2, 3…; la tecla elige el armónico
           // más cercano (el labio no se sostiene entre dos) y el desvío estira el tubo con él
@@ -815,11 +932,18 @@ export function nucleoSampler() {
           M.N = (2 * fm) / (fN / CAL[1]) + 3;
           fL = (fN / CAL[1]) * labio;
         }
+        // ligado: el labio no salta a la nota nueva, se desliza en «Tiempo del ligado» (y el tubo
+        // lo agarra en la resonancia más cercana: el quiebre entre armónicos)
+        if (g.slg >= 0.5 && cap.fLv) fL = cap.fLv * Math.pow(fL / cap.fLv, 1 - Math.exp(-CADA / Math.max(1, (g.slt / 1000) * fm)));
+        cap.fLv = fL;
         fL = Math.min(0.2 * fm, fL);
         const w = (2 * Math.PI * fL) / fm;
+        // (con el labio de flujo de aire, más angosto todavía y afinado un poco abajo de la nota —el
+        // labio que se abre hacia afuera suena arriba de su resonancia—: así elige bien el armónico y
+        // en el ligado baja de armónico sin quedarse pegado; medido 2026-11-26)
         // el ancho del labio: con el tubo fijo, angosto como la distancia entre sus resonancias (si no,
         // cubre varias y el labio no se afirma en ninguna)
-        const r = 1 - (Math.PI * (g.stb >= 0.5 || M.med ? 0.6 * M.fTx : 0.15 * fL)) / fm;
+        const r = 1 - (Math.PI * (g.stb >= 0.5 || M.med ? (M.flujo ? 0.15 : 0.6) * M.fTx : 0.15 * fL)) / fm;
         M.a1 = -2 * r * Math.cos(w);
         M.a2 = r * r;
         M.b0 = 25 * (1 - r) * 2 * Math.sin(w);
@@ -939,6 +1063,21 @@ export function nucleoSampler() {
       const golpe = !!z.golpe || tajadas;
       // En batería, la misma nota ahoga a la que sonaba (como un tambor que se vuelve a golpear).
       if (golpe) for (const v of voces) if (v.nota === nota && !v.ahogo) v.ahogo = AHOGO_S * fm;
+      // Ligado: si en la misma zona sigue apretada una nota con una capa de soplo «Ligado», no
+      // nace otra voz: esa misma cambia de nota sin cortar el aire (el labio pasa al otro armónico).
+      if (!golpe) {
+        let w = null;
+        for (const v of voces)
+          if (v.zona === z && !v.golpe && !v.soltada && !v.ahogo && v.capas.some((c) => c.s && !c.muerta && val(p, `c${c.k}slg`, 0) >= 0.5))
+            if (!w || v.orden > w.orden) w = v;
+        if (w) {
+          w.pila = w.pila.filter((x) => x !== nota);
+          w.pila.push(nota);
+          w.nota = nota;
+          w.tecX = Math.max(-2.5, Math.min(2.5, (nota - 60) / 24));
+          return;
+        }
+      }
       const capas = [];
       (z.capas || []).slice(0, 3).forEach((c, k) => {
         const pc = prepararCapa(c, tajadas ? nota - z.baja : -1, nota);
@@ -987,6 +1126,8 @@ export function nucleoSampler() {
         tecX: Math.max(-2.5, Math.min(2.5, (nota - 60) / 24)),
         soltada: false,
         soltadaHecha: false,
+        zona: z,
+        pila: [nota],
         ahogo: 0,
         ahogoN: 1,
         orden: orden++,
@@ -995,7 +1136,17 @@ export function nucleoSampler() {
     }
 
     function notaOff(nota) {
-      for (const v of voces) if (v.nota === nota && !v.golpe && !v.soltada) v.soltada = true;
+      for (const v of voces) {
+        if (v.golpe || v.soltada || !v.pila.includes(nota)) continue;
+        v.pila = v.pila.filter((x) => x !== nota);
+        // ligado: al soltar la nota de arriba vuelve a la que sigue apretada
+        if (v.pila.length) {
+          if (v.nota === nota) {
+            v.nota = v.pila[v.pila.length - 1];
+            v.tecX = Math.max(-2.5, Math.min(2.5, (v.nota - 60) / 24));
+          }
+        } else v.soltada = true;
+      }
     }
 
     function callar() {
@@ -1036,7 +1187,7 @@ export function nucleoSampler() {
 
     // Lo de cada capa (1, 2, 3) que dicen los parámetros, leído una vez por bloque. Los nombres
     // (`c1vat`…) se arman una sola vez: armarlos en cada bloque costaba más que el sonido.
-    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'sgm', 'slm', 'slc', 'sdc', 'slh', 'sdh', 'sfh', 'sen', 'svu', 'ssn', 'stf', 'sai', 'sem', 'sru', 'ssu', 'sds', 'sdt', 'sdx', 'sin', 'siv', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
+    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'sgm', 'slm', 'slc', 'sdc', 'slh', 'sdh', 'sfh', 'sen', 'svu', 'ssn', 'slb', 'sbq', 'sbv', 'sbg', 'sbr', 'stf', 'sai', 'sem', 'sru', 'ssu', 'sds', 'sdt', 'sdx', 'slg', 'slt', 'sgl', 'srs', 'svn', 'sin', 'siv', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
     for (const pre of ['vvp', 'vkp', 'fvp', 'fkp']) for (const L of 'ADSR') CLAVES.push(pre + L);
     const DEFECTO = {};
     for (const q of PARAMS) if (q.id.startsWith('c1')) DEFECTO[q.id.slice(2)] = q.defecto;

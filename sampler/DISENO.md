@@ -158,4 +158,29 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
      - Costo: 16 voces ≈ 20 % del tiempo real en el espacio de Claude (sin medidas, 12 %).
      99 parámetros por capa, 317 en total. Faltan: paso 2, los hoyos (hasta 8, tapados a medias,
      ubicados a mano o por escala); paso 3, la pifilka con dos secciones (la segunda más angosta).
+   - **Un sonido más real** (2026-11-26; JP: «implementa eso 1234»):
+     1. **Ligado** (`slg`, y `slt` «Tiempo del ligado»): con una nota apretada en la misma zona, la
+        nueva no hace otra voz: la misma cambia de nota sin cortar el aire; el labio se desliza y el
+        tubo lo agarra en la resonancia más cercana (el quiebre). Al soltar la de arriba vuelve a la
+        que sigue apretada. Al cambiar de nota el aire afloja ≈ 15 ms (−60 %). Para bajar de
+        armónico hace falta el labio con flujo de aire: con el simple se queda pegado arriba.
+     2. **Soplo vivo**: «Golpe de lengua» (`sgl`, pulso de presión y de ruido de ≈ 15 ms);
+        «Respiración» (`srs`, presión que sube y baja ≈ 1,2 Hz, hasta ±12 %, mueve volumen, brillo y
+        altura); «Variación entre notas» (`svn`, hasta ±15 ct y ±12 % de aire por nota); el ruido de
+        aliento ahora filtrado (≈ 500 Hz–5 kHz) y a golpes con la abertura (labio, caña o chorro).
+     3. **Labio con flujo de aire** (`slb`, solo con el tubo con medidas): la presión en la
+        boquilla es lo que llega más lo que sale; el aire pasa según la abertura y la raíz de la
+        diferencia (Bernoulli), con algo de inercia (más brusco con más aire). El labio, angosto
+        (0,15 × la distancia entre resonancias) y afinado 0,15 de esa distancia abajo de la nota (el
+        labio que se abre hacia afuera suena arriba de su resonancia); al empezar, 0,5 más abajo
+        (se va en ≈ 50 ms). Medido: trutruka ±3 ct, ñolkin −12, trompeta −9 a +16, aspirado ±33
+        (corrección +110 ct). Con mucho aire salta al armónico de arriba; en tubos largos un
+        ataque lento parte un armónico arriba (≈ 100 ms): conviene un ataque corto. **Boquilla**
+        (`sbq`, `sbv` copa en cm³, `sbg` garganta en mm): resonador de Helmholtz (garganta de
+        2,5 cm) como paso bajo resonante Q = 2 en la onda que entra al tubo; su fase entra en el
+        corte del tubo (la nota sigue justa).
+     4. **Bramido** (`sbr`): la onda fuerte viaja más rápido (retardo que se acorta con la onda,
+        60·aire² muestras por unidad): tocado fuerte, el tubo largo se pone metálico.
+     Costo: 16 voces con todo ≈ 30 % del tiempo real en el espacio de Claude. 109 parámetros por
+     capa, 347 en total.
 
