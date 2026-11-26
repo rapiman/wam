@@ -183,4 +183,20 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
         60·aire² muestras por unidad): tocado fuerte, el tubo largo se pone metálico.
      Costo: 16 voces con todo ≈ 30 % del tiempo real en el espacio de Claude. 109 parámetros por
      capa, 347 en total.
+   - **El ñolkin aspirado** (2026-11-26; JP: «al ñolkin le falta su sonido agudo aspirado»; mandó
+     una segunda grabación, «El Canto del Ñolkiñ»: tubo ≈ 96,3 Hz, Sol 2 −30 ct, armónicos 4–6,
+     ataque ≈ 107 ms, vibrato ±15–22 ct a ≈ 6 Hz). Las dos grabaciones tienen la misma forma: la
+     fuerza en ≈ 650 Hz, otro realce en ≈ 1,6 kHz, poco en 1–1,3 kHz y caída fuerte desde 4 kHz,
+     y la nota apenas ≈ 7–8 dB sobre el aire. JP: «dale cambialo a ver como suena».
+     - «Resonancia de la boca» (`sbo` %, `sf1` 650 Hz, `sf2` 1600 Hz): dos realces (+15 y +8 dB
+       con 100 %, Q 2 y 2,5) a la salida, con toda su fuerza al aspirar y la mitad soplando; el
+       total baja 7 dB × la cantidad para no pasarse.
+     - Aliento aspirado: el ruido a golpes con el labio (0,05 + 2,5·abertura²) y después filtrado
+       entre 600 Hz y 3 kHz (segundo orden; al revés, los golpes corren el ruido a los graves); el
+       ruido que mueve la presión, en esa banda y a 0,3 (si no, el labio lo vuelve rumor grave).
+     - Más rango de aliento: × (1 + 1,5 · aliento) (el 100 % da 2,5 veces lo de antes).
+     Medido contra las dos grabaciones (bandas de tercio de octava, 200 Hz–8 kHz): diferencia media
+     de 7,4 dB a 3,9 dB con aliento 100 % y boca 100 %; la nota queda ≈ 7,5 dB sobre el aire, como
+     en las grabaciones. Queda de más bajo los 300 Hz (≈ +12 dB). 112 parámetros por capa, 356 en
+     total.
 

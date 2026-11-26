@@ -419,6 +419,29 @@ function dB24() {
   a.mayorQue('… con bramido, tocado fuerte sale brillante (razón de agudos)', agudos(tocar(58, { ...fl, sbr: 100, sai: 110 })) / agudos(tocar(58, { ...fl, sbr: 100, sai: 40 })), 3);
   a.menorQue('boquilla: la nota sigue justa (ct)', Math.abs(ct(frecAC(tocar(58, { ...tkm, sbq: 1 }), 0.4, 0.7), 6 * 40.02)), 15);
   a.mayorQue('bramido: tocado fuerte, más agudos (razón)', agudos(tocar(58, { ...tkm, sai: 110, sbr: 100 })) / agudos(tocar(58, { ...tkm, sai: 110 })), 2);
+  // 2026-11-26: resonancia de la boca y aliento aspirado (con dos grabaciones de ñolkin)
+  const banda = (x, f1, f2) => {
+    const q = x.subarray(...tramo(0.4, 0.75));
+    let e = 0;
+    for (let f = f1; f <= f2; f += 20) {
+      let re = 0;
+      let im = 0;
+      for (let i = 0; i < q.length; i++) {
+        re += q[i] * Math.cos((2 * Math.PI * f * i) / FM);
+        im += q[i] * Math.sin((2 * Math.PI * f * i) / FM);
+      }
+      e += re * re + im * im;
+    }
+    return e;
+  };
+  const ñ2 = { smt: 1, stb: 1, stn: 43, stf: -30, sgm: 1, slb: 1, ssn: 1, sdc: 10, slh: 18, sdh: 45, sai: 55, sru: 0 };
+  const sinB = tocar(67, ñ2);
+  const conB = tocar(67, { ...ñ2, sbo: 100 });
+  a.mayorQue('resonancia de la boca: más fuerza en 600–700 Hz, respecto de la nota (dB)', 10 * Math.log10((banda(conB, 600, 700) / banda(conB, 370, 400)) / (banda(sinB, 600, 700) / banda(sinB, 370, 400))), 3);
+  const asp = tocar(67, { ...ñ2, sru: 100 });
+  const sop2 = tocar(67, { ...ñ2, ssn: 0, sru: 100 });
+  a.mayorQue('aliento aspirado: casi sin siseo arriba de 6 kHz, comparado con soplado (dB)', 10 * Math.log10((banda(sop2, 6000, 7000) / banda(sop2, 370, 400)) / (banda(asp, 6000, 7000) / banda(asp, 370, 400))), 6);
+  a.ver('… y suena sano', sano(asp) ? 1 : 0, 1, 0);
 
   const c = tocar(57, { smt: 2, sai: 70 });
   a.ver('caña recta: suena en su nota (220 Hz, ±3 %)', frecAC(c, 0.4, 0.7), 220, 7);
