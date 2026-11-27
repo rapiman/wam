@@ -8,8 +8,9 @@
 // - de fábrica: los de abajo (los ajustes probados con las grabaciones);
 // - en el navegador (localStorage): los propios, en este computador y este navegador;
 // - en un archivo .json que se baja y se sube (para guardarlo aparte o pasarlo);
-// - en la pizarra, si el anfitrión lo ofrece: `nodo.pz.guardarPreset({ nombre, datos })` y
-//   `nodo.pz.elegirPreset()` → datos (o null). Fuera de Pizarrita no están y los botones no salen.
+// - en la caja de ritmos, si el anfitrión lo ofrece (2026-11-27, JP eligió la caja): `nodo.pz.presets()`
+//   → [{ nombre, datos }], `nodo.pz.guardarPreset({ nombre, datos })` y `nodo.pz.borrarPreset(nombre)`.
+//   Los ve cualquiera que abra esa caja. Fuera de Pizarrita no están y el grupo no sale.
 //
 // Sin dependencias del navegador al importarlo (las pruebas lo cargan en Node).
 
@@ -52,7 +53,7 @@ export function estadoDeFabrica(P, params) {
   return { parameterValues, inst: JSON.parse(JSON.stringify(P.inst)), muestras: {} };
 }
 
-// El paquete que va en un archivo o en la pizarra.
+// El paquete que va en un archivo o en la caja.
 export const empaquetar = (nombre, estado) => ({ formato: FORMATO, version: 1, nombre, estado });
 // Lo contrario: el estado de un paquete, o null si no es un preset del sampler.
 export function desempaquetar(d) {

@@ -164,7 +164,23 @@ export function crearCaratula(nodo) {
     clearTimeout(avisar.reloj);
     avisar.reloj = setTimeout(() => (avisoPreset.textContent = ''), 4000);
   };
-  const llenarPresets = (elegido = '') => {
+  // EN LA CAJA (2026-11-27, JP: «2»): dentro de Pizarrita la caja de ritmos guarda presets en su
+  // configuración, y los ve cualquiera que abra esa caja. El anfitrión pone en el nodo
+  // `pz.presets()` → [{ nombre, datos }], y si se puede editar, `pz.guardarPreset({ nombre, datos })`
+  // y `pz.borrarPreset(nombre)`. Fuera de Pizarrita no están y el grupo no sale.
+  const pz = nodo.pz || {};
+  let enCaja = [];
+  const leerCaja = async () => {
+    if (typeof pz.presets !== 'function') return [];
+    try {
+      const l = await pz.presets();
+      return Array.isArray(l) ? l.filter((x) => x && typeof x.nombre === 'string' && desempaquetar(x.datos)) : [];
+    } catch {
+      return [];
+    }
+  };
+  const llenarPresets = async (elegido = '') => {
+    enCaja = await leerCaja();
     const opcion = (valor, texto) => {
       const o = el('option', '', texto);
       o.value = valor;
@@ -173,10 +189,18 @@ export function crearCaratula(nodo) {
     const fab = el('optgroup');
     fab.label = t('De fábrica');
     FABRICA.forEach((P, i) => fab.append(opcion(`f${i}`, t(P.nombre))));
+    const grupos = [opcion('', `— ${t('Preset')} —`), fab];
+    if (typeof pz.presets === 'function') {
+      const caja = el('optgroup');
+      caja.label = t('En la caja');
+      for (const x of enCaja) caja.append(opcion(`c:${x.nombre}`, x.nombre));
+      grupos.push(caja);
+    }
     const propios = el('optgroup');
-    propios.label = t('Propios');
+    propios.label = t('En este navegador');
     for (const x of leerPropios()) propios.append(opcion(`p:${x.nombre}`, x.nombre));
-    selPreset.replaceChildren(opcion('', `— ${t('Preset')} —`), fab, propios);
+    grupos.push(propios);
+    selPreset.replaceChildren(...grupos);
     selPreset.value = elegido;
   };
   // Un estado encima de los parámetros como vienen (un preset viejo puede no traer los nuevos).
@@ -191,34 +215,65 @@ export function crearCaratula(nodo) {
       const P = FABRICA[Number(val.slice(1))];
       if (P) void aplicar(estadoDeFabrica(P, N.PARAMS));
       nombrePreset.value = '';
+    } else if (val.startsWith('c:')) {
+      const x = enCaja.find((y) => `c:${y.nombre}` === val);
+      const d = x && desempaquetar(x.datos);
+      if (d) void aplicar(d.estado);
+      nombrePreset.value = x ? x.nombre : '';
     } else {
       const x = leerPropios().find((y) => `p:${y.nombre}` === val);
       if (x) void aplicar(x.estado);
       nombrePreset.value = x ? x.nombre : '';
     }
   });
+  // (lo que otra persona guarde en la caja aparece al volver a abrir el sampler)
   const estadoActual = async () => {
     const e = await nodo.getState();
     const n = sinDireccion(nodo);
     if (n) avisar(t('Los audios abiertos desde el computador no quedan en el preset'));
     return e;
   };
-  const botonGuardar = boton(t('Guardar'), async () => {
+  const nombreOAvisar = () => {
     const nombre = nombrePreset.value.trim();
     if (!nombre) {
       nombrePreset.focus();
       avisar(t('Falta el nombre del preset'));
+    }
+    return nombre;
+  };
+  // «Guardar»: en la caja si se puede (dentro de Pizarrita, con permiso); si no, en el navegador.
+  const enLaCaja = typeof pz.guardarPreset === 'function';
+  const botonGuardar = boton(t(enLaCaja ? 'Guardar en la caja' : 'Guardar'), async () => {
+    const nombre = nombreOAvisar();
+    if (!nombre) return;
+    if (enLaCaja) {
+      const r = await pz.guardarPreset({ nombre, datos: empaquetar(nombre, await estadoActual()) });
+      if (r === false) return avisar(t('No se pudo guardar en la caja'));
+      await llenarPresets(`c:${nombre}`);
+      if (!avisoPreset.textContent) avisar(t('Guardado en la caja'));
       return;
     }
     const ok = guardarPropio(nombre, await estadoActual());
-    llenarPresets(`p:${nombre}`);
+    await llenarPresets(`p:${nombre}`);
     if (!ok) avisar(t('Este navegador no deja guardar'));
     else if (!avisoPreset.textContent) avisar(t('Guardado en este navegador'));
   });
-  const botonBorrar = boton(t('Borrar'), () => {
-    if (!selPreset.value.startsWith('p:')) return;
-    borrarPropio(selPreset.value.slice(2));
-    llenarPresets();
+  const botonNavegador = enLaCaja
+    ? boton(t('En este navegador'), async () => {
+        const nombre = nombreOAvisar();
+        if (!nombre) return;
+        const ok = guardarPropio(nombre, await estadoActual());
+        await llenarPresets(`p:${nombre}`);
+        if (!ok) avisar(t('Este navegador no deja guardar'));
+        else if (!avisoPreset.textContent) avisar(t('Guardado en este navegador'));
+      })
+    : null;
+  const botonBorrar = boton(t('Borrar'), async () => {
+    const val = selPreset.value;
+    if (val.startsWith('p:')) borrarPropio(val.slice(2));
+    else if (val.startsWith('c:') && typeof pz.borrarPreset === 'function') await pz.borrarPreset(val.slice(2));
+    else return;
+    await llenarPresets();
     nombrePreset.value = '';
   });
   const botonBajar = boton(t('Bajar archivo'), async () => {
@@ -251,32 +306,9 @@ export function crearCaratula(nodo) {
   });
   const botonSubir = boton(t('Subir archivo'), () => subida.click());
   filaPresets.append(selPreset, nombrePreset, botonGuardar, botonBorrar, botonBajar, botonSubir, subida);
-  // en la pizarra (lo pone el anfitrión; fuera de Pizarrita no sale)
-  const pz = nodo.pz || {};
-  if (typeof pz.guardarPreset === 'function')
-    filaPresets.append(
-      boton(t('En la pizarra'), async () => {
-        const nombre = nombrePreset.value.trim();
-        if (!nombre) {
-          nombrePreset.focus();
-          return avisar(t('Falta el nombre del preset'));
-        }
-        const r = await pz.guardarPreset({ nombre, datos: empaquetar(nombre, await estadoActual()) });
-        if (r !== false) avisar(t('Guardado en la pizarra'));
-      }),
-    );
-  if (typeof pz.elegirPreset === 'function')
-    filaPresets.append(
-      boton(t('Desde la pizarra'), async () => {
-        const d = desempaquetar(await pz.elegirPreset());
-        if (!d) return;
-        await aplicar(d.estado);
-        nombrePreset.value = d.nombre;
-        selPreset.value = '';
-      }),
-    );
+  if (botonNavegador) botonGuardar.after(botonNavegador);
   filaPresets.append(avisoPreset);
-  llenarPresets();
+  void llenarPresets();
 
   // --- el teclado con las zonas
   const tec = lienzo(536, 52);

@@ -66,7 +66,20 @@ const nodo = {
     Object.assign(params, e.parameterValues || {});
     if (e.inst) this.ponerInstrumento(e.inst);
   },
-  pz: { elegirAudio: async () => null, guardarPreset: async () => true, elegirPreset: async () => null },
+  pz: {
+    elegirAudio: async () => null,
+    _caja: [],
+    presets() {
+      return this._caja;
+    },
+    guardarPreset({ nombre, datos }) {
+      this._caja = this._caja.filter((x) => x.nombre !== nombre).concat([{ nombre, datos }]);
+      return true;
+    },
+    borrarPreset(nombre) {
+      this._caja = this._caja.filter((x) => x.nombre !== nombre);
+    },
+  },
 };
 window.__vista = {
   nodo,
