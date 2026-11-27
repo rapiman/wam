@@ -200,3 +200,20 @@ CAPA = { m, ini, lIni, lFin, fin, loop, alt: [a, l, r], gan, pan, afinar, cortes
      en las grabaciones. Queda de más bajo los 300 Hz (≈ +12 dB). 112 parámetros por capa, 356 en
      total.
 
+
+## El ñolkiñ de tallo (2026-11-26)
+
+Tercera grabación («Ñolkiñ – Construcción de instrumentos mapuche»): tallo hueco de *Senecio otites* con un cono de hoja enrollada, de 1,5 a 2 m (la ficha del Museo Mapuche de Cañete da 189 cm y unos 3 cm por fuera). Mide ≈ 108 Hz (La 2 −25 ct), armónicos 4.º y 5.º, ataque ≈ 165 ms, la nota ≈ 21 dB sobre el aire (las de cañería, 7–8 dB) y el 3.º parcial de cada nota casi tan fuerte como la nota («una pequeña trompeta que se aspira»).
+
+- **Pared del tubo** (`spa`): multiplica las pérdidas de la pared hasta 6 veces (pared blanda o rugosa). **Cacho blando** (`scb`): multiplica las del cacho hasta 11 veces. Con mucho (60/80) el tubo pierde los picos y salta a un armónico alto; los materiales usan 30 y 50. Lo que hace en el timbre depende del aire (con poco aire baja los armónicos 2.º y 4.º; con mucho, no siempre): no es la principal fuente de lo «cálido».
+- Materiales nuevos (estimados): «Tallo de ñolkiñ» (20 mm, pared 30 %) y «Cono de hoja» (20 cm, boca 80 mm, cono recto, blando 50 %); botones «Largo 1,5 m» y «Largo 2 m» (el tubo entero: el recto es el total menos el cacho). Tallo de 1,45 m + cono de 20 cm ≈ 109 Hz.
+- **Zumbido cerca de la mitad de la frecuencia de muestreo**: las tajadas de una muestra dejaban contenido en 20–22 kHz que la campana dejaba salir (cambia con la frecuencia de muestreo: no es del tubo). Paso bajo de segundo orden en 9 kHz a la salida del tubo con medidas. Era parte de lo «ruidoso».
+- Frase mandada (`nolkin-tallo.mp3`): tallo + cono, aspirado, labio con flujo, aire 75, aliento 20 (antes 100), boca 40, campana 100 (también saca lo grave de más bajo 300 Hz), tercer parcial +6 dB, ataque 160 ms, inestabilidad 18 ct a 6 Hz. Nota sobre el aire 20 dB y aspereza 0,44 (la grabación: 21 dB y 0,38; antes 9 dB y 0,59).
+
+## Presets (2026-11-26)
+
+JP: «presets que se puedan grabar»; un preset es **el instrumento entero**, como un programa del Korg M1 (las capas son sus osciladores). Guardados en el navegador, en la pizarra y en un archivo; de fábrica, «algunos de a poco».
+
+- `sampler/presets.js`: el preset es el mismo estado de `getState` (parámetros, instrumento y dirección de cada audio; los abiertos desde el computador no quedan y la carátula lo avisa). Al cargar uno, va encima de los parámetros como vienen (un preset viejo no trae los parámetros nuevos).
+- Fila de presets arriba de las carpetas: lista (de fábrica y propios), nombre, Guardar y Borrar (navegador, `localStorage`), Bajar archivo y Subir archivo (`.json` con `formato: 'pz-sampler-preset'`), y En la pizarra / Desde la pizarra si el anfitrión pone `nodo.pz.guardarPreset({ nombre, datos })` y `nodo.pz.elegirPreset()`. **Lo de Pizarrita todavía no está hecho** (`audioSampler.tsx`). Las carpetas bajaron de 480 a 450 px de alto.
+- De fábrica: Trutruka (cañería de agua y cacho de vaca), Ñolkiñ de cañería (gas y cacho de cabra, el de las grabaciones 1 y 2) y Ñolkiñ de tallo (con cono de hoja). Los demás (colihue, metal, PVC, pifilka de madera y de piedra) cuando lleguen sus grabaciones.

@@ -11,6 +11,7 @@ import { t } from '../comun/idiomas.js';
 import { nucleoSampler } from './nucleo.js';
 import { parejos } from './tajadas.js';
 import { crearMoldeado } from './moldear.js';
+import { FABRICA, estadoDeFabrica, empaquetar, desempaquetar, sinDireccion, leerPropios, guardarPropio, borrarPropio } from './presets.js';
 
 const N = nucleoSampler();
 const NOTA_BAJA = 24; // C1
@@ -148,6 +149,134 @@ export function crearCaratula(nodo) {
   // abajo, una carpeta a la vez, de alto fijo y con su propia barra si no cabe.
   const cabecera = el('div', `display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:6px 8px;border-bottom:1px solid ${v('borde')};`);
   cabecera.append(el('span', 'font-weight:bold;font-size:13px;margin-right:4px;', t('Sampler')));
+
+  // --- LOS PRESETS (2026-11-26): el instrumento entero, de fábrica, propios (en el navegador), en
+  // un archivo o en la pizarra (si el anfitrión lo ofrece). Ver `presets.js`.
+  const filaPresets = el('div', `display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px 8px;border-bottom:1px solid ${v('borde')};`);
+  const estiloCampo = `font:inherit;font-size:11px;color:${v('tinta')};background:${v('pantalla')};border:1px solid ${v('borde')};padding:1px 4px;`;
+  const selPreset = el('select', `${estiloCampo}max-width:230px;`);
+  const nombrePreset = el('input', `${estiloCampo}width:120px;`);
+  nombrePreset.placeholder = t('Nombre del preset');
+  nombrePreset.addEventListener('keydown', (ev) => ev.stopPropagation());
+  const avisoPreset = el('span', `color:${v('tinta2')};font-size:11px;`);
+  const avisar = (texto) => {
+    avisoPreset.textContent = texto;
+    clearTimeout(avisar.reloj);
+    avisar.reloj = setTimeout(() => (avisoPreset.textContent = ''), 4000);
+  };
+  const llenarPresets = (elegido = '') => {
+    const opcion = (valor, texto) => {
+      const o = el('option', '', texto);
+      o.value = valor;
+      return o;
+    };
+    const fab = el('optgroup');
+    fab.label = t('De fábrica');
+    FABRICA.forEach((P, i) => fab.append(opcion(`f${i}`, t(P.nombre))));
+    const propios = el('optgroup');
+    propios.label = t('Propios');
+    for (const x of leerPropios()) propios.append(opcion(`p:${x.nombre}`, x.nombre));
+    selPreset.replaceChildren(opcion('', `— ${t('Preset')} —`), fab, propios);
+    selPreset.value = elegido;
+  };
+  // Un estado encima de los parámetros como vienen (un preset viejo puede no traer los nuevos).
+  const aplicar = async (estado) => {
+    const base = estadoDeFabrica({ inst: estado.inst || { zonas: [] } }, N.PARAMS);
+    await nodo.setState({ ...estado, parameterValues: { ...base.parameterValues, ...(estado.parameterValues || {}) }, inst: estado.inst || base.inst });
+  };
+  selPreset.addEventListener('change', () => {
+    const val = selPreset.value;
+    if (!val) return;
+    if (val.startsWith('f')) {
+      const P = FABRICA[Number(val.slice(1))];
+      if (P) void aplicar(estadoDeFabrica(P, N.PARAMS));
+      nombrePreset.value = '';
+    } else {
+      const x = leerPropios().find((y) => `p:${y.nombre}` === val);
+      if (x) void aplicar(x.estado);
+      nombrePreset.value = x ? x.nombre : '';
+    }
+  });
+  const estadoActual = async () => {
+    const e = await nodo.getState();
+    const n = sinDireccion(nodo);
+    if (n) avisar(t('Los audios abiertos desde el computador no quedan en el preset'));
+    return e;
+  };
+  const botonGuardar = boton(t('Guardar'), async () => {
+    const nombre = nombrePreset.value.trim();
+    if (!nombre) {
+      nombrePreset.focus();
+      avisar(t('Falta el nombre del preset'));
+      return;
+    }
+    const ok = guardarPropio(nombre, await estadoActual());
+    llenarPresets(`p:${nombre}`);
+    if (!ok) avisar(t('Este navegador no deja guardar'));
+    else if (!avisoPreset.textContent) avisar(t('Guardado en este navegador'));
+  });
+  const botonBorrar = boton(t('Borrar'), () => {
+    if (!selPreset.value.startsWith('p:')) return;
+    borrarPropio(selPreset.value.slice(2));
+    llenarPresets();
+    nombrePreset.value = '';
+  });
+  const botonBajar = boton(t('Bajar archivo'), async () => {
+    const nombre = nombrePreset.value.trim() || t('Sampler');
+    const blob = new Blob([JSON.stringify(empaquetar(nombre, await estadoActual()), null, 1)], { type: 'application/json' });
+    const a = el('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${nombre.replace(/[\\/:*?"<>|]+/g, '_')}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  const subida = el('input');
+  subida.type = 'file';
+  subida.accept = '.json,application/json';
+  subida.style.display = 'none';
+  subida.addEventListener('change', async () => {
+    const f = subida.files && subida.files[0];
+    subida.value = '';
+    if (!f) return;
+    let d = null;
+    try {
+      d = desempaquetar(JSON.parse(await f.text()));
+    } catch {
+      d = null;
+    }
+    if (!d) return avisar(t('Ese archivo no es un preset del sampler'));
+    await aplicar(d.estado);
+    nombrePreset.value = d.nombre;
+    selPreset.value = '';
+  });
+  const botonSubir = boton(t('Subir archivo'), () => subida.click());
+  filaPresets.append(selPreset, nombrePreset, botonGuardar, botonBorrar, botonBajar, botonSubir, subida);
+  // en la pizarra (lo pone el anfitrión; fuera de Pizarrita no sale)
+  const pz = nodo.pz || {};
+  if (typeof pz.guardarPreset === 'function')
+    filaPresets.append(
+      boton(t('En la pizarra'), async () => {
+        const nombre = nombrePreset.value.trim();
+        if (!nombre) {
+          nombrePreset.focus();
+          return avisar(t('Falta el nombre del preset'));
+        }
+        const r = await pz.guardarPreset({ nombre, datos: empaquetar(nombre, await estadoActual()) });
+        if (r !== false) avisar(t('Guardado en la pizarra'));
+      }),
+    );
+  if (typeof pz.elegirPreset === 'function')
+    filaPresets.append(
+      boton(t('Desde la pizarra'), async () => {
+        const d = desempaquetar(await pz.elegirPreset());
+        if (!d) return;
+        await aplicar(d.estado);
+        nombrePreset.value = d.nombre;
+        selPreset.value = '';
+      }),
+    );
+  filaPresets.append(avisoPreset);
+  llenarPresets();
 
   // --- el teclado con las zonas
   const tec = lienzo(536, 52);
@@ -676,6 +805,15 @@ export function crearCaratula(nodo) {
     ['Cañería de agua', { sdc: 20 }],
     ['Cacho de cabra', { slh: 18, sdh: 45, sfh: 60 }],
     ['Cacho de vaca', { slh: 35, sdh: 90, sfh: 50 }],
+    // (2026-11-26) el ñolkiñ de tallo de Senecio otites y cono de hoja: pared blanda y rugosa
+    // (más pérdida, más cálido) y un cono recto; medidas estimadas
+    ['Tallo de ñolkiñ', { sdc: 20, spa: 30 }],
+    ['Cono de hoja', { slh: 20, sdh: 80, sfh: 0, scb: 50 }],
+  ];
+  // los largos: el tubo entero (tubo recto + cacho), así que el recto es el total menos el cacho
+  const LARGOS = [
+    ['Largo 1,5 m', 150],
+    ['Largo 2 m', 200],
   ];
   const filaMateriales = el('div', 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;');
   filaMateriales.append(el('span', `color:${v('tinta2')};font-size:11px;`, t('Materiales:')));
@@ -689,12 +827,24 @@ export function crearCaratula(nodo) {
         void nodo.setParameterValues(pv);
       }),
     );
+  for (const [nombre, total] of LARGOS)
+    filaMateriales.append(
+      boton(t(nombre), () => {
+        const k = cSel + 1;
+        void nodo.getParameterValues(false).then((vals) => {
+          const cacho = vals[`c${k}slh`]?.value ?? 0;
+          const pv = {};
+          for (const [c, x] of Object.entries({ sgm: 1, smt: 1, slm: 1, slc: Math.max(5, total - cacho) })) pv[`c${k}${c}`] = { id: `c${k}${c}`, value: x, normalized: false };
+          void nodo.setParameterValues(pv);
+        });
+      }),
+    );
   filaCapaFuente.append(titulo(t('Capa')), moldeado.crearGrupo(['niv', 'afi', 'ret']));
   const ayuda = el('div', `padding:6px 10px 0;color:${v('tinta2')};font-size:11px;`, t('Clic en el teclado: elegir la zona · arrastrar las marcas: dónde parte, el loop y el fin'));
   const CARPETAS = [
     ['facil', 'Fácil', () => [marco(hojas.general, titulo(t('Filtro')), moldeado.crearGrupo(['ft', 'fc', 'fr', 'fi']))]],
     ['fuente', 'Fuente', () => [ayuda, marcoTec, filaZona, filaCapas, filaDir, marcoOnda, filaTajadas, filaCapa, filaEstirar, filaCapaFuente]],
-    ['soplo', 'Soplo', () => [marco(el('div', `color:${v('tinta2')};font-size:11px;`, t('Para una capa con la fuente «Soplo»: el modelo del tubo y cómo se toca. La envolvente de Volumen es el soplo.')), titulo(t('Tubo')), moldeado.crearGrupo(['smt', 'sex', 'sfo', 'stb', 'stn', 'stf']), titulo(t('Medidas del tubo')), moldeado.crearGrupo(['sgm', 'slm', 'slc', 'sdc', 'ssn']), moldeado.crearGrupo(['slh', 'sdh', 'sfh', 'sen', 'svu']), moldeado.crearGrupo(['slb', 'sbq', 'sbv', 'sbg', 'sbr']), filaMateriales, titulo(t('Interpretación')), moldeado.crearGrupo(['sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr']), moldeado.crearGrupo(['slg', 'slt', 'sgl', 'srs', 'svn']), moldeado.crearGrupo(['sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa']), moldeado.crearGrupo(['sbo', 'sf1', 'sf2']), titulo(t('Desvío de la nota')), moldeado.crearGrupo(['sds', 'sdt', 'sdx', 'sin', 'siv']))]],
+    ['soplo', 'Soplo', () => [marco(el('div', `color:${v('tinta2')};font-size:11px;`, t('Para una capa con la fuente «Soplo»: el modelo del tubo y cómo se toca. La envolvente de Volumen es el soplo.')), titulo(t('Tubo')), moldeado.crearGrupo(['smt', 'sex', 'sfo', 'stb', 'stn', 'stf']), titulo(t('Medidas del tubo')), moldeado.crearGrupo(['sgm', 'slm', 'slc', 'sdc', 'ssn']), moldeado.crearGrupo(['slh', 'sdh', 'sfh', 'spa', 'scb', 'sen', 'svu']), moldeado.crearGrupo(['slb', 'sbq', 'sbv', 'sbg', 'sbr']), filaMateriales, titulo(t('Interpretación')), moldeado.crearGrupo(['sai', 'sem', 'sru', 'ssu', 'ssa', 'sas', 'sgr']), moldeado.crearGrupo(['slg', 'slt', 'sgl', 'srs', 'svn']), moldeado.crearGrupo(['sgi', 'sap', 'sca', 'stc', 'sdf', 'sde', 'sfa']), moldeado.crearGrupo(['sbo', 'sf1', 'sf2']), titulo(t('Desvío de la nota')), moldeado.crearGrupo(['sds', 'sdt', 'sdx', 'sin', 'siv']))]],
     ['filtro', 'Filtro', () => (moldeado.ponerHoja('fil'), [moldeado.el])],
     ['volumen', 'Volumen', () => (moldeado.ponerHoja('vol'), [moldeado.el])],
     ['altura', 'Altura', () => (moldeado.ponerHoja('alt'), [moldeado.el])],
@@ -703,7 +853,7 @@ export function crearCaratula(nodo) {
   ];
   // (las de Fácil se arman una sola vez: crearGrupo anota sus controles)
   const contenidos = {};
-  const paginas = el('div', 'height:480px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;');
+  const paginas = el('div', 'height:450px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;');
   let carpeta = 'fuente';
   const botonesCarpeta = {};
   for (const [k, nombre, armar] of CARPETAS) {
@@ -727,7 +877,7 @@ export function crearCaratula(nodo) {
     }
   };
   ponerCarpeta('fuente');
-  caja.append(cabecera, paginas);
+  caja.append(filaPresets, cabecera, paginas);
 
   // --- dibujar
   let C = coloresDe(caja);

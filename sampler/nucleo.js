@@ -194,6 +194,8 @@ export function nucleoSampler() {
           { id: 'slh', nombre: 'Largo del cacho', sub: 'sop1', solo: [1], min: 0, max: 80, defecto: 35, unidad: 'cm', paso: 0.5, dec: 1 },
           { id: 'sdh', nombre: 'Boca del cacho', sub: 'sop1', solo: [1], min: 5, max: 200, defecto: 90, unidad: 'mm', paso: 1 },
           { id: 'sfh', nombre: 'Curva del cacho', corto: 'Curva', sub: 'sop1', solo: [1], min: 0, max: 100, defecto: 50, unidad: '%', paso: 1 },
+          { id: 'spa', nombre: 'Pared del tubo', corto: 'Pared', sub: 'sop1', solo: [1], min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
+          { id: 'scb', nombre: 'Cacho blando', corto: 'Blando', sub: 'sop1', solo: [1], min: 0, max: 100, defecto: 0, unidad: '%', paso: 1 },
           { id: 'sen', nombre: 'Enrollado', sub: 'sop1', solo: [1], tipo: 'choice', opciones: ['Recto', 'Espiral', 'Óvalo'], defecto: 0, min: 0, max: 2 },
           { id: 'svu', nombre: 'Vueltas', sub: 'sop1', solo: [1], min: 1, max: 12, defecto: 3, paso: 1 },
           { id: 'ssn', nombre: 'Sentido del aire', corto: 'Aire', sub: 'sop1', solo: [1], tipo: 'choice', opciones: ['Soplado', 'Aspirado'], defecto: 0, min: 0, max: 1 },
@@ -289,7 +291,7 @@ export function nucleoSampler() {
   const MAXH = 256;
   const cacheGeo = new Map();
   const geometria = (g, fm) => {
-    const clave = `${g.sdc}|${g.slh}|${g.sdh}|${g.sfh}|${g.sen}|${g.svu}|${fm}`;
+    const clave = `${g.sdc}|${g.slh}|${g.sdh}|${g.sfh}|${g.sen}|${g.svu}|${g.spa}|${g.scb}|${fm}`;
     let G = cacheGeo.get(clave);
     if (G) return G;
     const rc = Math.max(0.0015, g.sdc / 2000);
@@ -310,7 +312,7 @@ export function nucleoSampler() {
     const rBoca = M > 0 ? Math.sqrt(A[M]) : rc;
     const fcB = Math.min(0.4 * fm, (1.2 * C_AIRE) / (2 * Math.PI * rBoca));
     const vueltas = g.sen >= 0.5 ? g.svu : 0;
-    G = { M, K, rc, Lh, rMed: rMed || rc, pB: Math.exp((-2 * Math.PI * fcB) / fm), enrollado: 1 - vueltas * (g.sen >= 1.5 ? 0.006 : 0.004), picos: new Map() };
+    G = { M, K, rc, Lh, rMed: rMed || rc, fPared: 1 + (5 * (g.spa || 0)) / 100, fBlando: 1 + (10 * (g.scb || 0)) / 100, pB: Math.exp((-2 * Math.PI * fcB) / fm), enrollado: 1 - vueltas * (g.sen >= 1.5 ? 0.006 : 0.004), picos: new Map() };
     if (cacheGeo.size > 64) cacheGeo.clear();
     cacheGeo.set(clave, G);
     return G;
@@ -344,7 +346,7 @@ export function nucleoSampler() {
   };
   // Las pérdidas de ida y vuelta como un paso bajo de un polo: { g0, p }.
   const perdidas = (G, Lc, fm) => {
-    const Kp = 2.96e-5 * 2 * (Lc / G.rc + G.Lh / G.rMed);
+    const Kp = 2.96e-5 * 2 * G.fPared * (Lc / G.rc + (G.Lh / G.rMed) * G.fBlando);
     const gf = (f) => Math.exp(-Kp * Math.sqrt(f)) * G.enrollado;
     const f2 = Math.min(1500, 0.2 * fm);
     const g0 = gf(30);
@@ -604,7 +606,7 @@ export function nucleoSampler() {
       l.b[l.i] = x;
       l.i = (l.i + 1) & (MAXL - 1);
     };
-    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0, q1: 0, q2: 0, q3: 0, q4: 0, op: 0, uf: 0, ev: 0, m1: 0, m2: 0, m3: 0, m4: 0, nl: 0, nh: 0, na: 0, na1: [0, 0, 0, 0], na2: [0, 0, 0, 0], b1: [0, 0, 0, 0], b2: [0, 0, 0, 0] });
+    const nuevoSoplo = () => ({ a: lineaS(), b: lineaS(), j: lineaS(), k: lineaS(), lpA: 0, lpB: 0, dx: 0, dy: 0, y1: 0, y2: 0, z1: 0, cx: 0, gfase: 0, q1: 0, q2: 0, q3: 0, q4: 0, op: 0, uf: 0, ev: 0, m1: 0, m2: 0, m3: 0, m4: 0, nl: 0, nh: 0, na: 0, na1: [0, 0, 0, 0], na2: [0, 0, 0, 0], b1: [0, 0, 0, 0], b2: [0, 0, 0, 0], rl: [0, 0, 0, 0] });
     // la afinación de cada modelo (medida: cada uno suena un poco alto por sus filtros)
     const CAL = [1.0195, 1.07, 1.009, 1.025];
     const CONTROL_DE = [null, 'rueda', 'aliento', 'expresion', 'presion'];
@@ -736,6 +738,19 @@ export function nucleoSampler() {
           // lo que se oye: con «Campana» en 0, la onda que vuelve a la boquilla (el sonido de adentro
           // del tubo, oscuro); en 100, lo que sale por la boca del cacho (lo grave casi no sale: brillante)
           y = 4 * ((1 - M.camp) * st.lpA + M.camp * 5 * (llega + vuelve));
+          // (2026-11-26) las tajadas de una muestra dejan un zumbido cerca de la mitad de la
+          // frecuencia de muestreo que la campana deja salir (no es del tubo: cambia con la
+          // frecuencia de muestreo); un paso bajo en 9 kHz lo saca sin tocar lo que suena
+          {
+            const F = M.radLP;
+            const e = st.rl;
+            const o = F[0] * y + F[1] * e[0] + F[2] * e[1] - F[3] * e[2] - F[4] * e[3];
+            e[1] = e[0];
+            e[0] = y;
+            e[3] = e[2];
+            e[2] = o;
+            y = o;
+          }
         } else {
           // la campana deja salir más agudo
           st.cx = 0.9 * st.cx + 0.1 * z;
@@ -895,6 +910,7 @@ export function nucleoSampler() {
         };
         M.nAH = bq(600, true);
         M.nAL = bq(3000, false);
+        M.radLP = bq(9000, false);
       }
       M.nHp = 1 - Math.exp((-2 * Math.PI * 500) / fm);
       // la resonancia de la boca (2026-11-26, medida en dos grabaciones de ñolkin: el sonido tiene su
@@ -1265,7 +1281,7 @@ export function nucleoSampler() {
 
     // Lo de cada capa (1, 2, 3) que dicen los parámetros, leído una vez por bloque. Los nombres
     // (`c1vat`…) se arman una sola vez: armarlos en cada bloque costaba más que el sonido.
-    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'sgm', 'slm', 'slc', 'sdc', 'slh', 'sdh', 'sfh', 'sen', 'svu', 'ssn', 'slb', 'sbq', 'sbv', 'sbg', 'sbr', 'stf', 'sai', 'sem', 'sru', 'ssu', 'sds', 'sdt', 'sdx', 'slg', 'slt', 'sgl', 'srs', 'svn', 'sin', 'siv', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'sbo', 'sf1', 'sf2', 'stc', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
+    const CLAVES = ['smt', 'sex', 'sfo', 'stb', 'stn', 'sgm', 'slm', 'slc', 'sdc', 'slh', 'sdh', 'sfh', 'spa', 'scb', 'sen', 'svu', 'ssn', 'slb', 'sbq', 'sbv', 'sbg', 'sbr', 'stf', 'sai', 'sem', 'sru', 'ssu', 'sds', 'sdt', 'sdx', 'slg', 'slt', 'sgl', 'srs', 'svn', 'sin', 'siv', 'ssa', 'sas', 'sgr', 'sgi', 'sap', 'sca', 'sbo', 'sf1', 'sf2', 'stc', 'sdf', 'sde', 'sfa', 'mhm', 'mhi', 'mhz', 'mrm', 'mrf', 'mrz', 'mcm', 'mct', 'mcy', 'niv', 'afi', 'vat', 'val', 'vdt', 'vbp', 'vst', 'vsl', 'vrt', 'vvs', 'vvt', 'vkt', 'ft', 'fc', 'fr', 'fi', 'fl0', 'fat', 'fal', 'fdt', 'fbp', 'fst', 'fsl', 'frt', 'frl', 'fvi', 'fvt', 'fkc', 'fkt', 'pi', 'pl0', 'pat', 'pal', 'pdt', 'prt', 'prl', 'pvi', 'pvt'];
     for (const pre of ['vvp', 'vkp', 'fvp', 'fkp']) for (const L of 'ADSR') CLAVES.push(pre + L);
     const DEFECTO = {};
     for (const q of PARAMS) if (q.id.startsWith('c1')) DEFECTO[q.id.slice(2)] = q.defecto;

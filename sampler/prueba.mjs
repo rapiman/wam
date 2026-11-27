@@ -4,6 +4,7 @@ import { nucleoSampler } from './nucleo.js';
 import { energias, golpes, parejos } from './tajadas.js';
 import { estirarTramos, segundosDe } from './estirar.js';
 import { FM, tono, porDefecto, anotador, pico } from '../comun/probar.mjs';
+import { FABRICA, estadoDeFabrica, empaquetar, desempaquetar } from './presets.js';
 
 const N = nucleoSampler();
 // Los parámetros por capa (2026-11-25): las pruebas de antes hablan de una envolvente y un filtro
@@ -442,6 +443,14 @@ function dB24() {
   const sop2 = tocar(67, { ...ñ2, ssn: 0, sru: 100 });
   a.mayorQue('aliento aspirado: casi sin siseo arriba de 6 kHz, comparado con soplado (dB)', 10 * Math.log10((banda(sop2, 6000, 7000) / banda(sop2, 370, 400)) / (banda(asp, 6000, 7000) / banda(asp, 370, 400))), 6);
   a.ver('… y suena sano', sano(asp) ? 1 : 0, 1, 0);
+  // 2026-11-26: ñolkiñ de tallo hueco con cono de hoja (tercera grabación: ≈ 108 Hz, 1,5–2 m)
+  const tallo = { smt: 1, stb: 1, sgm: 1, slm: 1, slc: 145, sdc: 20, slh: 20, sdh: 80, sfh: 0, spa: 30, scb: 50, ssn: 1, slb: 1, sai: 75, sru: 0, sca: 100 };
+  a.ver('tallo de 1,45 m + cono de 20 cm: la nota del tubo (Hz, ±3 %)', N.medidaTubo(tallo, FM).hz, 109, 3.3);
+  const tal = tocar(69, tallo);
+  a.ver('… suena y no se dispara', sano(tal) && pico2(tal, 0.4, 0.7) > 0.05 ? 1 : 0, 1, 0);
+  // (la pared: lo que hace en el timbre depende del aire; se prueba que el tubo siga sano)
+  a.ver('… con la pared lisa también', sano(tocar(69, { ...tallo, spa: 0, scb: 0 })) ? 1 : 0, 1, 0);
+  a.mayorQue('sin zumbido cerca de la mitad de la frecuencia de muestreo (dB bajo la nota)', 10 * Math.log10(banda(tal, 440, 470) / banda(tal, FM * 0.42, FM * 0.45)), 30);
 
   const c = tocar(57, { smt: 2, sai: 70 });
   a.ver('caña recta: suena en su nota (220 Hz, ±3 %)', frecAC(c, 0.4, 0.7), 220, 7);
@@ -517,6 +526,25 @@ function dB24() {
   const g = nuevo(oz(0, true), []);
   correr(g, 1, [[0, 'on', 60]], PD({ atq: 0.5, vel: 0, dec: 200 }));
   a.ver('en un golpe, el oscilador cae a cero en el decaimiento y la voz se libera', g.cuantasVoces(), 0, 0);
+}
+
+// LOS PRESETS (2026-11-26): los de fábrica traen todos los parámetros, suenan, y un paquete va y
+// vuelve igual.
+{
+  for (const P of FABRICA) {
+    const e = estadoDeFabrica(P, N.PARAMS);
+    a.ver(`preset «${P.nombre}»: trae todos los parámetros`, Object.keys(e.parameterValues).length, N.PARAMS.length, 0);
+    a.ver('… y todos sus ajustes son parámetros de verdad', Object.keys(P.capa1).every((k) => `c1${k}` in e.parameterValues) ? 1 : 0, 1, 0);
+    const p = {};
+    for (const [id, x] of Object.entries(e.parameterValues)) p[id] = x.value;
+    const nota = P.nombre.startsWith('Trutruka') ? 58 : 69;
+    const x = correr(nuevo(e.inst.zonas, []), 0.8, [[0, 'on', nota, 110]], p).L;
+    a.ver('… suena y no se dispara', x.every((y) => Number.isFinite(y) && Math.abs(y) < 4) && pico(x.subarray(Math.round(0.4 * FM), Math.round(0.75 * FM))) > 0.05 ? 1 : 0, 1, 0);
+  }
+  const e = estadoDeFabrica(FABRICA[0], N.PARAMS);
+  const d = desempaquetar(JSON.parse(JSON.stringify(empaquetar('mío', e))));
+  a.ver('un preset en un archivo: va y vuelve igual', d && d.nombre === 'mío' && JSON.stringify(d.estado) === JSON.stringify(e) ? 1 : 0, 1, 0);
+  a.ver('… y lo que no es un preset no se toma', desempaquetar({ formato: 'otro', estado: {} }) === null && desempaquetar(null) === null ? 1 : 0, 1, 0);
 }
 
 a.cerrar();

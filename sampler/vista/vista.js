@@ -59,7 +59,14 @@ const nodo = {
   cargarDireccion: async () => 'piano',
   getParameterValues: async () => params,
   setParameterValues: async (v) => Object.assign(params, v),
-  pz: { elegirAudio: async () => null },
+  async getState() {
+    return { parameterValues: JSON.parse(JSON.stringify(params)), inst: JSON.parse(JSON.stringify(this.inst)), muestras: {} };
+  },
+  async setState(e) {
+    Object.assign(params, e.parameterValues || {});
+    if (e.inst) this.ponerInstrumento(e.inst);
+  },
+  pz: { elegirAudio: async () => null, guardarPreset: async () => true, elegirPreset: async () => null },
 };
 window.__vista = {
   nodo,
